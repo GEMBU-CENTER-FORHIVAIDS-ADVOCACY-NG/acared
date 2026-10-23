@@ -42,7 +42,7 @@ export default function Profile({
                     options={{
                         preserveScroll: true,
                     }}
-                    className="space-y-6"
+                    className="space-y-6 md:max-w-xl"
                 >
                     {({ processing, errors }) => (
                         <>

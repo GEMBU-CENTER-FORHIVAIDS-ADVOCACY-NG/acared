@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Settings\PermissionController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamInvitationController;
@@ -17,6 +19,19 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Roles & Permissions
+    Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::patch('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+    Route::delete('roles/bulk', [RoleController::class, 'bulkDestroy'])->name('roles.bulk.destroy');
+
+    Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
+    Route::post('permissions', [PermissionController::class, 'store'])->name('permissions.store');
+    Route::patch('permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
+    Route::delete('permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
+    Route::delete('permissions/bulk', [PermissionController::class, 'bulkDestroy'])->name('permissions.bulk.destroy');
+
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('settings/security', [SecurityController::class, 'edit'])
@@ -31,6 +46,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/teams', [TeamController::class, 'index'])->name('teams.index');
     Route::post('settings/teams', [TeamController::class, 'store'])->name('teams.store');
+    Route::delete('settings/teams/bulk', [TeamController::class, 'bulkDestroy'])->name('teams.bulk.destroy');
 
     Route::middleware(EnsureTeamMembership::class)->group(function () {
         Route::get('settings/teams/{team}', [TeamController::class, 'edit'])->name('teams.edit');

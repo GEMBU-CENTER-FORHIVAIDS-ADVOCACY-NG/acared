@@ -13,9 +13,15 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
-    --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-sm: calc(var(--radius) - 4px);
+    --radius-lg: var(--theme-radius);
+    --radius-md: var(--theme-radius-sm);
+    --radius-sm: var(--theme-radius-xs);
+
+    --shadow-xs: var(--theme-shadow-soft);
+    --shadow-sm: var(--theme-shadow-soft);
+    --shadow-md: var(--theme-shadow-md);
+    --shadow-lg: var(--theme-shadow-lg);
+    --shadow-xl: var(--theme-shadow-lg);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -59,77 +65,141 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+
+    --color-brass: var(--theme-brass);
+    --color-brass-hover: var(--theme-brass-hover);
+    --color-brass-light: var(--theme-brass-light);
+    --color-surface: var(--theme-surface);
+    --color-surface-dim: var(--theme-surface-dim);
+    --color-surface-card: var(--theme-surface-card);
+    --color-surface-inset: var(--theme-surface-inset);
+    --color-surface-deep: var(--theme-surface-deep);
+    --color-slate: var(--theme-slate);
+    --color-slate-dim: var(--theme-slate-dim);
+    --color-slate-muted: var(--theme-slate-muted);
+    --color-slate-faint: var(--theme-slate-faint);
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --theme-radius: 3px;
+    --theme-radius-sm: 2px;
+    --theme-radius-xs: 1px;
+
+    --theme-transition: 160ms ease-out;
+    --theme-transition-slow: 280ms ease-out;
+
+    --theme-shadow-soft: 0 1px 2px 0 rgb(40 36 28 / 0.06);
+    --theme-shadow-md:
+        0 4px 16px -4px rgb(40 36 28 / 0.1), 0 0 0 1px rgb(40 36 28 / 0.04);
+    --theme-shadow-lg:
+        0 16px 48px -12px rgb(40 36 28 / 0.15),
+        0 6px 16px -6px rgb(40 36 28 / 0.08);
+    --theme-shadow-inset: inset 0 2px 4px rgb(40 36 28 / 0.06);
+
+    --theme-border: rgb(60 56 48 / 0.1);
+    --theme-border-mid: rgb(60 56 48 / 0.16);
+    --theme-border-heavy: rgb(60 56 48 / 0.24);
+    --theme-border-ornate: rgb(168 135 42 / 0.2);
+
+    --theme-surface: #faf9f6;
+    --theme-surface-dim: #f2f0eb;
+    --theme-surface-card: #ffffff;
+    --theme-surface-inset: #eae7e0;
+    --theme-surface-deep: #e3dfd6;
+
+    --theme-brass: #a8872a;
+    --theme-brass-hover: #8e7222;
+    --theme-brass-light: #c4a94d;
+    --theme-brass-dim: rgba(168, 135, 42, 0.08);
+    --theme-brass-ring: rgba(168, 135, 42, 0.2);
+
+    --theme-slate: #3a362e;
+    --theme-slate-dim: #635d52;
+    --theme-slate-muted: #9c958a;
+    --theme-slate-faint: #c4bfb4;
+
+    --theme-body-bg: #edeae4;
+
+    --cb-color: rgba(168, 135, 42, 0.28);
+    --cb-size: 22px;
+    --cb-weight: 1px;
+    --cb-offset: 7px;
+
+    --background: var(--theme-body-bg);
+    --foreground: var(--theme-slate);
+    --card: var(--theme-surface-card);
+    --card-foreground: var(--theme-slate);
+    --popover: var(--theme-surface-card);
+    --popover-foreground: var(--theme-slate);
+    --primary: var(--theme-brass);
+    --primary-foreground: #ffffff;
+    --secondary: var(--theme-surface-dim);
+    --secondary-foreground: var(--theme-slate);
+    --muted: var(--theme-surface-dim);
+    --muted-foreground: var(--theme-slate-dim);
+    --accent: var(--theme-surface-inset);
+    --accent-foreground: var(--theme-slate);
     --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    --destructive-foreground: #ffffff;
+    --border: var(--theme-border);
+    --input: var(--theme-border-heavy);
+    --ring: var(--theme-brass-ring);
+    --chart-1: #a8872a;
+    --chart-2: #c4a94d;
+    --chart-3: #3a362e;
+    --chart-4: #635d52;
+    --chart-5: #9c958a;
+    --radius: var(--theme-radius);
+    --sidebar: var(--theme-surface-dim);
+    --sidebar-foreground: var(--theme-slate);
+    --sidebar-primary: var(--theme-brass);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--theme-brass-dim);
+    --sidebar-accent-foreground: var(--theme-slate);
+    --sidebar-border: var(--theme-border);
+    --sidebar-ring: var(--theme-brass-ring);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.269 0 0);
-    --sidebar-ring: oklch(0.439 0 0);
+    --theme-shadow-soft: 0 1px 3px 0 rgb(0 0 0 / 0.5);
+    --theme-shadow-md:
+        0 4px 16px -4px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.02);
+    --theme-shadow-lg:
+        0 16px 48px -12px rgb(0 0 0 / 0.7), 0 6px 16px -6px rgb(0 0 0 / 0.5);
+    --theme-shadow-inset: inset 0 2px 4px rgb(0 0 0 / 0.3);
+
+    --theme-border: rgb(255 255 255 / 0.05);
+    --theme-border-mid: rgb(255 255 255 / 0.08);
+    --theme-border-heavy: rgb(255 255 255 / 0.12);
+    --theme-border-ornate: rgb(201 164 58 / 0.15);
+
+    --theme-surface: #13110e;
+    --theme-surface-dim: #0d0c0a;
+    --theme-surface-card: #1a1815;
+    --theme-surface-inset: #0a0908;
+    --theme-surface-deep: #070605;
+
+    --theme-brass: #c9a43a;
+    --theme-brass-hover: #b89430;
+    --theme-brass-light: #daba5e;
+    --theme-brass-dim: rgba(201, 164, 58, 0.06);
+    --theme-brass-ring: rgba(201, 164, 58, 0.15);
+
+    --theme-slate: #d4cfc4;
+    --theme-slate-dim: #8e887c;
+    --theme-slate-muted: #5a554c;
+    --theme-slate-faint: #3a3630;
+
+    --theme-body-bg: #0d0c0a;
+
+    --cb-color: rgba(201, 164, 58, 0.18);
+
+    --destructive: oklch(0.637 0.237 25.331);
+    --chart-1: #c9a43a;
+    --chart-2: #daba5e;
+    --chart-3: #d4cfc4;
+    --chart-4: #8e887c;
+    --chart-5: #5a554c;
 }
 
 @layer base {
@@ -139,5 +209,159 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+}
+
+@media print {
+    *,
+    *::before,
+    *::after {
+        color: black !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    @page wallet-history-receipt {
+        size: A6 portrait;
+        margin: 8mm;
+    }
+
+    body.printing-wallet-history {
+        page: wallet-history-receipt;
+    }
+
+    body.printing-wallet-history * {
+        visibility: hidden !important;
+    }
+
+    body.printing-wallet-history .wallet-history-receipt,
+    body.printing-wallet-history .wallet-history-receipt * {
+        visibility: visible !important;
+    }
+
+    body.printing-wallet-history .wallet-history-receipt {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    /* Billing receipt print: XP-80C 80mm thermal printer (72mm effective width, roll paper) */
+    @page billing-receipt {
+        size: 80mm 3276mm;
+        margin: 0;
+    }
+
+    body.printing-billing-receipt {
+        page: billing-receipt;
+    }
+
+    body.printing-billing-receipt * {
+        visibility: hidden !important;
+    }
+
+    body.printing-billing-receipt .billing-receipt,
+    body.printing-billing-receipt .billing-receipt * {
+        visibility: visible !important;
+    }
+
+    body.printing-billing-receipt .billing-receipt {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 72mm !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 4mm !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+        color: #000 !important;
+    }
+
+    body.printing-billing-receipt .billing-receipt table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 11px !important;
+    }
+
+    body.printing-billing-receipt .billing-receipt th,
+    body.printing-billing-receipt .billing-receipt td {
+        border: none !important;
+        padding: 2px 0 !important;
+    }
+
+    body.printing-billing-receipt .billing-receipt .border-t {
+        border-top: 1px dashed #000 !important;
+    }
+
+    body.printing-billing-receipt .billing-receipt .border-t-2 {
+        border-top: 2px solid #000 !important;
+    }
+
+    /* Report table print: hide everything except the report-print-container */
+    body.printing-report * {
+        visibility: hidden !important;
+    }
+
+    body.printing-report .report-print-container,
+    body.printing-report .report-print-container * {
+        visibility: visible !important;
+    }
+
+    body.printing-report .report-print-container {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        overflow: visible !important;
+        z-index: 9999 !important;
+        background: white !important;
+    }
+
+    @page {
+        size: A4 landscape;
+    }
+
+    body.printing-report .report-print-container table {
+        border: 1px solid #000 !important;
+        border-collapse: collapse !important;
+        width: 100% !important;
+        page-break-inside: auto !important;
+    }
+
+    body.printing-report .report-print-container thead {
+        display: table-header-group !important;
+    }
+
+    body.printing-report .report-print-container tfoot {
+        display: table-footer-group !important;
+    }
+
+    body.printing-report .report-print-container tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    body.printing-report .report-print-container th,
+    body.printing-report .report-print-container td {
+        border: 1px solid #000 !important;
+        padding: 4px 8px !important;
     }
 }

@@ -8,12 +8,25 @@ export type Team = {
     role?: TeamRole;
     roleLabel?: string;
     isCurrent?: boolean;
+    logo?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+    email?: string | null;
+    address?: string | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+    canUpdate?: boolean;
+    canDelete?: boolean;
+    canLeave?: boolean;
 };
 
 export type TeamMember = {
     id: number;
     name: string;
     email: string;
+    email_verified_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
     avatar?: string | null;
     role: TeamRole;
     role_label: string;

@@ -1,5 +1,24 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import {
+    Banknote,
+    Beaker,
+    BookOpen,
+    Building2,
+    ChartBar,
+    ClipboardList,
+    FlaskConical,
+    FolderGit2,
+    Heart,
+    LayoutGrid,
+    Package,
+    Pill,
+    ReceiptText,
+    Stethoscope,
+    SwatchBook,
+    Users,
+    Wallet,
+    Baby,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -15,6 +34,32 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import {
+    index as billingsIndex,
+    history as billingsHistory,
+} from '@/routes/billings';
+import { index as categoriesIndex } from '@/routes/categories';
+import { index as consultationsIndex } from '@/routes/consultations';
+import { index as patientsIndex } from '@/routes/patients';
+import { index as receptionIndex } from '@/routes/reception';
+import { index as laboratoriesIndex } from '@/routes/laboratories';
+import { index as labIntakeIndex } from '@/routes/lab-intake';
+import { index as labInventoriesIndex } from '@/routes/lab-inventories';
+import { index as pharmacyDrugFormsIndex } from '@/routes/pharmacy/drug-forms';
+import { index as pharmacyInventoriesIndex } from '@/routes/pharmacy/inventories';
+import { index as pharmacyPrescriptionsIndex } from '@/routes/pharmacy/prescriptions';
+import { index as inventoryVendorsIndex } from '@/routes/vendors';
+import { index as inventoryStockIndex } from '@/routes/inventory/stock';
+import { index as purchaseOrdersIndex } from '@/routes/purchase-orders';
+import { index as wardsIndex } from '@/routes/nursing/wards';
+import { index as walletHistoryIndex } from '@/routes/finance/wallet-history';
+import { index as nursingRecordsIndex } from '@/routes/nursing/records';
+import { laboratory as laboratoryReport } from '@/routes/reports';
+import { index as financialReportsIndex } from '@/routes/reports/financial';
+import { index as clinicalReportsIndex } from '@/routes/reports/clinical';
+import { index as stockReportsIndex } from '@/routes/reports/stock';
+import { index as wardRoundsIndex } from '@/routes/nursing/ward-rounds';
+import { index as admissionsIndex } from '@/routes/nursing/admissions';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -28,6 +73,204 @@ export function AppSidebar() {
             title: 'Dashboard',
             href: dashboardUrl,
             icon: LayoutGrid,
+        },
+    ];
+
+    const receptionNavItems: NavItem[] = [
+        {
+            title: 'Reception',
+            href: page.props.currentTeam
+                ? receptionIndex(page.props.currentTeam.slug)
+                : '/reception',
+            icon: Stethoscope,
+        },
+        {
+            title: 'Patients',
+            href: page.props.currentTeam
+                ? patientsIndex(page.props.currentTeam.slug)
+                : '/patients',
+            icon: Users,
+        },
+        {
+            title: 'Categories',
+            href: page.props.currentTeam
+                ? categoriesIndex(page.props.currentTeam.slug)
+                : '/categories',
+            icon: SwatchBook,
+        },
+    ];
+
+    const consultationNavItems: NavItem[] = [
+        {
+            title: 'Consultations',
+            href: page.props.currentTeam
+                ? consultationsIndex(page.props.currentTeam.slug)
+                : '/consultations',
+            icon: Stethoscope,
+        },
+    ];
+
+    const laboratoryNavItems: NavItem[] = [
+        {
+            title: 'Lab requests',
+            href: page.props.currentTeam
+                ? laboratoriesIndex(page.props.currentTeam.slug)
+                : '/laboratories',
+            icon: Beaker,
+        },
+        {
+            title: 'Lab inventory',
+            href: page.props.currentTeam
+                ? labInventoriesIndex(page.props.currentTeam.slug)
+                : '/lab-inventories',
+            icon: Package,
+        },
+        {
+            title: 'Lab intake',
+            href: page.props.currentTeam
+                ? labIntakeIndex(page.props.currentTeam.slug)
+                : '/lab-intake',
+            icon: FlaskConical,
+        },
+        {
+            title: 'Lab investigation',
+            href: page.props.currentTeam
+                ? laboratoryReport(page.props.currentTeam.slug)
+                : '/reports/laboratory',
+            icon: ChartBar,
+        },
+    ];
+
+    const financeNavItems: NavItem[] = [
+        {
+            title: 'Billings',
+            href: page.props.currentTeam
+                ? billingsIndex(page.props.currentTeam.slug)
+                : '/billings',
+            icon: Banknote,
+        },
+        {
+            title: 'Billing history',
+            href: page.props.currentTeam
+                ? billingsHistory(page.props.currentTeam.slug)
+                : '/billings/history',
+            icon: ReceiptText,
+        },
+        {
+            title: 'Wallet history',
+            href: page.props.currentTeam
+                ? walletHistoryIndex(page.props.currentTeam.slug)
+                : '/finance/wallet-history',
+            icon: Wallet,
+        },
+    ];
+
+    const pharmacyNavItems: NavItem[] = [
+        {
+            title: 'Prescriptions',
+            href: page.props.currentTeam
+                ? pharmacyPrescriptionsIndex(page.props.currentTeam.slug)
+                : '/pharmacy/prescriptions',
+            icon: ClipboardList,
+        },
+        {
+            title: 'Medication inventory',
+            href: page.props.currentTeam
+                ? pharmacyInventoriesIndex(page.props.currentTeam.slug)
+                : '/pharmacy/inventories',
+            icon: Pill,
+        },
+        {
+            title: 'Drug forms',
+            href: page.props.currentTeam
+                ? pharmacyDrugFormsIndex(page.props.currentTeam.slug)
+                : '/pharmacy/drug-forms',
+            icon: Package,
+        },
+    ];
+
+    const nursingNavItems: NavItem[] = [
+        {
+            title: 'Admission overview',
+            href: page.props.currentTeam
+                ? admissionsIndex.url(page.props.currentTeam.slug)
+                : '/nursing/admissions',
+            icon: Building2,
+        },
+        {
+            title: 'Maternity',
+            href: page.props.currentTeam
+                ? nursingRecordsIndex.url(page.props.currentTeam.slug)
+                : '/nursing/records',
+            icon: Baby,
+        },
+        {
+            title: 'Wards and beds',
+            href: page.props.currentTeam
+                ? wardsIndex.url(page.props.currentTeam.slug)
+                : '/nursing/wards',
+            icon: Heart,
+        },
+        {
+            title: 'Ward rounds',
+            href: page.props.currentTeam
+                ? wardRoundsIndex.url(page.props.currentTeam.slug)
+                : '/nursing/ward-rounds',
+            icon: ClipboardList,
+        },
+    ];
+
+    const inventoryNavItems: NavItem[] = [
+        {
+            title: 'Stock',
+            href: page.props.currentTeam
+                ? inventoryStockIndex.url(page.props.currentTeam.slug)
+                : '/inventory/stock',
+            icon: Package,
+        },
+        {
+            title: 'Vendors',
+            href: page.props.currentTeam
+                ? inventoryVendorsIndex.url(page.props.currentTeam.slug)
+                : '/vendors',
+            icon: Users,
+        },
+        {
+            title: 'Purchase orders',
+            href: page.props.currentTeam
+                ? purchaseOrdersIndex.url(page.props.currentTeam.slug)
+                : '/purchase-orders',
+            icon: ReceiptText,
+        },
+    ];
+
+    const reportNavItems: NavItem[] = [
+        {
+            title: 'Financial reports',
+            href: page.props.currentTeam
+                ? financialReportsIndex.url({
+                      current_team: page.props.currentTeam.slug,
+                  })
+                : '/reports/financial',
+            icon: Banknote,
+        },
+        {
+            title: 'Clinical reports',
+            href: page.props.currentTeam
+                ? clinicalReportsIndex.url({
+                      current_team: page.props.currentTeam.slug,
+                  })
+                : '/reports/clinical',
+            icon: Stethoscope,
+        },
+        {
+            title: 'Stock reports',
+            href: page.props.currentTeam
+                ? stockReportsIndex.url({
+                      current_team: page.props.currentTeam.slug,
+                  })
+                : '/reports/stock',
+            icon: Package,
         },
     ];
 
@@ -65,6 +308,14 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                <NavMain items={receptionNavItems} label="Reception" />
+                <NavMain items={consultationNavItems} label="Consultation" />
+                <NavMain items={laboratoryNavItems} label="Laboratory" />
+                <NavMain items={pharmacyNavItems} label="Pharmacy" />
+                <NavMain items={nursingNavItems} label="Nursing" />
+                <NavMain items={inventoryNavItems} label="Inventory" />
+                <NavMain items={reportNavItems} label="Reports" />
+                <NavMain items={financeNavItems} label="Finance" />
             </SidebarContent>
 
             <SidebarFooter>

@@ -1,0 +1,518 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import ConfirmDialog from '@/components/confirm-dialog';
+import Heading from '@/components/heading';
+import Pagination from '@/components/pagination';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    destroy,
+    forceDestroy,
+    index,
+    restore,
+    store,
+    update,
+} from '@/routes/nursing/wards';
+import { destroy as bulkDestroy } from '@/routes/nursing/wards/bulk';
+
+type Bed = {
+    id: number;
+    name: string;
+    status: string;
+    deletedAt: string | null;
+};
+type Ward = {
+    id: number;
+    name: string;
+    description: string | null;
+    capacity: number;
+    status: string;
+    isWard: boolean;
+    wardName: string | null;
+    beds: Bed[];
+    activeAdmissionsCount: number;
+    deletedAt: string | null;
+    updatedAt: string | null;
+};
+type Paginator = {
+    data: Ward[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+};
+type Filters = { q: string; trashed: boolean; perPage: number; page?: number };
+type Form = {
+    name: string;
+    description: string;
+    capacity: string;
+    beds: { id?: number; name: string }[];
+};
+const blank: Form = { name: '', description: '', capacity: '0', beds: [] };
+
+export default function WardsIndex({
+    wards,
+    filters,
+}: {
+    wards: Paginator;
+    filters: Filters;
+}) {
+    const team = usePage().props.currentTeam?.slug ?? '';
+    const [search, setSearch] = useState(filters.q);
+    const [form, setForm] = useState<Form>(blank);
+    const [editing, setEditing] = useState<Ward | null>(null);
+    const [deleting, setDeleting] = useState<Ward | null>(null);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [open, setOpen] = useState(false);
+    const visit = (patch: Partial<Filters>) =>
+        router.get(
+            index.url(team, { query: { ...filters, ...patch } }),
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    const startCreate = () => {
+        setEditing(null);
+        setForm(blank);
+        setOpen(true);
+    };
+    const startEdit = (ward: Ward) => {
+        setEditing(ward);
+        setForm({
+            name: ward.name,
+            description: ward.description ?? '',
+            capacity: String(ward.capacity),
+            beds: ward.beds
+                .filter((bed) => !bed.deletedAt)
+                .map((bed) => ({ id: bed.id, name: bed.name })),
+        });
+        setOpen(true);
+    };
+    const submit = (event: React.FormEvent) => {
+        event.preventDefault();
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        };
+        editing
+            ? router.patch(
+                  update.url({ current_team: team, ward: editing.id }),
+                  form,
+                  options,
+              )
+            : router.post(store.url(team), form, options);
+    };
+    const remove = () => {
+        if (deleting)
+            router.delete(
+                destroy.url({ current_team: team, ward: deleting.id }),
+                {
+                    preserveScroll: true,
+                    onFinish: () => setDeleting(null),
+                },
+            );
+    };
+    const removeSelected = () =>
+        router.delete(bulkDestroy.url(team), {
+            data: { ids: selected },
+            preserveScroll: true,
+            onSuccess: () => setSelected([]),
+        });
+    const changeBed = (index: number, name: string) =>
+        setForm((current) => ({
+            ...current,
+            beds: current.beds.map((bed, bedIndex) =>
+                bedIndex === index ? { ...bed, name } : bed,
+            ),
+        }));
+    return (
+        <>
+            <Head title="Wards and beds" />
+            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Heading
+                        variant="small"
+                        title="Wards and beds"
+                        description="Manage inpatient wards, capacity, and their beds."
+                    />
+                    {!filters.trashed && (
+                        <Button onClick={startCreate}>New ward</Button>
+                    )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            visit({ q: search, page: 1 });
+                        }}
+                    >
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search wards and beds"
+                            className="w-72"
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
+                        </Button>
+                    </form>
+                    <Button
+                        variant="outline"
+                        onClick={() =>
+                            visit({ trashed: !filters.trashed, page: 1 })
+                        }
+                    >
+                        {filters.trashed ? 'Show active' : 'Show deleted'}
+                    </Button>
+                    {selected.length > 0 && !filters.trashed && (
+                        <Button variant="destructive" onClick={removeSelected}>
+                            Delete selected ({selected.length})
+                        </Button>
+                    )}
+                </div>
+                <div className="rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>
+                                    <input
+                                        aria-label="Select all"
+                                        type="checkbox"
+                                        checked={
+                                            wards.data.length > 0 &&
+                                            wards.data.every((ward) =>
+                                                selected.includes(ward.id),
+                                            )
+                                        }
+                                        onChange={(event) =>
+                                            setSelected(
+                                                event.target.checked
+                                                    ? wards.data.map(
+                                                          (ward) => ward.id,
+                                                      )
+                                                    : [],
+                                            )
+                                        }
+                                    />
+                                </TableHead>
+                                <TableHead>Ward / parent</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Capacity</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Active admissions</TableHead>
+                                <TableHead className="text-right">
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {wards.data.length ? (
+                                wards.data.map((ward) => (
+                                    <TableRow key={ward.id}>
+                                        <TableCell>
+                                            <input
+                                                aria-label={`Select ${ward.name}`}
+                                                type="checkbox"
+                                                checked={selected.includes(
+                                                    ward.id,
+                                                )}
+                                                onChange={(event) =>
+                                                    setSelected(
+                                                        event.target.checked
+                                                            ? [
+                                                                  ...selected,
+                                                                  ward.id,
+                                                              ]
+                                                            : selected.filter(
+                                                                  (id) =>
+                                                                      id !==
+                                                                      ward.id,
+                                                              ),
+                                                    )
+                                                }
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">
+                                                {ward.name}
+                                            </div>
+                                            {ward.wardName && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    in {ward.wardName}
+                                                </div>
+                                            )}
+                                            {ward.isWard &&
+                                                ward.beds.length > 0 && (
+                                                    <div className="mt-1 text-xs text-muted-foreground">
+                                                        Beds:{' '}
+                                                        {ward.beds
+                                                            .map(
+                                                                (bed) =>
+                                                                    bed.name,
+                                                            )
+                                                            .join(', ')}
+                                                    </div>
+                                                )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {ward.isWard ? 'Ward' : 'Bed'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {ward.isWard
+                                                ? `${ward.beds.length} beds / ${ward.capacity}`
+                                                : '—'}
+                                        </TableCell>
+                                        <TableCell className="capitalize">
+                                            {ward.deletedAt
+                                                ? 'Deleted'
+                                                : ward.status}
+                                        </TableCell>
+                                        <TableCell>
+                                            {ward.activeAdmissionsCount}
+                                        </TableCell>
+                                        <TableCell className="space-x-1 text-right">
+                                            {ward.deletedAt ? (
+                                                <>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            router.patch(
+                                                                restore.url({
+                                                                    current_team:
+                                                                        team,
+                                                                    ward: ward.id,
+                                                                }),
+                                                                {},
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Restore
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            router.delete(
+                                                                forceDestroy.url(
+                                                                    {
+                                                                        current_team:
+                                                                            team,
+                                                                        ward: ward.id,
+                                                                    },
+                                                                ),
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Delete permanently
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            startEdit(ward)
+                                                        }
+                                                        disabled={!ward.isWard}
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setDeleting(ward)
+                                                        }
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={7}
+                                        className="py-10 text-center text-muted-foreground"
+                                    >
+                                        No wards or beds found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+                <Pagination
+                    meta={{
+                        currentPage: wards.current_page,
+                        lastPage: wards.last_page,
+                        perPage: wards.per_page,
+                        total: wards.total,
+                    }}
+                    onPageChange={(page) => visit({ page })}
+                    onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
+                />
+            </div>
+            {open && (
+                <div
+                    className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <form
+                        onSubmit={submit}
+                        className="max-h-[90vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-lg bg-background p-6 shadow-xl"
+                    >
+                        <div>
+                            <h2 className="text-lg font-semibold">
+                                {editing ? 'Edit ward' : 'New ward'}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Add beds up to the ward capacity.
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>Ward name</Label>
+                            <Input
+                                required
+                                value={form.name}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        name: event.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label>Capacity</Label>
+                            <Input
+                                required
+                                type="number"
+                                min="0"
+                                value={form.capacity}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        capacity: event.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label>Description</Label>
+                            <Textarea
+                                value={form.description}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        description: event.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Beds ({form.beds.length})</Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={
+                                        form.beds.length >=
+                                        Number(form.capacity)
+                                    }
+                                    onClick={() =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            beds: [
+                                                ...current.beds,
+                                                { name: '' },
+                                            ],
+                                        }))
+                                    }
+                                >
+                                    Add bed
+                                </Button>
+                            </div>
+                            {form.beds.map((bed, bedIndex) => (
+                                <div
+                                    key={bed.id ?? `new-${bedIndex}`}
+                                    className="flex gap-2"
+                                >
+                                    <Input
+                                        required
+                                        value={bed.name}
+                                        aria-label={`Bed ${bedIndex + 1}`}
+                                        onChange={(event) =>
+                                            changeBed(
+                                                bedIndex,
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={() =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                beds: current.beds.filter(
+                                                    (_, index) =>
+                                                        index !== bedIndex,
+                                                ),
+                                            }))
+                                        }
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Save ward</Button>
+                        </div>
+                    </form>
+                </div>
+            )}
+            <ConfirmDialog
+                open={deleting !== null}
+                onOpenChange={(open) => {
+                    if (!open) setDeleting(null);
+                }}
+                destructive
+                title={`Delete ${deleting?.name ?? 'ward'}?`}
+                description="This moves the ward or bed to deleted records."
+                confirmLabel="Delete"
+                onConfirm={remove}
+            />
+        </>
+    );
+}

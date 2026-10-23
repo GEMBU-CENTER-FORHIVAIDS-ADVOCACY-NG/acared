@@ -1,5 +1,14 @@
-import { router, usePage } from '@inertiajs/react';
-import { Check, ChevronsUpDown, Plus, Users } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import {
+    Check,
+    ChevronsUpDown,
+    ClipboardList,
+    CreditCard,
+    Percent,
+    Plus,
+    TicketPercent,
+    Users,
+} from 'lucide-react';
 import CreateTeamModal from '@/components/create-team-modal';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,8 +20,12 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { index as couponsIndex } from '@/routes/coupons';
+import { index as markupsIndex } from '@/routes/markups';
+import { index as methodsIndex } from '@/routes/methods';
+import { index as priceListsIndex } from '@/routes/price-lists';
 import { switchMethod } from '@/routes/teams';
-import type { Team } from '@/types';
+import type { NavItem, Team } from '@/types';
 
 type TeamSwitcherProps = {
     inHeader?: boolean;
@@ -23,6 +36,37 @@ export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
     const isMobile = useIsMobile();
     const currentTeam = page.props.currentTeam;
     const teams = page.props.teams ?? [];
+
+    const teamSettingsItems: NavItem[] = [
+        {
+            title: 'Price lists',
+            href: currentTeam
+                ? priceListsIndex.url(currentTeam.slug)
+                : '/price-lists',
+            icon: ClipboardList,
+        },
+        {
+            title: 'Markups',
+            href: currentTeam
+                ? markupsIndex.url(currentTeam.slug)
+                : '/markups',
+            icon: Percent,
+        },
+        {
+            title: 'Payment methods',
+            href: currentTeam
+                ? methodsIndex.url(currentTeam.slug)
+                : '/methods',
+            icon: CreditCard,
+        },
+        {
+            title: 'Coupons',
+            href: currentTeam
+                ? couponsIndex.url(currentTeam.slug)
+                : '/coupons',
+            icon: TicketPercent,
+        },
+    ];
 
     const switchTeam = (team: Team) => {
         const previousTeamSlug = currentTeam?.slug;
@@ -130,6 +174,26 @@ export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
                                 }
                             />
                         )}
+                    </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Team settings
+                </DropdownMenuLabel>
+                {teamSettingsItems.map((item) => (
+                    <DropdownMenuItem
+                        key={item.title}
+                        className={
+                            inHeader
+                                ? 'cursor-pointer gap-2'
+                                : 'cursor-pointer gap-2 p-2'
+                        }
+                        asChild
+                    >
+                        <Link href={item.href}>
+                            {item.icon && <item.icon className="size-4" />}
+                            {item.title}
+                        </Link>
                     </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />

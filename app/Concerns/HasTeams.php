@@ -156,6 +156,10 @@ trait HasTeams
             isPersonal: $team->is_personal,
             role: $role?->value,
             roleLabel: $role?->label(),
+            email: $team->email,
+            address: $team->address,
+            mobile: $team->mobile,
+            phone: $team->phone,
             isCurrent: $this->isCurrentTeam($team),
         );
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teams;
 
 use App\Actions\Teams\CreateTeam;
+use App\Enums\TeamPermission;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\DeleteTeamRequest;
@@ -14,6 +15,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,9 +28,53 @@ class TeamController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $query = trim((string) $request->query('q', ''));
+        $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true) ? (int) $request->query('perPage', 25) : 25;
+
+        $teams = $user->teams()
+            ->when($query !== '', function ($builder) use ($query) {
+                $builder->where(function ($b) use ($query) {
+                    $b->where('teams.name', 'like', "%{$query}%")
+                        ->orWhere('teams.slug', 'like', "%{$query}%")
+                        ->orWhere('teams.email', 'like', "%{$query}%")
+                        ->orWhere('teams.phone', 'like', "%{$query}%")
+                        ->orWhere('teams.mobile', 'like', "%{$query}%");
+                });
+            })
+            ->orderBy('teams.name')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(function (Team $team) use ($user) {
+                /** @var Membership|null $membership */
+                $membership = $team->getRelation('pivot');
+                $role = $membership?->role;
+                $roleValue = $role instanceof TeamRole ? $role->value : (is_string($role) ? $role : null);
+                $roleLabel = $role instanceof TeamRole ? $role->label() : ($roleValue ? ucfirst($roleValue) : null);
+
+                return [
+                    'id' => $team->id,
+                    'name' => $team->name,
+                    'slug' => $team->slug,
+                    'isPersonal' => (bool) $team->is_personal,
+                    'logo' => $team->logo ? Storage::disk('public')->url($team->logo) : null,
+                    'phone' => $team->phone,
+                    'mobile' => $team->mobile,
+                    'email' => $team->email,
+                    'address' => $team->address,
+                    'createdAt' => $team->created_at?->toIso8601String(),
+                    'updatedAt' => $team->updated_at?->toIso8601String(),
+                    'role' => $roleValue,
+                    'roleLabel' => $roleLabel,
+                    'isCurrent' => $user->isCurrentTeam($team),
+                    'canUpdate' => $user->hasTeamPermission($team, TeamPermission::UpdateTeam),
+                    'canDelete' => $user->hasTeamPermission($team, TeamPermission::DeleteTeam) && ! $team->is_personal,
+                    'canLeave' => ! $team->is_personal && $roleValue !== TeamRole::Owner->value,
+                ];
+            });
 
         return Inertia::render('teams/index', [
-            'teams' => $user->toUserTeams(includeCurrent: true),
+            'teamList' => $teams,
+            'filters' => ['q' => $query, 'perPage' => $perPage],
         ]);
     }
 
@@ -36,11 +83,16 @@ class TeamController extends Controller
      */
     public function store(SaveTeamRequest $request, CreateTeam $createTeam): RedirectResponse
     {
-        $team = $createTeam->handle($request->user(), $request->validated('name'));
+        $data = $request->validated();
+        if ($request->hasFile('logo')) {
+            $data['logo'] = $request->file('logo')->store('teams', 'public');
+        }
+
+        $createTeam->handle($request->user(), $data);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team created.')]);
 
-        return to_route('teams.edit', ['team' => $team->slug]);
+        return to_route('teams.index');
     }
 
     /**
@@ -56,6 +108,13 @@ class TeamController extends Controller
                 'name' => $team->name,
                 'slug' => $team->slug,
                 'isPersonal' => $team->is_personal,
+                'logo' => $team->logo ? Storage::disk('public')->url($team->logo) : null,
+                'phone' => $team->phone,
+                'mobile' => $team->mobile,
+                'email' => $team->email,
+                'address' => $team->address,
+                'createdAt' => $team->created_at?->toIso8601String(),
+                'updatedAt' => $team->updated_at?->toIso8601String(),
             ],
             'members' => $team->members()->get()->map(function (User $member) {
                 /** @var Membership $membership */
@@ -65,6 +124,9 @@ class TeamController extends Controller
                     'id' => $member->id,
                     'name' => $member->name,
                     'email' => $member->email,
+                    'email_verified_at' => $member->email_verified_at?->toIso8601String(),
+                    'created_at' => $member->created_at?->toIso8601String(),
+                    'updated_at' => $member->updated_at?->toIso8601String(),
                     'avatar' => $member->avatar ?? null,
                     'role' => $membership->role->value,
                     'role_label' => $membership->role->label(),
@@ -95,7 +157,15 @@ class TeamController extends Controller
         $team = DB::transaction(function () use ($request, $team) {
             $team = Team::whereKey($team->id)->lockForUpdate()->firstOrFail();
 
-            $team->update(['name' => $request->validated('name')]);
+            $data = $request->validated();
+            if ($request->hasFile('logo')) {
+                if ($team->logo) {
+                    Storage::disk('public')->delete($team->logo);
+                }
+                $data['logo'] = $request->file('logo')->store('teams', 'public');
+            }
+
+            $team->update($data);
 
             return $team;
         });
@@ -160,6 +230,9 @@ class TeamController extends Controller
 
             $team->invitations()->delete();
             $team->memberships()->delete();
+            if ($team->logo) {
+                Storage::disk('public')->delete($team->logo);
+            }
             $team->delete();
         });
 
@@ -168,6 +241,51 @@ class TeamController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Team deleted.')]);
+
+        return to_route('teams.index');
+    }
+
+    /**
+     * Bulk delete specified teams.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', Rule::exists('teams', 'id')],
+        ]);
+
+        $user = $request->user();
+        $teams = Team::query()->whereIn('id', $data['ids'])->get();
+
+        foreach ($teams as $team) {
+            if ($team->is_personal || ! $user->ownsTeam($team)) {
+                continue;
+            }
+
+            $fallbackTeam = $user->isCurrentTeam($team)
+                ? $user->fallbackTeam($team)
+                : null;
+
+            DB::transaction(function () use ($user, $team) {
+                User::where('current_team_id', $team->id)
+                    ->where('id', '!=', $user->id)
+                    ->each(fn (User $affectedUser) => $affectedUser->switchTeam($affectedUser->personalTeam()));
+
+                $team->invitations()->delete();
+                $team->memberships()->delete();
+                if ($team->logo) {
+                    Storage::disk('public')->delete($team->logo);
+                }
+                $team->delete();
+            });
+
+            if ($fallbackTeam && $user->isCurrentTeam($team)) {
+                $user->switchTeam($fallbackTeam);
+            }
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Selected teams deleted.')]);
 
         return to_route('teams.index');
     }

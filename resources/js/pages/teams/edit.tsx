@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
     TooltipContent,
@@ -94,7 +95,7 @@ export default function TeamEdit({
 
             <h1 className="sr-only">{pageTitle}</h1>
 
-            <div className="flex flex-col space-y-10">
+            <div className="flex w-full flex-col space-y-10">
                 <div className="space-y-6">
                     {permissions.canUpdateTeam ? (
                         <>
@@ -107,21 +108,91 @@ export default function TeamEdit({
                             <Form
                                 {...update.form(team.slug)}
                                 className="space-y-6"
+                                encType="multipart/form-data"
                             >
                                 {({ errors, processing }) => (
                                     <>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="name">
-                                                Team name
-                                            </Label>
-                                            <Input
-                                                id="name"
-                                                name="name"
-                                                data-test="team-name-input"
-                                                defaultValue={team.name}
-                                                required
-                                            />
-                                            <InputError message={errors.name} />
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="grid gap-2 sm:col-span-2">
+                                                <Label htmlFor="name">
+                                                    Team name
+                                                </Label>
+                                                <Input
+                                                    id="name"
+                                                    name="name"
+                                                    data-test="team-name-input"
+                                                    defaultValue={team.name}
+                                                    required
+                                                />
+                                                <InputError message={errors.name} />
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="phone">Phone</Label>
+                                                <Input
+                                                    id="phone"
+                                                    name="phone"
+                                                    defaultValue={team.phone ?? ''}
+                                                />
+                                                <InputError message={errors.phone} />
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="mobile">Mobile</Label>
+                                                <Input
+                                                    id="mobile"
+                                                    name="mobile"
+                                                    defaultValue={team.mobile ?? ''}
+                                                />
+                                                <InputError message={errors.mobile} />
+                                            </div>
+
+                                            <div className="grid gap-2 sm:col-span-2">
+                                                <Label htmlFor="email">Email address</Label>
+                                                <Input
+                                                    id="email"
+                                                    name="email"
+                                                    type="email"
+                                                    defaultValue={team.email ?? ''}
+                                                />
+                                                <InputError message={errors.email} />
+                                            </div>
+
+                                            <div className="grid gap-2 sm:col-span-2">
+                                                <Label htmlFor="logo">
+                                                    Logo (JPEG, PNG, or WebP; max 2 MB)
+                                                </Label>
+                                                {team.logo && (
+                                                    <div className="flex items-center gap-3">
+                                                        <img
+                                                            src={team.logo}
+                                                            alt="Team logo"
+                                                            className="size-12 rounded object-cover"
+                                                        />
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Current logo
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <Input
+                                                    id="logo"
+                                                    name="logo"
+                                                    type="file"
+                                                    accept="image/jpeg,image/png,image/webp"
+                                                />
+                                                <InputError message={errors.logo} />
+                                            </div>
+
+                                            <div className="grid gap-2 sm:col-span-2">
+                                                <Label htmlFor="address">Address</Label>
+                                                <Textarea
+                                                    id="address"
+                                                    name="address"
+                                                    rows={3}
+                                                    defaultValue={team.address ?? ''}
+                                                />
+                                                <InputError message={errors.address} />
+                                            </div>
                                         </div>
 
                                         <div className="flex items-center gap-4">
@@ -191,6 +262,14 @@ export default function TeamEdit({
                                         </div>
                                         <div className="text-sm text-muted-foreground">
                                             {member.email}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {member.email_verified_at
+                                                ? `Verified ${new Date(member.email_verified_at).toLocaleDateString()}`
+                                                : 'Email not verified'}
+                                            {member.created_at
+                                                ? ` · Joined ${new Date(member.created_at).toLocaleDateString()}`
+                                                : ''}
                                         </div>
                                     </div>
                                 </div>

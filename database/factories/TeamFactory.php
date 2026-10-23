@@ -24,6 +24,11 @@ class TeamFactory extends Factory
             'name' => $name,
             'slug' => Str::slug($name),
             'is_personal' => false,
+            'logo' => null,
+            'phone' => fake()->phoneNumber(),
+            'mobile' => fake()->phoneNumber(),
+            'email' => fake()->unique()->safeEmail(),
+            'address' => fake()->address(),
         ];
     }
 

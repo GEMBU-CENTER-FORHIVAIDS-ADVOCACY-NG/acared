@@ -55,7 +55,7 @@ export default function Security(props: Props) {
                             currentPasswordInput.current?.focus();
                         }
                     }}
-                    className="space-y-6"
+                    className="space-y-6 md:max-w-xl"
                 >
                     {({ errors, processing }) => (
                         <>

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { store } from '@/routes/teams';
 
 export default function CreateTeamModal({ children }: PropsWithChildren) {
@@ -23,11 +24,12 @@ export default function CreateTeamModal({ children }: PropsWithChildren) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] w-full max-w-lg overflow-y-auto">
                 <Form
                     key={String(open)}
                     {...store.form()}
-                    className="space-y-6"
+                    encType="multipart/form-data"
+                    className="space-y-4"
                     onSuccess={() => setOpen(false)}
                 >
                     {({ errors, processing }) => (
@@ -40,16 +42,83 @@ export default function CreateTeamModal({ children }: PropsWithChildren) {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Team name</Label>
-                                <Input
-                                    id="name"
-                                    name="name"
-                                    data-test="create-team-name"
-                                    placeholder="My team"
-                                    required
-                                />
-                                <InputError message={errors.name} />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1 sm:col-span-2">
+                                    <Label htmlFor="create-team-name">
+                                        Team name
+                                    </Label>
+                                    <Input
+                                        id="create-team-name"
+                                        name="name"
+                                        data-test="create-team-name"
+                                        placeholder="My team"
+                                        required
+                                    />
+                                    <InputError message={errors.name} />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Label htmlFor="create-team-phone">
+                                        Phone
+                                    </Label>
+                                    <Input
+                                        id="create-team-phone"
+                                        name="phone"
+                                        placeholder="+1..."
+                                    />
+                                    <InputError message={errors.phone} />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Label htmlFor="create-team-mobile">
+                                        Mobile
+                                    </Label>
+                                    <Input
+                                        id="create-team-mobile"
+                                        name="mobile"
+                                        placeholder="+1..."
+                                    />
+                                    <InputError message={errors.mobile} />
+                                </div>
+
+                                <div className="space-y-1 sm:col-span-2">
+                                    <Label htmlFor="create-team-email">
+                                        Email address
+                                    </Label>
+                                    <Input
+                                        id="create-team-email"
+                                        name="email"
+                                        type="email"
+                                        placeholder="team@example.com"
+                                    />
+                                    <InputError message={errors.email} />
+                                </div>
+
+                                <div className="space-y-1 sm:col-span-2">
+                                    <Label htmlFor="create-team-logo">
+                                        Logo (JPEG, PNG, or WebP; max 2 MB)
+                                    </Label>
+                                    <Input
+                                        id="create-team-logo"
+                                        name="logo"
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                    />
+                                    <InputError message={errors.logo} />
+                                </div>
+
+                                <div className="space-y-1 sm:col-span-2">
+                                    <Label htmlFor="create-team-address">
+                                        Address
+                                    </Label>
+                                    <Textarea
+                                        id="create-team-address"
+                                        name="address"
+                                        rows={2}
+                                        placeholder="Team location / facility address"
+                                    />
+                                    <InputError message={errors.address} />
+                                </div>
                             </div>
 
                             <DialogFooter className="gap-2">

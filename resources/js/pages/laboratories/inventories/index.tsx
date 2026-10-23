@@ -1,0 +1,687 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import ConfirmDialog from '@/components/confirm-dialog';
+import Heading from '@/components/heading';
+import Pagination from '@/components/pagination';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { SelectNative } from '@/components/ui/select-native';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import type {
+    LabInventoryFilters,
+    LabInventoryListItem,
+    LabInventoryPaginator,
+    Team,
+} from '@/types';
+
+type LayoutProps = {
+    currentTeam?: Team | null;
+};
+
+type FormValues = {
+    price_list_id: string;
+    drug_form_id: string;
+    sku: string;
+    min_qty: string;
+    quantity: string;
+    price: string;
+    cost: string;
+    expires_at: string;
+};
+
+const EMPTY_FORM: FormValues = {
+    price_list_id: '',
+    drug_form_id: '',
+    sku: '',
+    min_qty: '5',
+    quantity: '0',
+    price: '0',
+    cost: '0',
+    expires_at: '',
+};
+
+export default function LabInventoriesIndex({
+    currencySymbol,
+    inventories,
+    filters,
+    formOptions,
+}: {
+    currencySymbol: string;
+    inventories: LabInventoryPaginator;
+    filters: LabInventoryFilters;
+    formOptions: {
+        priceLists: { id: number; name: string }[];
+        drugForms: { id: number; name: string }[];
+    };
+}) {
+    const { currentTeam } = usePage<LayoutProps>().props;
+    const teamSlug = currentTeam?.slug ?? '';
+    const [search, setSearch] = useState(filters.q);
+    const [formOpen, setFormOpen] = useState(false);
+    const [adjustOpen, setAdjustOpen] = useState(false);
+    const [editing, setEditing] = useState<LabInventoryListItem | null>(null);
+    const [form, setForm] = useState<FormValues>(EMPTY_FORM);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [adjustType, setAdjustType] = useState('add');
+    const [adjustReason, setAdjustReason] = useState('correction');
+    const [adjustQty, setAdjustQty] = useState<Record<number, string>>({});
+    const [toDelete, setToDelete] = useState<LabInventoryListItem | null>(null);
+    const [viewing, setViewing] = useState<LabInventoryListItem | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+
+    function baseUrl(path = '') {
+        return `/${teamSlug}/lab-inventories${path}`;
+    }
+
+    function applyFilters(patch: Partial<LabInventoryFilters>) {
+        const next = { ...filters, page: 1, ...patch };
+
+        router.get(
+            baseUrl(),
+            {
+                q: next.q || undefined,
+                sort: next.sort,
+                direction: next.direction,
+                perPage: next.perPage,
+                page: next.page,
+            },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
+
+    function openCreate() {
+        setEditing(null);
+        setForm(EMPTY_FORM);
+        setFormError(null);
+        setFormOpen(true);
+    }
+
+    function openEdit(item: LabInventoryListItem) {
+        setEditing(item);
+        setForm({
+            price_list_id: String(item.priceListId),
+            drug_form_id: String(item.drugFormId),
+            sku: item.sku,
+            min_qty: String(item.minQty),
+            quantity: String(item.quantity),
+            price: String(item.price),
+            cost: String(item.cost),
+            expires_at: item.expiresAt ? item.expiresAt.slice(0, 16) : '',
+        });
+        setFormError(null);
+        setFormOpen(true);
+    }
+
+    function submitForm() {
+        setProcessing(true);
+        setFormError(null);
+
+        const payload = {
+            ...form,
+            price_list_id: Number(form.price_list_id),
+            drug_form_id: Number(form.drug_form_id),
+            min_qty: Number(form.min_qty),
+            quantity: Number(form.quantity),
+            price: Number(form.price),
+            cost: Number(form.cost),
+            expires_at: form.expires_at || null,
+        };
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                setFormOpen(false);
+                setForm(EMPTY_FORM);
+                setEditing(null);
+            },
+            onError: (errors: Record<string, string>) =>
+                setFormError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
+            onFinish: () => setProcessing(false),
+        };
+
+        if (editing) {
+            router.patch(baseUrl(`/${editing.id}`), payload, options);
+        } else {
+            router.post(baseUrl(), payload, options);
+        }
+    }
+
+    function submitAdjust() {
+        setProcessing(true);
+        router.post(
+            baseUrl('/adjust'),
+            {
+                type: adjustType,
+                reason: adjustReason,
+                items: selected.map((id) => ({
+                    id,
+                    quantity: Number(adjustQty[id] || 0),
+                })),
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setAdjustOpen(false);
+                    setSelected([]);
+                    setAdjustQty({});
+                },
+                onFinish: () => setProcessing(false),
+            },
+        );
+    }
+
+    function deleteItem() {
+        if (!toDelete) {
+            return;
+        }
+
+        setProcessing(true);
+        router.delete(baseUrl(`/${toDelete.id}`), {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false);
+                setToDelete(null);
+            },
+        });
+    }
+
+    function toggleSelect(id: number) {
+        setSelected((current) =>
+            current.includes(id)
+                ? current.filter((item) => item !== id)
+                : [...current, id],
+        );
+    }
+
+    return (
+        <>
+            <Head title="Lab inventory" />
+
+            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Heading
+                        title="Lab inventory"
+                        description="Stock levels for laboratory reagents and kits."
+                    />
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            variant="secondary"
+                            disabled={selected.length === 0}
+                            onClick={() => {
+                                setAdjustQty(
+                                    Object.fromEntries(
+                                        selected.map((id) => [id, '']),
+                                    ),
+                                );
+                                setAdjustOpen(true);
+                            }}
+                        >
+                            Adjust stock
+                        </Button>
+                        <Button onClick={openCreate}>Add inventory</Button>
+                    </div>
+                </div>
+
+                <form
+                    className="flex items-center gap-2"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        applyFilters({ q: search });
+                    }}
+                >
+                    <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search product, form, SKU..."
+                        className="w-72"
+                    />
+                    <Button type="submit" variant="secondary">
+                        Search
+                    </Button>
+                </form>
+
+                <div className="rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-10" />
+                                <TableHead>Product</TableHead>
+                                <TableHead>Form</TableHead>
+                                <TableHead>Min</TableHead>
+                                <TableHead>Qty</TableHead>
+                                <TableHead>Price</TableHead>
+                                <TableHead>Cost</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">
+                                    Actions
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {inventories.data.length === 0 ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={9}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
+                                        No lab inventory found.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                inventories.data.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell>
+                                            <input
+                                                type="checkbox"
+                                                checked={selected.includes(
+                                                    item.id,
+                                                )}
+                                                onChange={() =>
+                                                    toggleSelect(item.id)
+                                                }
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            {item.priceListName}
+                                        </TableCell>
+                                        <TableCell>
+                                            {item.drugFormName}
+                                        </TableCell>
+                                        <TableCell>{item.minQty}</TableCell>
+                                        <TableCell
+                                            className={
+                                                item.isLow
+                                                    ? 'font-semibold text-red-600'
+                                                    : 'font-semibold text-emerald-600'
+                                            }
+                                        >
+                                            {Math.abs(
+                                                item.quantity,
+                                            ).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            {currencySymbol}{' '}
+                                            {item.price.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            {currencySymbol}{' '}
+                                            {item.cost.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className="capitalize">
+                                            {item.status}
+                                        </TableCell>
+                                        <TableCell className="space-x-2 text-right">
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                onClick={() => setViewing(item)}
+                                            >
+                                                View
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                onClick={() => openEdit(item)}
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    setToDelete(item)
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                <Pagination
+                    meta={{
+                        currentPage: inventories.current_page,
+                        lastPage: inventories.last_page,
+                        perPage: inventories.per_page,
+                        total: inventories.total,
+                    }}
+                    onPageChange={(page) => applyFilters({ page })}
+                    onPerPageChange={(perPage) => applyFilters({ perPage })}
+                />
+            </div>
+
+            <Sheet open={formOpen} onOpenChange={setFormOpen}>
+                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                    <SheetHeader>
+                        <SheetTitle>
+                            {editing ? 'Edit inventory' : 'Add inventory'}
+                        </SheetTitle>
+                        <SheetDescription>
+                            Link a catalog item to stock quantities and costing.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 grid gap-4">
+                        <div className="space-y-2">
+                            <Label>Product</Label>
+                            <SelectNative
+                                value={form.price_list_id}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        price_list_id: event.target.value,
+                                    }))
+                                }
+                            >
+                                <option value="">Select…</option>
+                                {formOptions.priceLists.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name}
+                                    </option>
+                                ))}
+                            </SelectNative>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Product form</Label>
+                            <SelectNative
+                                value={form.drug_form_id}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        drug_form_id: event.target.value,
+                                    }))
+                                }
+                            >
+                                <option value="">Select…</option>
+                                {formOptions.drugForms.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name}
+                                    </option>
+                                ))}
+                            </SelectNative>
+                        </div>
+                        {(
+                            [
+                                ['sku', 'Reference'],
+                                ['min_qty', 'Min qty'],
+                                ['quantity', 'Quantity'],
+                                ['price', 'Price'],
+                                ['cost', 'Cost'],
+                            ] as const
+                        ).map(([key, label]) => (
+                            <div key={key} className="space-y-2">
+                                <Label htmlFor={key}>{label}</Label>
+                                <Input
+                                    id={key}
+                                    type={key === 'sku' ? 'text' : 'number'}
+                                    value={form[key]}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            [key]: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                        ))}
+                        <div className="space-y-2">
+                            <Label htmlFor="expires_at">Expires at</Label>
+                            <Input
+                                id="expires_at"
+                                type="datetime-local"
+                                value={form.expires_at}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        expires_at: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        {formError ? (
+                            <p className="text-sm text-red-600">{formError}</p>
+                        ) : null}
+                    </div>
+                    <SheetFooter className="mt-6">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setFormOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button disabled={processing} onClick={submitForm}>
+                            {processing ? 'Saving…' : 'Save'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+
+            <Dialog
+                open={viewing !== null}
+                onOpenChange={(open) => {
+                    if (!open) setViewing(null);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {viewing?.priceListName ?? 'Lab inventory item'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Laboratory inventory details.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {viewing ? (
+                        <dl className="grid gap-3 sm:grid-cols-2">
+                            <Detail
+                                label="Drug form"
+                                value={viewing.drugFormName}
+                            />
+                            <Detail label="SKU" value={viewing.sku} />
+                            <Detail
+                                label="Minimum quantity"
+                                value={viewing.minQty.toLocaleString()}
+                            />
+                            <Detail
+                                label="Quantity"
+                                value={viewing.quantity.toLocaleString()}
+                            />
+                            <Detail
+                                label="Price"
+                                value={`${currencySymbol} ${viewing.price.toLocaleString()}`}
+                            />
+                            <Detail
+                                label="Cost"
+                                value={`${currencySymbol} ${viewing.cost.toLocaleString()}`}
+                            />
+                            <Detail
+                                label="Value"
+                                value={`${currencySymbol} ${viewing.value.toLocaleString()}`}
+                            />
+                            <Detail
+                                label="Profit"
+                                value={`${currencySymbol} ${viewing.profit.toLocaleString()}`}
+                            />
+                            <Detail label="Status" value={viewing.status} />
+                            <Detail
+                                label="Expiry"
+                                value={
+                                    viewing.expiresAt
+                                        ? new Date(
+                                              viewing.expiresAt,
+                                          ).toLocaleString()
+                                        : null
+                                }
+                            />
+                            <Detail
+                                label="Created"
+                                value={
+                                    viewing.createdAt
+                                        ? new Date(
+                                              viewing.createdAt,
+                                          ).toLocaleString()
+                                        : null
+                                }
+                            />
+                            <Detail
+                                label="Updated"
+                                value={
+                                    viewing.updatedAt
+                                        ? new Date(
+                                              viewing.updatedAt,
+                                          ).toLocaleString()
+                                        : null
+                                }
+                            />
+                        </dl>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
+
+            <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
+                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                    <SheetHeader>
+                        <SheetTitle>Stock adjustment</SheetTitle>
+                        <SheetDescription>
+                            Add, remove, or set quantities for selected
+                            products.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Type</Label>
+                            <SelectNative
+                                value={adjustType}
+                                onChange={(event) =>
+                                    setAdjustType(event.target.value)
+                                }
+                            >
+                                <option value="add">Add stock</option>
+                                <option value="remove">Remove stock</option>
+                                <option value="set">Set exact quantity</option>
+                            </SelectNative>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Reason</Label>
+                            <SelectNative
+                                value={adjustReason}
+                                onChange={(event) =>
+                                    setAdjustReason(event.target.value)
+                                }
+                            >
+                                <option value="damaged">
+                                    Damaged / Expired
+                                </option>
+                                <option value="correction">
+                                    Stock count correction
+                                </option>
+                                <option value="returned">
+                                    Returned to supplier
+                                </option>
+                                <option value="donated">Donated</option>
+                                <option value="other">Other</option>
+                            </SelectNative>
+                        </div>
+                        {selected.map((id) => {
+                            const item = inventories.data.find(
+                                (row) => row.id === id,
+                            );
+
+                            return (
+                                <div
+                                    key={id}
+                                    className="space-y-2 rounded-lg border p-3"
+                                >
+                                    <p className="text-sm font-medium">
+                                        {item?.priceListName} ({item?.quantity})
+                                    </p>
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        placeholder="Adjustment qty"
+                                        value={adjustQty[id] ?? ''}
+                                        onChange={(event) =>
+                                            setAdjustQty((current) => ({
+                                                ...current,
+                                                [id]: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <SheetFooter className="mt-6">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setAdjustOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button disabled={processing} onClick={submitAdjust}>
+                            {processing ? 'Applying…' : 'Apply adjustment'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+
+            <ConfirmDialog
+                open={toDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setToDelete(null);
+                    }
+                }}
+                title="Delete inventory?"
+                description="This removes the lab inventory row."
+                confirmLabel="Delete"
+                processing={processing}
+                onConfirm={deleteItem}
+            />
+        </>
+    );
+}
+
+function Detail({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | null | undefined;
+}) {
+    return (
+        <div>
+            <dt className="text-sm text-muted-foreground">{label}</dt>
+            <dd className="break-words">{value || '—'}</dd>
+        </div>
+    );
+}

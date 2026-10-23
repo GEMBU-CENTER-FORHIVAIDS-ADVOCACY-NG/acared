@@ -1,8 +1,93 @@
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, Search, X } from "lucide-react"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+
+function getNodeText(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return ""
+  }
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node).trim()
+  }
+  if (Array.isArray(node)) {
+    return node.map(getNodeText).filter(Boolean).join(" ").trim()
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode }
+    if (props && props.children) {
+      return getNodeText(props.children)
+    }
+  }
+  return ""
+}
+
+function countSelectItems(nodes: React.ReactNode): number {
+  let count = 0
+  React.Children.forEach(nodes, (child) => {
+    if (!React.isValidElement(child)) {
+      return
+    }
+    const p = child.props as { value?: unknown; children?: React.ReactNode }
+    if (p && "value" in p && p.value !== undefined) {
+      count++
+    } else if (p && p.children) {
+      count += countSelectItems(p.children)
+    }
+  })
+  return count
+}
+
+function filterSelectItems(
+  nodes: React.ReactNode,
+  query: string
+): { filtered: React.ReactNode[]; matchCount: number } {
+  if (!query.trim()) {
+    return {
+      filtered: React.Children.toArray(nodes),
+      matchCount: countSelectItems(nodes),
+    }
+  }
+  const q = query.toLowerCase().trim()
+  let matchCount = 0
+
+  const process = (items: React.ReactNode): React.ReactNode[] => {
+    return React.Children.toArray(items).flatMap((child) => {
+      if (!React.isValidElement(child)) {
+        return []
+      }
+      const p = child.props as {
+        value?: unknown
+        children?: React.ReactNode
+      }
+      if (p && "value" in p && p.value !== undefined) {
+        const text = (getNodeText(p.children) + " " + String(p.value)).toLowerCase()
+        if (text.includes(q)) {
+          matchCount++
+          return [child]
+        }
+        return []
+      }
+      if (p && p.children) {
+        const nested = process(p.children)
+        if (nested.length > 0) {
+          return [
+            React.cloneElement(child as React.ReactElement<any>, {
+              ...p,
+              children: nested,
+            }),
+          ]
+        }
+        return []
+      }
+      return []
+    })
+  }
+
+  const filtered = process(nodes)
+  return { filtered, matchCount }
+}
 
 function Select({
   ...props
@@ -48,6 +133,13 @@ function SelectTrigger({
   )
 }
 
+export type SelectContentProps = React.ComponentProps<
+  typeof SelectPrimitive.Content
+> & {
+  searchable?: boolean
+  searchPlaceholder?: string
+}
+
 function SelectContent({
   className,
   children,
@@ -55,8 +147,30 @@ function SelectContent({
   side = "bottom",
   sideOffset = 4,
   align = "center",
+  searchable = true,
+  searchPlaceholder = "Search...",
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: SelectContentProps) {
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
+
+  const totalItems = React.useMemo(() => countSelectItems(children), [children])
+  const showSearch = searchable && totalItems > 2
+
+  const { filtered: filteredChildren, matchCount } = React.useMemo(
+    () => (showSearch ? filterSelectItems(children, searchQuery) : { filtered: React.Children.toArray(children), matchCount: totalItems }),
+    [children, searchQuery, showSearch, totalItems]
+  )
+
+  React.useEffect(() => {
+    if (showSearch) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 40)
+      return () => clearTimeout(timer)
+    }
+  }, [showSearch])
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -74,6 +188,47 @@ function SelectContent({
         align={align}
         {...props}
       >
+        {showSearch ? (
+          <div
+            className="sticky top-0 z-10 flex items-center gap-2 border-b bg-popover/95 px-2.5 py-1.5 backdrop-blur-xs"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Search className="size-3.5 shrink-0 text-muted-foreground" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              onPointerDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  const container = searchInputRef.current?.closest(
+                    '[data-slot="select-content"]'
+                  )
+                  const firstItem = container?.querySelector<HTMLElement>(
+                    '[data-slot="select-item"]:not([data-disabled])'
+                  )
+                  firstItem?.focus()
+                }
+              }}
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+              >
+                <X className="size-3" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <SelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
@@ -82,7 +237,13 @@ function SelectContent({
               "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
           )}
         >
-          {children}
+          {showSearch && matchCount === 0 ? (
+            <div className="py-4 text-center text-xs text-muted-foreground">
+              No options found
+            </div>
+          ) : (
+            filteredChildren
+          )}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>

@@ -3,6 +3,7 @@
 use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('the teams index page can be rendered', function () {
@@ -392,4 +393,102 @@ test('guests cannot access teams', function () {
     $response = $this->get(route('teams.index'));
 
     $response->assertRedirect(route('login'));
+});
+
+test('teams can be created with profile attributes and logo', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->post(route('teams.store'), [
+            'name' => 'Metro Hospital',
+            'phone' => '1234567890',
+            'mobile' => '0987654321',
+            'email' => 'metro@hospital.test',
+            'address' => '123 Health Ave',
+            'logo' => UploadedFile::fake()->image('logo.png'),
+        ]);
+
+    $response->assertRedirect();
+
+    $team = Team::where('email', 'metro@hospital.test')->first();
+    expect($team)->not->toBeNull()
+        ->and($team->name)->toBe('Metro Hospital')
+        ->and($team->phone)->toBe('1234567890')
+        ->and($team->mobile)->toBe('0987654321')
+        ->and($team->address)->toBe('123 Health Ave')
+        ->and($team->logo)->not->toBeNull();
+
+    Storage::disk('public')->assertExists($team->logo);
+});
+
+test('teams can be updated with profile attributes and replaces existing logo', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+    $team = Team::factory()->create([
+        'name' => 'Old Hospital',
+        'logo' => 'teams/old-logo.png',
+    ]);
+    Storage::disk('public')->put('teams/old-logo.png', 'fake-image');
+    $team->members()->attach($user, ['role' => TeamRole::Owner->value]);
+
+    $response = $this
+        ->actingAs($user)
+        ->patch(route('teams.update', $team), [
+            'name' => 'New Hospital',
+            'phone' => '1112223333',
+            'mobile' => '4445556666',
+            'email' => 'new@hospital.test',
+            'address' => '456 New St',
+            'logo' => UploadedFile::fake()->image('new-logo.png'),
+        ]);
+
+    $response->assertRedirect();
+    Storage::disk('public')->assertMissing('teams/old-logo.png');
+
+    $team->refresh();
+    expect($team->name)->toBe('New Hospital')
+        ->and($team->phone)->toBe('1112223333')
+        ->and($team->email)->toBe('new@hospital.test')
+        ->and($team->address)->toBe('456 New St');
+    Storage::disk('public')->assertExists($team->logo);
+});
+
+test('teams can be bulk deleted by owner', function () {
+    $user = User::factory()->create();
+    $team1 = Team::factory()->create(['is_personal' => false]);
+    $team2 = Team::factory()->create(['is_personal' => false]);
+    $team1->members()->attach($user, ['role' => TeamRole::Owner->value]);
+    $team2->members()->attach($user, ['role' => TeamRole::Owner->value]);
+
+    $response = $this
+        ->actingAs($user)
+        ->delete(route('teams.bulk.destroy'), [
+            'ids' => [$team1->id, $team2->id],
+        ]);
+
+    $response->assertRedirect();
+
+    $this->assertSoftDeleted('teams', ['id' => $team1->id]);
+    $this->assertSoftDeleted('teams', ['id' => $team2->id]);
+});
+
+test('teams index can be filtered by query', function () {
+    $user = User::factory()->create();
+    $alpha = Team::factory()->create(['name' => 'Alpha Clinic']);
+    $beta = Team::factory()->create(['name' => 'Beta Health']);
+    $alpha->members()->attach($user, ['role' => TeamRole::Member->value]);
+    $beta->members()->attach($user, ['role' => TeamRole::Member->value]);
+
+    $response = $this
+        ->actingAs($user)
+        ->get(route('teams.index', ['q' => 'Alpha']));
+
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('teams/index')
+            ->has('teamList.data', 1)
+            ->where('teamList.data.0.name', 'Alpha Clinic')
+        );
 });

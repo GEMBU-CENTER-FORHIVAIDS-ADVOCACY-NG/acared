@@ -13,20 +13,34 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $slug
  * @property bool $is_personal
+ * @property string|null $logo
+ * @property string|null $phone
+ * @property string|null $mobile
+ * @property string|null $email
+ * @property string|null $address
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @property-read Collection<int, TeamInvitation> $invitations
  * @property-read Collection<int, Membership> $memberships
  * @property-read Collection<int, User> $members
+ * @property-read Collection<int, Patient> $patients
+ * @property-read Collection<int, Billing> $billings
+ * @property-read Collection<int, Appointment> $appointments
+ * @property-read Collection<int, Admission> $admissions
+ * @property-read Collection<int, Category> $categories
+ * @property-read Collection<int, Inventory> $inventories
+ * @property-read Collection<int, DrugInventory> $drugInventories
+ * @property-read Collection<int, Coupon> $coupons
  */
-#[Fillable(['name', 'slug', 'is_personal'])]
+#[Fillable(['name', 'slug', 'is_personal', 'logo', 'phone', 'mobile', 'email', 'address'])]
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
@@ -65,7 +79,7 @@ class Team extends Model
     /**
      * Get all members of this team.
      *
-     * @return BelongsToMany<User, $this, Membership, 'pivot'>
+     * @return BelongsToMany<User, $this, Pivot>
      */
     public function members(): BelongsToMany
     {
@@ -93,6 +107,78 @@ class Team extends Model
     public function invitations(): HasMany
     {
         return $this->hasMany(TeamInvitation::class);
+    }
+
+    /**
+     * Get the public URL of the team logo.
+     */
+    public function logoUrl(): ?string
+    {
+        return $this->logo ? Storage::disk('public')->url($this->logo) : null;
+    }
+
+    /**
+     * @return HasMany<Patient, $this>
+     */
+    public function patients(): HasMany
+    {
+        return $this->hasMany(Patient::class);
+    }
+
+    /**
+     * @return HasMany<Billing, $this>
+     */
+    public function billings(): HasMany
+    {
+        return $this->hasMany(Billing::class);
+    }
+
+    /**
+     * @return HasMany<Appointment, $this>
+     */
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    /**
+     * @return HasMany<Admission, $this>
+     */
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
+    }
+
+    /**
+     * @return HasMany<Category, $this>
+     */
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class);
+    }
+
+    /**
+     * @return HasMany<Inventory, $this>
+     */
+    public function inventories(): HasMany
+    {
+        return $this->hasMany(Inventory::class);
+    }
+
+    /**
+     * @return HasMany<DrugInventory, $this>
+     */
+    public function drugInventories(): HasMany
+    {
+        return $this->hasMany(DrugInventory::class);
+    }
+
+    /**
+     * @return HasMany<Coupon, $this>
+     */
+    public function coupons(): HasMany
+    {
+        return $this->hasMany(Coupon::class);
     }
 
     /**

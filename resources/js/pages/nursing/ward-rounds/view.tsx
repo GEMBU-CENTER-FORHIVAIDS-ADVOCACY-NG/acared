@@ -1,0 +1,469 @@
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import Heading from '@/components/heading';
+import { notesToString } from '@/utils/notes';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    show as wardRoundShow,
+    view as wardRoundView,
+} from '@/routes/nursing/ward-rounds';
+import { ConsultationRecordForm } from '@/pages/consultations/record-form';
+import type {
+    ConsultationFormValues,
+    ConsultationRecord,
+    ConsultationRecordOptions,
+    ConsultationRecordType,
+    ConsultationRecords,
+    ConsultationSection,
+} from '@/types';
+
+type AdmissionSummary = {
+    id: number;
+    patientId: string;
+    patientName: string | null;
+    wardId: number;
+    wardName: string | null;
+    bedName: string | null;
+    doctorName: string | null;
+    status: string;
+    admittedAt: string | null;
+    notes: string | null;
+};
+
+type AdmissionDetail = {
+    birthDate: string | null;
+    gender: string | null;
+    age: string | null;
+    wardName: string | null;
+    bedName: string | null;
+    doctorName: string | null;
+    status: string;
+    admittedAt: string | null;
+    duration: number;
+    notes: string | null;
+};
+
+type Props = {
+    section: ConsultationSection;
+    admission: AdmissionSummary;
+    detail: AdmissionDetail;
+    records: ConsultationRecords;
+    options: ConsultationRecordOptions;
+    currencySymbol: string;
+};
+
+const SECTIONS: { key: ConsultationSection; label: string }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'vital-signs', label: 'Vital signs' },
+    { key: 'complaints', label: 'Complaints' },
+    { key: 'examinations', label: 'Examinations' },
+    { key: 'diagnoses', label: 'Diagnoses' },
+    { key: 'treatments', label: 'Treatments' },
+    { key: 'laboratories', label: 'Laboratories' },
+    { key: 'prescriptions', label: 'Prescriptions' },
+];
+
+const STATUS_BADGE: Record<string, string> = {
+    warning: 'bg-amber-100 text-amber-800',
+    info: 'bg-sky-100 text-sky-800',
+    success: 'bg-emerald-100 text-emerald-800',
+    danger: 'bg-rose-100 text-rose-800',
+    gray: 'bg-muted text-muted-foreground',
+};
+
+export default function WardRoundView({
+    section,
+    admission,
+    detail,
+    records,
+    options,
+    currencySymbol,
+}: Props) {
+    const { currentTeam } = usePage().props;
+    const teamSlug = currentTeam?.slug;
+
+    const [formOpen, setFormOpen] = useState(false);
+    const [activeRecord, setActiveRecord] = useState<ConsultationRecord | null>(
+        null,
+    );
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const recordType = (
+        section === 'overview' ? null : section
+    ) as ConsultationRecordType | null;
+    const currentRecords: ConsultationRecord[] = recordType
+        ? (records[recordType] ?? [])
+        : [];
+
+    function switchSection(next: ConsultationSection) {
+        router.get(
+            wardRoundView.url({
+                current_team: teamSlug,
+                admission: admission.id,
+                section: next,
+            }),
+            {},
+            { preserveState: false, preserveScroll: true, replace: true },
+        );
+    }
+
+    function openCreate() {
+        setActiveRecord(null);
+        setError(null);
+        setFormOpen(true);
+    }
+
+    function openEdit(record: ConsultationRecord) {
+        setActiveRecord(record);
+        setError(null);
+        setFormOpen(true);
+    }
+
+    function submit(values: ConsultationFormValues) {
+        if (!recordType) {
+            return;
+        }
+
+        setProcessing(true);
+        setError(null);
+
+        const payload = {
+            ...values,
+            lines: values.lines
+                .filter((line) => line.price_list_id !== '')
+                .map((line) => ({
+                    price_list_id: Number(line.price_list_id),
+                    unitPrice: Number(line.unitPrice || 0),
+                    quantity: Number(line.quantity || 1),
+                    results: line.results || null,
+                    frequency: line.frequency || null,
+                    duration: line.duration || null,
+                    dosage: line.dosage || null,
+                })),
+            ward_id: values.ward_id ? Number(values.ward_id) : null,
+            bed_id: values.bed_id ? Number(values.bed_id) : null,
+            duration: Number(values.duration || 0),
+            total: Number(values.total || 0),
+        };
+
+        const requestOptions = {
+            preserveScroll: true,
+            onError: (errors: Record<string, string>) =>
+                setError(Object.values(errors)[0] ?? 'Something went wrong.'),
+            onSuccess: () => {
+                setFormOpen(false);
+                setActiveRecord(null);
+            },
+            onFinish: () => setProcessing(false),
+        };
+
+        if (activeRecord) {
+            router.patch(
+                ConsultationRecordController.updateForAdmission.url({
+                    current_team: teamSlug,
+                    admission: admission.id,
+                    type: recordType,
+                    record: activeRecord.id,
+                }),
+                payload,
+                requestOptions,
+            );
+        } else {
+            router.post(
+                ConsultationRecordController.storeForAdmission.url({
+                    current_team: teamSlug,
+                    admission: admission.id,
+                    type: recordType,
+                }),
+                payload,
+                requestOptions,
+            );
+        }
+    }
+
+    function destroy(record: ConsultationRecord) {
+        if (!recordType) {
+            return;
+        }
+
+        router.delete(
+            ConsultationRecordController.destroyForAdmission.url({
+                current_team: teamSlug,
+                admission: admission.id,
+                type: recordType,
+                record: record.id,
+            }),
+            { preserveScroll: true },
+        );
+    }
+
+    return (
+        <>
+            <Head
+                title={`${admission.patientId} - Ward round`}
+            />
+
+            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Heading
+                        variant="small"
+                        title={`${admission.patientId} - ${admission.patientName ?? 'Unknown patient'}`}
+                        description="Ward round details and clinical records."
+                    />
+                    <Button variant="outline" asChild>
+                        <Link
+                            href={wardRoundShow.url({
+                                current_team: teamSlug,
+                                ward: admission.wardId,
+                            })}
+                        >
+                            Back to ward
+                        </Link>
+                    </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    {SECTIONS.map((item) => (
+                        <Button
+                            key={item.key}
+                            size="sm"
+                            variant={
+                                item.key === section ? 'default' : 'secondary'
+                            }
+                            onClick={() => switchSection(item.key)}
+                        >
+                            {item.label}
+                        </Button>
+                    ))}
+                </div>
+
+                {section === 'overview' ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Admission information</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <DetailRow
+                                label="Date of birth"
+                                value={detail.birthDate}
+                            />
+                            <DetailRow label="Gender" value={detail.gender} />
+                            <DetailRow label="Age" value={detail.age} />
+                            <DetailRow label="Ward" value={detail.wardName} />
+                            <DetailRow label="Bed" value={detail.bedName} />
+                            <DetailRow
+                                label="Doctor"
+                                value={detail.doctorName}
+                            />
+                            <DetailRow
+                                label="Status"
+                                value={detail.status}
+                            />
+                            <DetailRow
+                                label="Admitted"
+                                value={
+                                    detail.admittedAt
+                                        ? new Date(
+                                              detail.admittedAt,
+                                          ).toLocaleString()
+                                        : null
+                                }
+                            />
+                            <DetailRow
+                                label="Duration"
+                                value={`${detail.duration} day(s)`}
+                            />
+                            <div className="sm:col-span-2 lg:col-span-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Notes
+                                </p>
+                                <p className="text-sm font-medium whitespace-pre-line">
+                                    {detail.notes ?? '-'}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle>
+                                {
+                                    SECTIONS.find(
+                                        (item) => item.key === section,
+                                    )?.label
+                                }
+                            </CardTitle>
+                            <Button size="sm" onClick={openCreate}>
+                                New
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            {currentRecords.length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">
+                                    No records yet.
+                                </p>
+                            ) : (
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    {currentRecords.map((record) => (
+                                        <RecordCard
+                                            key={record.id}
+                                            type={
+                                                recordType as ConsultationRecordType
+                                            }
+                                            record={record}
+                                            currencySymbol={currencySymbol}
+                                            onEdit={() => openEdit(record)}
+                                            onDelete={() => destroy(record)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+
+            {recordType ? (
+                <ConsultationRecordForm
+                    key={`${recordType}-${activeRecord?.id ?? 'new'}-${formOpen}`}
+                    open={formOpen}
+                    type={recordType}
+                    record={activeRecord}
+                    options={options}
+                    processing={processing}
+                    error={error}
+                    onClose={() => setFormOpen(false)}
+                    onSubmit={submit}
+                />
+            ) : null}
+        </>
+    );
+}
+
+function DetailRow({ label, value }: { label: string; value: string | null }) {
+    return (
+        <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-sm font-medium">{value ?? '-'}</p>
+        </div>
+    );
+}
+
+function RecordCard({
+    type,
+    record,
+    currencySymbol,
+    onEdit,
+    onDelete,
+}: {
+    type: ConsultationRecordType;
+    record: ConsultationRecord;
+    currencySymbol: string;
+    onEdit: () => void;
+    onDelete: () => void;
+}) {
+    const { currentTeam } = usePage().props;
+    const teamSlug = currentTeam?.slug;
+    const recordedBy = record.recordedByName ?? '-';
+
+    return (
+        <div className="flex flex-col justify-between rounded-md border p-4">
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">{recordedBy}</span>
+                    {record.status ? (
+                        <Badge className={STATUS_BADGE.gray}>
+                            {record.status}
+                        </Badge>
+                    ) : null}
+                </div>
+
+                {type === 'complaints' ? (
+                    <p className="line-clamp-4 text-sm whitespace-pre-line">
+                        {record.notes_en ?? record.notes ?? '-'}
+                    </p>
+                ) : null}
+
+                {type === 'examinations' ? (
+                    <p className="line-clamp-4 text-sm whitespace-pre-line">
+                        {record.notes ? String(record.notes) : '-'}
+                    </p>
+                ) : null}
+
+                {type === 'diagnoses' ? (
+                    <p className="line-clamp-4 text-sm whitespace-pre-line">
+                        {record.notes ? String(record.notes) : '-'}
+                    </p>
+                ) : null}
+
+                {type === 'admissions' ? (
+                    <div className="space-y-1 text-sm">
+                        <p>{notesToString(record.notes) || '-'}</p>
+                        <p className="text-xs text-muted-foreground">
+                            Ward: {record.ward?.name ?? '-'} | Duration:{' '}
+                            {record.duration ?? 0} day(s)
+                        </p>
+                    </div>
+                ) : null}
+
+                {type !== 'complaints' &&
+                type !== 'examinations' &&
+                type !== 'diagnoses' &&
+                type !== 'admissions' ? (
+                    <div className="space-y-1">
+                        {(record.lines ?? []).map((line) => (
+                            <div
+                                key={line.id}
+                                className="flex items-center justify-between text-sm"
+                            >
+                                <span>{line.priceList?.name ?? '-'}</span>
+                                <span className="text-muted-foreground">
+                                    {type === 'vital-signs'
+                                        ? (line.results ?? '-')
+                                        : `x${line.quantity}`}
+                                </span>
+                            </div>
+                        ))}
+                        {record.total !== undefined && record.total !== null ? (
+                            <p className="pt-2 text-sm font-semibold">
+                                Total: {currencySymbol}
+                                {Number(record.total).toLocaleString()}
+                            </p>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                    {record.recordedAt
+                        ? new Date(record.recordedAt).toLocaleString()
+                        : ''}
+                </p>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+                {type === 'laboratories' && teamSlug ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                    >
+                        <Link
+                            href={`/${teamSlug}/laboratories/${record.id}`}
+                        >
+                            View
+                        </Link>
+                    </Button>
+                ) : null}
+                <Button size="sm" variant="secondary" onClick={onEdit}>
+                    Edit
+                </Button>
+                <Button size="sm" variant="ghost" onClick={onDelete}>
+                    Delete
+                </Button>
+            </div>
+        </div>
+    );
+}
