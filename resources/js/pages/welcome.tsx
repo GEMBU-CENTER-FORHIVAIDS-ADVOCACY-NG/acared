@@ -43,9 +43,6 @@ export default function Welcome() {
                                 AldidsCared
                             </span>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <ThemeSwitch />
-                        </div>
                         <nav className="flex items-center gap-3">
                             {auth.user ? (
                                 <Button asChild variant="default" size="sm">
@@ -61,6 +58,7 @@ export default function Welcome() {
                                     </Button>
                                 </>
                             )}
+                            <ThemeSwitch />
                         </nav>
                     </div>
                 </header>
