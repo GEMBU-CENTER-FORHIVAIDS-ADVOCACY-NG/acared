@@ -35,8 +35,7 @@ class WardRoundController extends Controller
 
     public function __construct(private readonly ClinicalRecordData $clinicalRecords) {}
 
-    /** Show admission counts for the selected period. */
-    public function admissions(Request $request, string $current_team): Response
+    public function index(Request $request): Response
     {
         $filters = $request->validate([
             'date_filter' => ['nullable', Rule::in(['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'last_year'])],
@@ -48,19 +47,6 @@ class WardRoundController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->first();
 
-        return Inertia::render('nursing/admissions/index', [
-            'filters' => ['dateFilter' => $period],
-            'counts' => [
-                'total' => (int) ($counts->total ?? 0),
-                'discharged' => (int) ($counts->discharged ?? 0),
-                'admitted' => (int) ($counts->admitted ?? 0),
-                'pending' => (int) ($counts->pending ?? 0),
-            ],
-        ]);
-    }
-
-    public function index(): Response
-    {
         $wards = Ward::query()->wards()
             ->with(['beds' => fn (HasMany $beds) => $beds->with(['bedAdmissions' => fn (HasMany $admissions) => $admissions->active()->with('patient')])])
             ->withCount('beds')
@@ -82,7 +68,16 @@ class WardRoundController extends Controller
                 'beds' => $ward->beds->map(fn (Ward $bed) => $this->bedData($bed))->values(),
             ]);
 
-        return Inertia::render('nursing/ward-rounds/index', ['wards' => $wards]);
+        return Inertia::render('nursing/ward-rounds/index', [
+            'filters' => ['dateFilter' => $period],
+            'counts' => [
+                'total' => (int) ($counts->total ?? 0),
+                'discharged' => (int) ($counts->discharged ?? 0),
+                'admitted' => (int) ($counts->admitted ?? 0),
+                'pending' => (int) ($counts->pending ?? 0),
+            ],
+            'wards' => $wards,
+        ]);
     }
 
     public function show(string $current_team, Ward $ward): Response

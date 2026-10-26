@@ -195,7 +195,7 @@ class BillingController extends Controller
      */
     public function show(Request $request, string $current_team, Billing $billing): Response
     {
-        $billing->load(['patient', 'user', 'payments.method', 'lines.priceList']);
+        $billing->load(['patient', 'user', 'payments.method', 'payments.user', 'lines.priceList']);
 
         return Inertia::render('finance/billings/show', [
             'currencySymbol' => DashboardCurrency::symbol(),
@@ -329,7 +329,7 @@ class BillingController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Payment recorded.']);
 
-        return to_route('billings.index', $user->currentTeam->slug);
+        return to_route('billings.show', [$user->currentTeam->slug, $billing]);
     }
 
     /**
@@ -551,7 +551,7 @@ class BillingController extends Controller
             'total' => (float) $billing->total,
             'status' => $billing->status,
             'createdAt' => $billing->created_at?->toIso8601String(),
-            'recordedBy' => $billing->user?->name,
+            'recordedBy' => $billing->payments->first()?->user?->name ?? $billing->user?->name,
             'lines' => $billing->lines->map(fn (Line $line) => [
                 'id' => $line->getKey(),
                 'name' => $line->priceList?->name,

@@ -120,7 +120,7 @@ class TeamUserController extends Controller
     }
 
     /**
-     * Remove the specified user from the team and delete the user.
+     * Remove the specified user from the team and delete the user from the database.
      */
     public function destroy(Team $team, User $user): RedirectResponse
     {
@@ -128,19 +128,8 @@ class TeamUserController extends Controller
 
         abort_if($team->owner()?->is($user), 403, __('The team owner cannot be removed.'));
 
-        $team->memberships()
-            ->where('user_id', $user->id)
-            ->delete();
-
-        if ($user->isCurrentTeam($team)) {
-            $fallback = $user->teams()->orderByRaw('LOWER(teams.name)')->first();
-            if ($fallback) {
-                $user->switchTeam($fallback);
-            } else {
-                $user->switchTeam($user->personalTeam());
-            }
-        }
-
+        $user->syncRoles([]);
+        $user->teamMemberships()->delete();
         $user->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('User deleted.')]);

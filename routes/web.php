@@ -244,7 +244,6 @@ Route::prefix('{current_team}')
         // Nursing
         Route::middleware('permission:view nursing')->group(function () {
             Route::get('nursing/wards', [WardController::class, 'index'])->name('nursing.wards.index');
-            Route::get('nursing/admissions', [WardRoundController::class, 'admissions'])->name('nursing.admissions.index');
             Route::get('nursing/ward-rounds', [WardRoundController::class, 'index'])->name('nursing.ward-rounds.index');
             Route::get('nursing/ward-rounds/{ward}', [WardRoundController::class, 'show'])->name('nursing.ward-rounds.show');
             Route::get('nursing/ward-rounds/admissions/{admission}/{section?}', [WardRoundController::class, 'view'])->name('nursing.ward-rounds.view');

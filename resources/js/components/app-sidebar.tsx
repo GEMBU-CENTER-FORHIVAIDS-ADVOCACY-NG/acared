@@ -3,7 +3,6 @@ import {
     Banknote,
     Beaker,
     BookOpen,
-    Building2,
     ChartBar,
     ClipboardList,
     FlaskConical,
@@ -63,7 +62,6 @@ import { index as financialReportsIndex } from '@/routes/reports/financial';
 import { index as clinicalReportsIndex } from '@/routes/reports/clinical';
 import { index as stockReportsIndex } from '@/routes/reports/stock';
 import { index as wardRoundsIndex } from '@/routes/nursing/ward-rounds';
-import { index as admissionsIndex } from '@/routes/nursing/admissions';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -202,13 +200,6 @@ export function AppSidebar() {
     ];
 
     const nursingNavItems: NavItem[] = [
-        {
-            title: 'Admission overview',
-            href: page.props.currentTeam
-                ? admissionsIndex.url(page.props.currentTeam.slug)
-                : '/nursing/admissions',
-            icon: Building2,
-        },
         {
             title: 'Maternity',
             href: page.props.currentTeam

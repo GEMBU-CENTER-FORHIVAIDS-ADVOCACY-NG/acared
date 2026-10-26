@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Eye, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -639,7 +639,7 @@ export default function WalletHistoryIndex({
             <Sheet open={open} onOpenChange={(isOpen) => {
                 if (!isOpen) setOpen(false);
             }}>
-                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                <SheetContent className="overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
                             {editing
@@ -651,34 +651,54 @@ export default function WalletHistoryIndex({
                             deposit credit.
                         </SheetDescription>
                     </SheetHeader>
-                    <form onSubmit={submit} className="mt-4 space-y-4">
+                    <form onSubmit={submit} className="mt-4 space-y-5">
                         {/* Patient search */}
-                        <div className="space-y-1" ref={(el) => {
+                        <div className="space-y-2" ref={(el) => {
                             patientSearchContainerRef.current = el;
                         }}>
-                            <Label>Patient</Label>
+                            <Label>Patient <span className="text-destructive">*</span></Label>
                             <div className="relative">
-                                <Input
-                                    ref={(el) => {
-                                        patientSearchInputRef.current = el;
-                                    }}
-                                    placeholder="Search patient..."
-                                    value={form.patient_id ? getPatientLabel(form.patient_id) : (patientSearchQuery ?? '')}
-                                    onClick={() => {
-                                        if (!form.patient_id) {
+                                {form.patient_id ? (
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            value={getPatientLabel(form.patient_id)}
+                                            readOnly
+                                            className="flex-1 bg-muted/50"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="shrink-0"
+                                            onClick={() => {
+                                                setForm({ ...form, patient_id: '' });
+                                                setPatientSearchQuery('');
+                                                setPatientSearchResults([]);
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        ref={(el) => {
+                                            patientSearchInputRef.current = el;
+                                        }}
+                                        placeholder="Search patient..."
+                                        value={patientSearchQuery}
+                                        onClick={() => {
                                             setPatientSearchOpen(true);
-                                        }
-                                    }}
-                                    onChange={(event) => {
-                                        const value = event.target.value;
-                                        setForm({ ...form, patient_id: '' });
-                                        setPatientSearchQuery(value);
-                                        searchPatients(value);
-                                        setPatientSearchOpen(true);
-                                    }}
-                                />
+                                        }}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setPatientSearchQuery(value);
+                                            searchPatients(value);
+                                            setPatientSearchOpen(true);
+                                        }}
+                                    />
+                                )}
                                 {patientSearchOpen && !form.patient_id && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-background shadow-lg">
                                         {patientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
@@ -708,44 +728,44 @@ export default function WalletHistoryIndex({
                                     </div>
                                 )}
                             </div>
+                            {form.patient_id && (
+                                <p className="text-sm text-muted-foreground">
+                                    Current wallet balance: <span className="font-medium text-foreground">₦{patientBalance.toLocaleString()}</span>
+                                </p>
+                            )}
                         </div>
 
-                        {form.patient_id && (
-                            <p className="text-sm text-muted-foreground">
-                                Current wallet: ₦
-                                {patientBalance.toLocaleString()}
-                            </p>
-                        )}
-
-                        {/* Method selection */}
-                        <div className="space-y-1">
-                            <Label>Method</Label>
-                            <SelectNative
-                                value={form.method_id}
-                                onChange={(event) =>
-                                    setForm({
-                                        ...emptyForm(),
-                                        patient_id: form.patient_id,
-                                        method_id: event.target.value,
-                                    })
-                                }
-                            >
-                                <option value="">Select method</option>
-                                {methods.map((method) => (
-                                    <option
-                                        key={method.id}
-                                        value={String(method.id)}
-                                    >
-                                        {method.name}
-                                    </option>
-                                ))}
-                            </SelectNative>
+                        <div className="border-t pt-4">
+                            {/* Method selection */}
+                            <div className="space-y-2">
+                                <Label>Method <span className="text-destructive">*</span></Label>
+                                <SelectNative
+                                    value={form.method_id}
+                                    onChange={(event) =>
+                                        setForm({
+                                            ...emptyForm(),
+                                            patient_id: form.patient_id,
+                                            method_id: event.target.value,
+                                        })
+                                    }
+                                >
+                                    <option value="">Select method</option>
+                                    {methods.map((method) => (
+                                        <option
+                                            key={method.id}
+                                            value={String(method.id)}
+                                        >
+                                            {method.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            </div>
                         </div>
 
                         {/* Amount input for non-special methods */}
                         {!isSpecialMethod && form.method_id && (
-                            <div className="space-y-1">
-                                <Label>Deposit amount</Label>
+                            <div className="space-y-2">
+                                <Label>Deposit amount <span className="text-destructive">*</span></Label>
                                 <Input
                                     type="number"
                                     min="0.01"
@@ -764,9 +784,9 @@ export default function WalletHistoryIndex({
 
                         {/* Wallet method - debit */}
                         {isWalletMethod && (
-                            <div className="space-y-3">
-                                <div className="space-y-1">
-                                    <Label>Withdrawal amount</Label>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Withdrawal amount <span className="text-destructive">*</span></Label>
                                     <Input
                                         type="number"
                                         min="0.01"
@@ -782,37 +802,58 @@ export default function WalletHistoryIndex({
                                     />
                                 </div>
                                 {/* Wallet patient selection (optional - who to debit from) */}
-                                <div className="space-y-1" ref={(el) => {
+                                <div className="space-y-2" ref={(el) => {
                                     walletPatientSearchContainerRef.current = el;
                                 }}>
                                     <Label>
                                         Debit from patient
-                                        <span className="text-muted-foreground ml-1">
+                                        <span className="text-muted-foreground ml-1 font-normal">
                                             (default: {form.patient_id})
                                         </span>
                                     </Label>
                                     <div className="relative">
-                                        <Input
-                                            ref={(el) => {
-                                                walletPatientSearchInputRef.current = el;
-                                            }}
-                                            placeholder="Search patient to debit..."
-                                            value={form.wallet_patient_id ? getWalletPatientLabel(form.wallet_patient_id) : (walletPatientSearchQuery ?? '')}
-                                            onClick={() => {
-                                                if (!form.wallet_patient_id) {
+                                        {form.wallet_patient_id ? (
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    value={getWalletPatientLabel(form.wallet_patient_id)}
+                                                    readOnly
+                                                    className="flex-1 bg-muted/50"
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="shrink-0"
+                                                    onClick={() => {
+                                                        setForm({ ...form, wallet_patient_id: '' });
+                                                        setWalletPatientSearchQuery('');
+                                                        setWalletPatientSearchResults([]);
+                                                    }}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Input
+                                                ref={(el) => {
+                                                    walletPatientSearchInputRef.current = el;
+                                                }}
+                                                placeholder="Search patient to debit..."
+                                                value={walletPatientSearchQuery}
+                                                onClick={() => {
                                                     setWalletPatientSearchOpen(true);
-                                                }
-                                            }}
-                                            onChange={(event) => {
-                                                const value = event.target.value;
-                                                setForm({ ...form, wallet_patient_id: '' });
-                                                setWalletPatientSearchQuery(value);
-                                                searchWalletPatients(value);
-                                                setWalletPatientSearchOpen(true);
-                                            }}
-                                        />
+                                                }}
+                                                onChange={(event) => {
+                                                    const value = event.target.value;
+                                                    setForm({ ...form, wallet_patient_id: '' });
+                                                    setWalletPatientSearchQuery(value);
+                                                    searchWalletPatients(value);
+                                                    setWalletPatientSearchOpen(true);
+                                                }}
+                                            />
+                                        )}
                                         {walletPatientSearchOpen && !form.wallet_patient_id && (
-                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-background shadow-lg">
                                                 {walletPatientSearchLoading && (
                                                     <div className="px-3 py-2 text-xs text-muted-foreground">
                                                         Searching…
@@ -844,8 +885,7 @@ export default function WalletHistoryIndex({
                                     </div>
                                     {form.wallet_patient_id && (
                                         <p className="text-sm text-muted-foreground">
-                                            Wallet balance: ₦
-                                            {walletPatientBalance.toLocaleString()}
+                                            Wallet balance: <span className="font-medium text-foreground">₦{walletPatientBalance.toLocaleString()}</span>
                                         </p>
                                     )}
                                 </div>
@@ -854,7 +894,7 @@ export default function WalletHistoryIndex({
 
                         {/* Discount method */}
                         {methodName === 'Discount' && (
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                                 <Label>Discount amount</Label>
                                 <Input
                                     type="number"
@@ -874,8 +914,8 @@ export default function WalletHistoryIndex({
 
                         {/* Mercy Fund / Infant Formula */}
                         {(methodName === 'Mercy Fund' || methodName === 'Infant Formula') && (
-                            <div className="space-y-3">
-                                <div className="space-y-1">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
                                     <Label>Coupon</Label>
                                     <SelectNative
                                         value={form.coupon_id}
@@ -911,7 +951,7 @@ export default function WalletHistoryIndex({
                                             ))}
                                     </SelectNative>
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-2">
                                     <Label>Amount</Label>
                                     <Input
                                         type="number"
@@ -931,10 +971,12 @@ export default function WalletHistoryIndex({
                         )}
 
                         {error && (
-                            <p className="text-sm text-destructive">{error}</p>
+                            <div className="rounded-md bg-destructive/10 p-3">
+                                <p className="text-sm text-destructive">{error}</p>
+                            </div>
                         )}
 
-                        <div className="flex justify-end gap-2 pt-4">
+                        <div className="flex justify-end gap-2 pt-4 border-t">
                             <Button
                                 type="button"
                                 variant="secondary"
