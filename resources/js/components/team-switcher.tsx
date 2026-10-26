@@ -1,4 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 import {
     Check,
     ChevronsUpDown,
@@ -20,6 +21,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePermissions } from '@/hooks/use-permissions';
 import { index as couponsIndex } from '@/routes/coupons';
 import { index as markupsIndex } from '@/routes/markups';
 import { index as methodsIndex } from '@/routes/methods';
@@ -34,39 +36,50 @@ type TeamSwitcherProps = {
 export function TeamSwitcher({ inHeader = false }: TeamSwitcherProps) {
     const page = usePage();
     const isMobile = useIsMobile();
+    const can = usePermissions();
     const currentTeam = page.props.currentTeam;
     const teams = page.props.teams ?? [];
 
-    const teamSettingsItems: NavItem[] = [
-        {
-            title: 'Price lists',
-            href: currentTeam
-                ? priceListsIndex.url(currentTeam.slug)
-                : '/price-lists',
-            icon: ClipboardList,
-        },
-        {
-            title: 'Markups',
-            href: currentTeam
-                ? markupsIndex.url(currentTeam.slug)
-                : '/markups',
-            icon: Percent,
-        },
-        {
-            title: 'Payment methods',
-            href: currentTeam
-                ? methodsIndex.url(currentTeam.slug)
-                : '/methods',
-            icon: CreditCard,
-        },
-        {
-            title: 'Coupons',
-            href: currentTeam
-                ? couponsIndex.url(currentTeam.slug)
-                : '/coupons',
-            icon: TicketPercent,
-        },
-    ];
+    const teamSettingsItems = useMemo(() => {
+        const items: NavItem[] = [];
+        if (can.canViewPage('price-lists')) {
+            items.push({
+                title: 'Price lists',
+                href: currentTeam
+                    ? priceListsIndex.url(currentTeam.slug)
+                    : '/price-lists',
+                icon: ClipboardList,
+            });
+        }
+        if (can.canViewPage('markups')) {
+            items.push({
+                title: 'Markups',
+                href: currentTeam
+                    ? markupsIndex.url(currentTeam.slug)
+                    : '/markups',
+                icon: Percent,
+            });
+        }
+        if (can.canViewPage('methods')) {
+            items.push({
+                title: 'Payment methods',
+                href: currentTeam
+                    ? methodsIndex.url(currentTeam.slug)
+                    : '/methods',
+                icon: CreditCard,
+            });
+        }
+        if (can.canViewPage('coupons')) {
+            items.push({
+                title: 'Coupons',
+                href: currentTeam
+                    ? couponsIndex.url(currentTeam.slug)
+                    : '/coupons',
+                icon: TicketPercent,
+            });
+        }
+        return items;
+    }, [can, currentTeam]);
 
     const switchTeam = (team: Team) => {
         const previousTeamSlug = currentTeam?.slug;

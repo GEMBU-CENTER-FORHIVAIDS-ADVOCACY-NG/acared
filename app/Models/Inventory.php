@@ -30,7 +30,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read PriceList|null $priceList
  * @property-read DrugForm|null $drugForm
  * @property-read Collection<int, Stock> $stocks
- * @property-read Collection<int, OrderItem> $orderItems
  * @property-read Team|null $team
  */
 class Inventory extends Model
@@ -65,14 +64,6 @@ class Inventory extends Model
     }
 
     /**
-     * @return HasMany<OrderItem, $this>
-     */
-    public function orderItems(): HasMany
-    {
-        return $this->hasMany(OrderItem::class);
-    }
-
-    /**
      * @return BelongsTo<Team, $this>
      */
     public function team(): BelongsTo
@@ -83,132 +74,6 @@ class Inventory extends Model
     protected $casts = [
         'expires_at' => 'datetime',
     ];
-
-    // app/Models/Inventory.php
-
-    public function transferToLab(int|float $quantity, $receiver): LabInventory
-    {
-        $labInventory = LabInventory::where('sku', $this->sku)->first();
-
-        if ($labInventory) {
-            $labInventory->update([
-                'quantity' => $labInventory->quantity + $quantity, // accumulate instead of overwrite
-                'price' => $this->price,
-                'cost' => $this->cost,
-                'expires_at' => $this->expires_at,
-            ]);
-        } else {
-            $labInventory = LabInventory::create([
-                'sku' => $this->sku,
-                'price_list_id' => $this->price_list_id,
-                'drug_form_id' => $this->drug_form_id,
-                'min_qty' => $this->min_qty,
-                'quantity' => $quantity,
-                'price' => $this->price,
-                'cost' => $this->cost,
-                'status' => $this->status,
-                'expires_at' => $this->expires_at,
-            ]);
-        }
-
-        $this->decrement('quantity', $quantity);
-
-        // Refresh model to get updated quantity after decrement
-        $this->refresh();
-
-        // Update status based on quantity vs min_qty
-        $this->update([
-            'status' => $this->quantity <= $this->min_qty ? 'low' : 'available',
-        ]);
-
-        Stock::create([
-            'team_id' => $this->team_id,
-            'user_id' => auth()->id(),
-            'inventory_id' => $this->id,
-            'stockable_id' => $labInventory->id,
-            'stockable_type' => Inventory::class,
-            'quantity' => -$quantity,
-            'receivable_id' => $receiver,
-            'receivable_type' => User::class,
-            'status' => 'Transferred',
-        ]);
-
-        Stock::create([
-            'team_id' => $this->team_id,
-            'user_id' => auth()->id(),
-            'inventory_id' => $this->id,
-            'stockable_id' => $labInventory->id,
-            'stockable_type' => LabInventory::class,
-            'quantity' => $quantity,
-            'receivable_id' => $receiver,
-            'receivable_type' => User::class,
-            'status' => 'Transferred',
-        ]);
-
-        return $labInventory;
-    }
-
-    public function transferToPharm(int|float $quantity, $receiver): DrugInventory
-    {
-        $drugInventory = DrugInventory::where('sku', $this->sku)->first();
-
-        if ($drugInventory) {
-            $drugInventory->update([
-                'quantity' => $drugInventory->quantity + $quantity, // accumulate instead of overwrite
-                'price' => $this->price,
-                'cost' => $this->cost,
-                'expires_at' => $this->expires_at,
-            ]);
-        } else {
-            $drugInventory = DrugInventory::create([
-                'sku' => $this->sku,
-                'price_list_id' => $this->price_list_id,
-                'drug_form_id' => $this->drug_form_id,
-                'min_qty' => $this->min_qty,
-                'quantity' => $quantity,
-                'price' => $this->price,
-                'cost' => $this->cost,
-                'status' => $this->status,
-                'expires_at' => $this->expires_at,
-            ]);
-        }
-
-        $this->decrement('quantity', $quantity);
-
-        // Refresh model to get updated quantity after decrement
-        $this->refresh();
-
-        // Update status based on quantity vs min_qty
-        $this->update([
-            'status' => $this->quantity <= $this->min_qty ? 'low' : 'available',
-        ]);
-
-        Stock::create([
-            'team_id' => $this->team_id,
-            'user_id' => auth()->id(),
-            'inventory_id' => $this->id,
-            'stockable_id' => $drugInventory->id,
-            'stockable_type' => Inventory::class,
-            'quantity' => -$quantity,
-            'receivable_id' => $receiver,
-            'receivable_type' => User::class,
-            'status' => 'Transferred',
-        ]);
-
-        Stock::create([
-            'team_id' => $this->team_id,
-            'user_id' => auth()->id(),
-            'inventory_id' => $this->id,
-            'stockable_id' => $drugInventory->id,
-            'stockable_type' => DrugInventory::class,
-            'quantity' => $quantity,
-            'receivable_id' => $receiver,
-            'receivable_type' => User::class,
-            'status' => 'Transferred',
-        ]);
-
-        return $drugInventory;
-    }
 
     protected static function booted(): void
     {

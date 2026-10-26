@@ -27,7 +27,7 @@ class StockReportController extends Controller
     public function index(Request $request, string $current_team, ?string $report = null): Response
     {
         if ($report === null) {
-            return Inertia::render('reports/stock/catalog', ['reports' => self::REPORTS]);
+            return $this->dashboard($request);
         }
         abort_unless(array_key_exists($report, self::REPORTS), 404);
         $filters = $this->filters($request);
@@ -40,6 +40,51 @@ class StockReportController extends Controller
             'report' => ['key' => $report, 'title' => self::REPORTS[$report]],
             'rows' => $rows,
             'summary' => ['movements' => $rows->total(), 'quantity' => (float) $totalQuantity],
+            'filters' => $filters,
+            'reports' => self::REPORTS,
+        ]);
+    }
+
+    /**
+     * Render the stock dashboard with overview metrics.
+     */
+    private function dashboard(Request $request): Response
+    {
+        $filters = $this->filters($request);
+        $baseQuery = Stock::query()->with(['inventory.priceList', 'inventory.drugForm']);
+
+        $totalMovements = (clone $baseQuery)->count();
+        $totalQuantity = (float) (clone $baseQuery)->sum('quantity');
+
+        $perReportStats = collect(self::REPORTS)->mapWithKeys(function (string $title, string $key) use ($filters) {
+            $q = Stock::query()
+                ->whereRaw('LOWER(status) = ?', [$key])
+                ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
+                ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to));
+
+            return [
+                $key => [
+                    'movements' => (clone $q)->count(),
+                    'quantity' => (float) (clone $q)->sum('quantity'),
+                ],
+            ];
+        });
+
+        $recentMovements = Stock::query()
+            ->with(['user', 'inventory.priceList', 'inventory.drugForm', 'receivable'])
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(fn (Stock $stock) => $this->serialize($stock));
+
+        return Inertia::render('reports/stock/index', [
+            'report' => null,
+            'dashboard' => [
+                'totalMovements' => $totalMovements,
+                'totalQuantity' => $totalQuantity,
+                'perReport' => $perReportStats,
+                'recentMovements' => $recentMovements,
+            ],
             'filters' => $filters,
             'reports' => self::REPORTS,
         ]);

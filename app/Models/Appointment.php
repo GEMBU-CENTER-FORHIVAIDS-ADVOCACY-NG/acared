@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property int|null $user_id
  * @property int $billing_id
  * @property int|null $doctor_id
+ * @property int|null $nurse_id
  * @property string|null $purpose
  * @property string $status
  * @property CarbonInterface|null $created_at
@@ -46,7 +47,7 @@ class Appointment extends Model
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory;
 
-    public const DEFAULT_DURATION_MINUTES = 30;
+    public const DEFAULT_DURATION_MINUTES = 10;
 
     protected $guarded = [];
 
@@ -64,6 +65,14 @@ class Appointment extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'doctor_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function nurse(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'nurse_id');
     }
 
     /**

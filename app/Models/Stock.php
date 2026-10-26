@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read User|null $user
- * @property-read Inventory|LabInventory|DrugInventory|PurchaseOrder|null $stockable
+ * @property-read Inventory|LabInventory|DrugInventory|null $stockable
  * @property-read Patient|User|null $receivable
  * @property-read Inventory|null $inventory
  * @property-read Team|null $team

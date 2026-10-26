@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
- * @property-read Collection<int, Lga> $lgas
  * @property-read Collection<int, Patient> $patients
  */
 class State extends Model
@@ -23,14 +22,6 @@ class State extends Model
     use HasFactory;
 
     protected $guarded = [];
-
-    /**
-     * @return HasMany<Lga, $this>
-     */
-    public function lgas(): HasMany
-    {
-        return $this->hasMany(Lga::class);
-    }
 
     /**
      * @return HasMany<Patient, $this>

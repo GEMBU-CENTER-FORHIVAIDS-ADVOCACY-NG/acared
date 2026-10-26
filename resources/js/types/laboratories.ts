@@ -64,7 +64,7 @@ export type LabResultForm = {
 };
 
 export type LabCreateOptions = {
-    patients: { slug: string; label: string }[];
+    patients: { id: string; name: string }[];
     tests: { id: number; name: string; price: number; cost: number }[];
     selectedPatientId?: string;
 };

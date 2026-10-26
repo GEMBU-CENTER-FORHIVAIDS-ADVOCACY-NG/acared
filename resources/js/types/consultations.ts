@@ -49,7 +49,7 @@ export type ConsultationLine = {
     frequency: string | null;
     duration: string | null;
     dosage: string | null;
-    priceList?: {
+    price_list?: {
         id: number;
         name: string;
         uom?: string | null;
@@ -83,6 +83,24 @@ export type ConsultationRecords = Record<
     ConsultationRecordType,
     ConsultationRecord[]
 >;
+
+export type PaginatedConsultationRecords = {
+    data: ConsultationRecord[];
+    currentPage: number;
+    lastPage: number;
+    perPage: number;
+    total: number;
+};
+
+export type ConsultationRecordsWithPagination = Record<
+    ConsultationRecordType,
+    ConsultationRecord[] | PaginatedConsultationRecords
+>;
+
+export type ConsultationPagination = {
+    currentPage: number;
+    perPage: number;
+};
 
 export type ConsultationSelectOption = {
     id: number;
@@ -138,6 +156,16 @@ export type ConsultationSidebar = {
 export type ConsultationFilters = {
     status: string;
     doctor_id: number | null;
+    perPage: number;
+    page?: number;
+};
+
+export type ConsultationPaginator = {
+    data: ConsultationItem[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
 };
 
 export type ConsultationStatusOption = {

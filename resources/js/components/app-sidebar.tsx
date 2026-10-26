@@ -7,7 +7,6 @@ import {
     ChartBar,
     ClipboardList,
     FlaskConical,
-    FolderGit2,
     Heart,
     LayoutGrid,
     Package,
@@ -33,18 +32,23 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { usePermissions } from '@/hooks/use-permissions';
 import { dashboard } from '@/routes';
 import {
     index as billingsIndex,
     history as billingsHistory,
 } from '@/routes/billings';
 import { index as categoriesIndex } from '@/routes/categories';
-import { index as consultationsIndex } from '@/routes/consultations';
+import {
+    index as consultationsIndex,
+    history as consultationsHistory,
+} from '@/routes/consultations';
 import { index as patientsIndex } from '@/routes/patients';
 import { index as receptionIndex } from '@/routes/reception';
 import { index as laboratoriesIndex } from '@/routes/laboratories';
 import { index as labIntakeIndex } from '@/routes/lab-intake';
 import { index as labInventoriesIndex } from '@/routes/lab-inventories';
+import { index as priceListsIndex } from '@/routes/price-lists';
 import { index as pharmacyDrugFormsIndex } from '@/routes/pharmacy/drug-forms';
 import { index as pharmacyInventoriesIndex } from '@/routes/pharmacy/inventories';
 import { index as pharmacyPrescriptionsIndex } from '@/routes/pharmacy/prescriptions';
@@ -64,6 +68,7 @@ import type { NavItem } from '@/types';
 
 export function AppSidebar() {
     const page = usePage();
+    const can = usePermissions();
     const dashboardUrl = page.props.currentTeam
         ? dashboard(page.props.currentTeam.slug)
         : '/';
@@ -107,6 +112,13 @@ export function AppSidebar() {
                 ? consultationsIndex(page.props.currentTeam.slug)
                 : '/consultations',
             icon: Stethoscope,
+        },
+        {
+            title: 'Appointment History',
+            href: page.props.currentTeam
+                ? consultationsHistory(page.props.currentTeam.slug)
+                : '/consultations/history',
+            icon: ClipboardList,
         },
     ];
 
@@ -229,22 +241,22 @@ export function AppSidebar() {
             icon: Package,
         },
         {
+            title: 'Purchase Orders',
+            href: page.props.currentTeam
+                ? purchaseOrdersIndex.url(page.props.currentTeam.slug)
+                : '/purchase-orders',
+            icon: ReceiptText,
+        },
+        {
             title: 'Vendors',
             href: page.props.currentTeam
                 ? inventoryVendorsIndex.url(page.props.currentTeam.slug)
                 : '/vendors',
             icon: Users,
         },
-        {
-            title: 'Purchase orders',
-            href: page.props.currentTeam
-                ? purchaseOrdersIndex.url(page.props.currentTeam.slug)
-                : '/purchase-orders',
-            icon: ReceiptText,
-        },
     ];
 
-    const reportNavItems: NavItem[] = [
+    const footerNavItems: NavItem[] = [
         {
             title: 'Financial reports',
             href: page.props.currentTeam
@@ -272,18 +284,11 @@ export function AppSidebar() {
                 : '/reports/stock',
             icon: Package,
         },
-    ];
-
-    const footerNavItems: NavItem[] = [
-        {
-            title: 'Repository',
-            href: 'https://github.com/laravel/react-starter-kit',
-            icon: FolderGit2,
-        },
         {
             title: 'Documentation',
-            href: 'https://laravel.com/docs/starter-kits#react',
+            href: '/docs/api',
             icon: BookOpen,
+            external: true,
         },
     ];
 
@@ -308,14 +313,13 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
-                <NavMain items={receptionNavItems} label="Reception" />
-                <NavMain items={consultationNavItems} label="Consultation" />
-                <NavMain items={laboratoryNavItems} label="Laboratory" />
-                <NavMain items={pharmacyNavItems} label="Pharmacy" />
-                <NavMain items={nursingNavItems} label="Nursing" />
-                <NavMain items={inventoryNavItems} label="Inventory" />
-                <NavMain items={reportNavItems} label="Reports" />
-                <NavMain items={financeNavItems} label="Finance" />
+                {can.canViewPage('reception') && <NavMain items={receptionNavItems} label="Reception" />}
+                {can.canViewPage('consultations') && <NavMain items={consultationNavItems} label="Consultation" />}
+                {can.canViewPage('laboratories') && <NavMain items={laboratoryNavItems} label="Laboratory" />}
+                {can.canViewPage('pharmacy') && <NavMain items={pharmacyNavItems} label="Pharmacy" />}
+                {can.canViewPage('nursing') && <NavMain items={nursingNavItems} label="Nursing" />}
+                {can.canViewPage('inventory') && <NavMain items={inventoryNavItems} label="Inventory" />}
+                {can.canViewPage('finance') && <NavMain items={financeNavItems} label="Finance" />}
             </SidebarContent>
 
             <SidebarFooter>

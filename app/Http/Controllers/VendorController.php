@@ -26,7 +26,6 @@ class VendorController extends Controller
                     ->orWhere('mobile', 'like', "%{$search}%")
                     ->orWhere('company', 'like', "%{$search}%");
             }))
-            ->withCount('purchaseOrder')
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString()
@@ -38,7 +37,6 @@ class VendorController extends Controller
                 'mobile' => $vendor->mobile,
                 'address' => $vendor->address,
                 'company' => $vendor->company,
-                'purchaseOrdersCount' => $vendor->purchase_order_count,
                 'createdAt' => $vendor->created_at?->toIso8601String(),
                 'updatedAt' => $vendor->updated_at?->toIso8601String(),
             ]);

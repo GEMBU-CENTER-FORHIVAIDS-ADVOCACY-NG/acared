@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import LaboratoryController from '@/actions/App/Http/Controllers/LaboratoryController';
 import LabResultFields, {
     buildResultPayload,
     emptyResultValues,
@@ -84,6 +85,83 @@ export default function LaboratoryIndex({
     const [lines, setLines] = useState<CreateLine[]>([
         { price_list_id: '', unitPrice: '', unitCost: '', quantity: '1' },
     ]);
+
+    // Server-side patient search state
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<
+        { slug: string; label: string }[]
+    >([]);
+    const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const patientSearchInputRef = useRef<HTMLInputElement>(null);
+    const patientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Debounced search for patients using fetch to avoid Inertia JSON response error
+    const searchPatients = useCallback((query: string) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        if (!query.trim()) {
+            setPatientSearchResults([]);
+            return;
+        }
+
+        setPatientSearchLoading(true);
+        debounceTimerRef.current = setTimeout(() => {
+            const url = LaboratoryController.searchPatients.url(teamSlug, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setPatientSearchResults(results);
+                    setPatientSearchLoading(false);
+                })
+                .catch(() => {
+                    setPatientSearchLoading(false);
+                });
+        }, 300);
+    }, [teamSlug]);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!patientSearchOpen) {
+            return;
+        }
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                patientSearchContainerRef.current &&
+                !patientSearchContainerRef.current.contains(event.target as Node)
+            ) {
+                setPatientSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [patientSearchOpen]);
+
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
+    const selectedPatientLabel = (() => {
+        if (!patientId) {
+            return '';
+        }
+        const found = patientSearchResults.find((p) => p.slug === patientId);
+        return found?.label ?? patientId;
+    })();
 
     useEffect(() => {
         setResultValues(emptyResultValues());
@@ -365,7 +443,7 @@ export default function LaboratoryIndex({
             </div>
 
             <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>New laboratory request</SheetTitle>
                         <SheetDescription>
@@ -373,136 +451,163 @@ export default function LaboratoryIndex({
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="mt-6 space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="create-patient">Patient</Label>
-                            <SelectNative
-                                id="create-patient"
-                                value={patientId}
-                                disabled={Boolean(
-                                    createOptions.selectedPatientId,
+                    <div className="mt-6 space-y-4 px-4 pb-4">
+                        <div className="space-y-2" ref={patientSearchContainerRef}>
+                            <Label htmlFor="create-patient">
+                                Patient
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="create-patient"
+                                    ref={patientSearchInputRef}
+                                    placeholder="Search patient by name, code, or phone…"
+                                    value={patientId ? selectedPatientLabel : patientSearchQuery}
+                                    readOnly={!!patientId && Boolean(createOptions.selectedPatientId)}
+                                    onClick={() => {
+                                        if (!patientId || !createOptions.selectedPatientId) {
+                                            setPatientSearchOpen(true);
+                                        }
+                                    }}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setPatientId('');
+                                        setPatientSearchQuery(value);
+                                        searchPatients(value);
+                                        setPatientSearchOpen(true);
+                                    }}
+                                />
+                                {patientSearchOpen && !patientId && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        {patientSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients found
+                                            </div>
+                                        )}
+                                        {patientSearchResults.map((option) => (
+                                            <button
+                                                key={option.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setPatientId(option.slug);
+                                                    setPatientSearchQuery('');
+                                                    setPatientSearchResults([]);
+                                                    setPatientSearchOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
-                                onChange={(event) =>
-                                    setPatientId(event.target.value)
-                                }
-                            >
-                                <option value="">Select patient…</option>
-                                {createOptions.patients.map((patient) => (
-                                    <option
-                                        key={patient.slug}
-                                        value={patient.slug}
-                                    >
-                                        {patient.label}
-                                    </option>
-                                ))}
-                            </SelectNative>
+                            </div>
                         </div>
 
-                        {patientId
-                            ? lines.map((line, index) => (
-                                  <div
-                                      key={index}
-                                      className="grid gap-3 rounded-lg border p-3"
-                                  >
-                                      <div className="space-y-2">
-                                          <Label>Test</Label>
-                                          <SelectNative
-                                              value={line.price_list_id}
-                                              onChange={(event) => {
-                                                  const test =
-                                                      createOptions.tests.find(
-                                                          (item) =>
-                                                              String(
-                                                                  item.id,
-                                                              ) ===
-                                                              event.target
-                                                                  .value,
-                                                      );
-                                                  setLines((current) =>
-                                                      current.map(
-                                                          (row, rowIndex) =>
-                                                              rowIndex === index
-                                                                  ? {
-                                                                        ...row,
-                                                                        price_list_id:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        unitPrice:
-                                                                            test
-                                                                                ? String(
-                                                                                      test.price,
-                                                                                  )
-                                                                                : '',
-                                                                        unitCost:
-                                                                            test
-                                                                                ? String(
-                                                                                      test.cost,
-                                                                                  )
-                                                                                : '',
-                                                                    }
-                                                                  : row,
-                                                      ),
-                                                  );
-                                              }}
-                                          >
-                                              <option value="">
-                                                  Select test…
-                                              </option>
-                                              {createOptions.tests.map(
-                                                  (test) => (
-                                                      <option
-                                                          key={test.id}
-                                                          value={test.id}
-                                                      >
-                                                          {test.name}
-                                                      </option>
-                                                  ),
-                                              )}
-                                          </SelectNative>
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-3">
-                                          <div className="space-y-2">
-                                              <Label>
-                                                  Price ({currencySymbol})
-                                              </Label>
-                                              <Input
-                                                  value={line.unitPrice}
-                                                  readOnly
-                                              />
-                                          </div>
-                                          <div className="space-y-2">
-                                              <Label>Qty</Label>
-                                              <Input
-                                                  type="number"
-                                                  min="1"
-                                                  value={line.quantity}
-                                                  onChange={(event) =>
-                                                      setLines((current) =>
-                                                          current.map(
-                                                              (
-                                                                  row,
-                                                                  rowIndex,
-                                                              ) =>
-                                                                  rowIndex ===
-                                                                  index
-                                                                      ? {
-                                                                            ...row,
-                                                                            quantity:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                        }
-                                                                      : row,
-                                                          ),
-                                                      )
-                                                  }
-                                              />
-                                          </div>
-                                      </div>
-                                  </div>
-                              ))
-                            : null}
+                        {patientId && lines.length > 0 ? (
+                            <div className="rounded-lg border">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-muted/50">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                Test
+                                            </th>
+                                            <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
+                                                Price ({currencySymbol})
+                                            </th>
+                                            <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {lines.map((line, index) => (
+                                            <tr key={index}>
+                                                <td className="px-4 py-2">
+                                                    <SelectNative
+                                                        value={line.price_list_id}
+                                                        onChange={(event) => {
+                                                            const test =
+                                                                createOptions.tests.find(
+                                                                    (item) =>
+                                                                        String(
+                                                                            item.id,
+                                                                        ) ===
+                                                                        event.target
+                                                                            .value,
+                                                                );
+                                                            setLines((current) =>
+                                                                current.map(
+                                                                    (row, rowIndex) =>
+                                                                        rowIndex === index
+                                                                            ? {
+                                                                                  ...row,
+                                                                                  price_list_id:
+                                                                                      event
+                                                                                          .target
+                                                                                          .value,
+                                                                                  unitPrice:
+                                                                                      test
+                                                                                          ? String(
+                                                                                                  test.price,
+                                                                                              )
+                                                                                          : '',
+                                                                                  unitCost:
+                                                                                      test
+                                                                                          ? String(
+                                                                                                  test.cost,
+                                                                                              )
+                                                                                          : '',
+                                                                              }
+                                                                            : row,
+                                                                ),
+                                                            );
+                                                        }}
+                                                    >
+                                                        <option value="">
+                                                            Select test…
+                                                        </option>
+                                                        {createOptions.tests.map(
+                                                            (test) => (
+                                                                <option
+                                                                    key={test.id}
+                                                                    value={test.id}
+                                                                >
+                                                                    {test.name}
+                                                                </option>
+                                                            ),
+                                                        )}
+                                                    </SelectNative>
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    <Input
+                                                        value={line.unitPrice}
+                                                        readOnly
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-2 text-center">
+                                                    <button
+                                                        type="button"
+                                                        className="text-muted-foreground hover:text-red-600"
+                                                        onClick={() =>
+                                                            setLines((current) =>
+                                                                current.filter(
+                                                                    (_, i) => i !== index,
+                                                                ),
+                                                            )
+                                                        }
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : null}
 
                         {patientId ? (
                             <div className="flex items-center justify-between">

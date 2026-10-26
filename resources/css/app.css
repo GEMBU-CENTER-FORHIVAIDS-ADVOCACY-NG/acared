@@ -314,54 +314,133 @@
         border-top: 2px solid #000 !important;
     }
 
-    /* Report table print: hide everything except the report-print-container */
-    body.printing-report * {
+    /* Laboratory test result print: A4 portrait paper */
+    @page lab-result {
+        size: A4 portrait;
+        margin: 5mm;
+    }
+
+    body.printing-lab-result {
+        page: lab-result;
+    }
+
+    /* Laboratory test result print: hide everything except lab result wrapper */
+    body.printing-lab-result * {
         visibility: hidden !important;
     }
 
-    body.printing-report .report-print-container,
-    body.printing-report .report-print-container * {
+    body.printing-lab-result .lab-result-print-wrapper,
+    body.printing-lab-result .lab-result-print-wrapper * {
         visibility: visible !important;
     }
 
-    body.printing-report .report-print-container {
+    body.printing-lab-result .lab-result-print-wrapper {
         display: block !important;
-        position: static !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
         width: 100% !important;
+        max-width: none !important;
         margin: 0 !important;
-        padding: 20px !important;
-        overflow: visible !important;
-        z-index: 9999 !important;
+        padding: 0 !important;
+    }
+
+    body.printing-lab-result .lab-result-print {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    /* Page breaks for lab result steps and tests */
+    body.printing-lab-result .lab-result-print > div > div > div {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    body.printing-lab-result .lab-result-print .rounded-lg.border {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    body.printing-lab-result .lab-result-print .grid {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    body.printing-lab-result .lab-result-print .bg-muted\/50 {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Report table print: hide everything except the print div */
+    body.printing-report #report-print-div {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 99999 !important;
         background: white !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
-    @page {
-        size: A4 landscape;
+    /* Hide the original report-print-container and all other page content */
+    body.printing-report .report-print-container {
+        display: none !important;
     }
 
-    body.printing-report .report-print-container table {
+    @page report-a4 {
+        size: A4 portrait;
+        margin: 15mm;
+
+        @bottom-center {
+            content: 'Page ' counter(page) ' of ' counter(pages);
+            font-size: 10px;
+            color: #666;
+        }
+    }
+
+    body.printing-report {
+        page: report-a4;
+    }
+
+    body.printing-report #report-print-div table {
         border: 1px solid #000 !important;
         border-collapse: collapse !important;
         width: 100% !important;
         page-break-inside: auto !important;
     }
 
-    body.printing-report .report-print-container thead {
+    body.printing-report #report-print-div thead {
         display: table-header-group !important;
     }
 
-    body.printing-report .report-print-container tfoot {
+    body.printing-report #report-print-div tfoot {
         display: table-footer-group !important;
     }
 
-    body.printing-report .report-print-container tr {
+    body.printing-report #report-print-div tr {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
     }
 
-    body.printing-report .report-print-container th,
-    body.printing-report .report-print-container td {
+    body.printing-report #report-print-div th,
+    body.printing-report #report-print-div td {
         border: 1px solid #000 !important;
         padding: 4px 8px !important;
     }
+
+    body.printing-report #report-print-div h2 {
+        margin-bottom: 12px !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+    }
+
 }

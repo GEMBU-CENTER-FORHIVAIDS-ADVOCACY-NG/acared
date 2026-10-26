@@ -1,9 +1,26 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ArrowRightLeft,
+    Eye,
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+    TrendingUp,
+} from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
@@ -312,65 +329,68 @@ export default function InventoryStockIndex({
                         </div>
                     ))}
                 </div>
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters();
-                    }}
-                >
-                    <Input
-                        className="w-full sm:max-w-sm"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search product, form, or SKU..."
-                    />
-                    <SelectNative
-                        aria-label="Filter inventory status"
-                        value={status}
-                        onChange={(event) => setStatus(event.target.value)}
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters();
+                        }}
                     >
-                        <option value="all">All statuses</option>
-                        <option value="low">Low</option>
-                        <option value="stocked">Stocked</option>
-                        <option value="available">Available</option>
-                        <option value="expired">Expired</option>
-                        <option value="expiring">Expiring soon</option>
-                    </SelectNative>
-                    <Button type="submit" variant="secondary">
-                        Filter
-                    </Button>
-                </form>
-                {selected.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="mr-2 text-sm text-muted-foreground">
-                            {selected.length} selected
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => openOperation('adjust', selected)}
+                        <Input
+                            className="max-w-sm"
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search product, form, or SKU..."
+                        />
+                        <SelectNative
+                            aria-label="Filter inventory status"
+                            value={status}
+                            onChange={(event) => setStatus(event.target.value)}
                         >
-                            Adjust stock
+                            <option value="all">All statuses</option>
+                            <option value="low">Low</option>
+                            <option value="stocked">Stocked</option>
+                            <option value="available">Available</option>
+                            <option value="expired">Expired</option>
+                            <option value="expiring">Expiring soon</option>
+                        </SelectNative>
+                        <Button type="submit" variant="secondary">
+                            Filter
                         </Button>
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => openOperation('transfer', selected)}
-                        >
-                            Transfer stock
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setBulkDeleteOpen(true)}
-                        >
-                            Delete selected
-                        </Button>
-                    </div>
-                ) : null}
-                <div className="overflow-x-auto rounded-lg border">
-                    <Table>
+                    </form>
+                    {selected.length > 0 ? (
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {selected.length} selected
+                            </span>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openOperation('adjust', selected)}
+                            >
+                                Adjust stock
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openOperation('transfer', selected)}
+                            >
+                                Transfer stock
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setBulkDeleteOpen(true)}
+                            >
+                                Delete selected
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>
@@ -487,80 +507,89 @@ export default function InventoryStockIndex({
                                             {currencySymbol}
                                             {item.value.toLocaleString()}
                                         </TableCell>
-                                        <TableCell>{item.status}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary" className="capitalize">
+                                                {item.status}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell>
                                             {item.expiresAt ?? '—'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={stockRoutes.show.url(
-                                                            {
-                                                                current_team:
-                                                                    teamSlug,
-                                                                inventory:
-                                                                    item.id,
-                                                            },
-                                                        )}
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
                                                     >
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openEdit(item)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openOperation(
-                                                            'adjust',
-                                                            [item.id],
-                                                        )
-                                                    }
-                                                >
-                                                    Adjust
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openOperation(
-                                                            'transfer',
-                                                            [item.id],
-                                                        )
-                                                    }
-                                                >
-                                                    Transfer
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setDeleting(item)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={stockRoutes.show.url(
+                                                                {
+                                                                    current_team:
+                                                                        teamSlug,
+                                                                    inventory:
+                                                                        item.id,
+                                                                },
+                                                            )}
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openEdit(item)
+                                                        }
+                                                    >
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openOperation(
+                                                                'adjust',
+                                                                [item.id],
+                                                            )
+                                                        }
+                                                    >
+                                                        <TrendingUp className="mr-2 h-4 w-4" />
+                                                        Adjust
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openOperation(
+                                                                'transfer',
+                                                                [item.id],
+                                                            )
+                                                        }
+                                                    >
+                                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                                        Transfer
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setDeleting(item)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
-                    </Table>
-                </div>
+                        </Table>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: inventories.current_page,
@@ -574,7 +603,7 @@ export default function InventoryStockIndex({
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
                             {editing
@@ -698,7 +727,7 @@ export default function InventoryStockIndex({
             </Sheet>
 
             <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>Stock adjustment</SheetTitle>
                         <SheetDescription>
@@ -796,7 +825,7 @@ export default function InventoryStockIndex({
             </Sheet>
 
             <Sheet open={transferOpen} onOpenChange={setTransferOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>Stock transfer</SheetTitle>
                         <SheetDescription>
@@ -896,7 +925,6 @@ export default function InventoryStockIndex({
                 title="Delete inventory item?"
                 description="Inventory records with movement history cannot be deleted."
                 confirmLabel="Delete"
-                destructive
                 processing={processing}
                 onConfirm={deleteOne}
             />
@@ -906,7 +934,6 @@ export default function InventoryStockIndex({
                 title="Delete selected inventory items?"
                 description="Items with stock movement history will be skipped."
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={deleteSelected}
             />

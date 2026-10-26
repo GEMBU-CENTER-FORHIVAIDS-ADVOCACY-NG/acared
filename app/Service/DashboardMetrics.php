@@ -3,8 +3,8 @@
 namespace App\Service;
 
 use App\Models\Admission;
-use App\Models\Appointment;
 use App\Models\Billing;
+use App\Models\Consultation;
 use App\Models\Inventory;
 use App\Models\Patient;
 use App\Models\Payment;
@@ -38,7 +38,7 @@ final class DashboardMetrics
      */
     public static function appointmentsForRange(CarbonImmutable $start, CarbonImmutable $end): array
     {
-        $appointmentSummary = DashboardTenant::apply(Appointment::query())
+        $appointmentSummary = DashboardTenant::apply(Consultation::query())
             ->selectRaw('COUNT(*) AS total')
             ->selectRaw("COUNT(CASE WHEN status IN ('scheduled', 'started') THEN 1 END) AS open_appointments")
             ->selectRaw("COUNT(CASE WHEN status = 'completed' THEN 1 END) AS completed_appointments")
@@ -163,7 +163,7 @@ final class DashboardMetrics
         }
 
         $series = self::bucketAggregate(
-            DashboardTenant::apply(Appointment::query()),
+            DashboardTenant::apply(Consultation::query()),
             $buckets,
             [
                 'appointments' => '1',

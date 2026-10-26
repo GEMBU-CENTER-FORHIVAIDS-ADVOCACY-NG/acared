@@ -99,6 +99,24 @@ class DashboardController extends Controller
                 'cost' => (float) $inventory->cost,
             ]);
 
+        $expiringDrugs = DashboardTenant::apply(Inventory::query())
+            ->with(['priceList:id,name', 'drugForm:id,name'])
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>=', now())
+            ->where('expires_at', '<=', now()->addDays(60))
+            ->orderBy('expires_at')
+            ->orderBy('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (Inventory $inventory): array => [
+                'id' => $inventory->getKey(),
+                'sku' => $inventory->sku,
+                'product' => trim(($inventory->priceList->name ?? 'Unknown product').' '.($inventory->drugForm->name ?? '')),
+                'expiresAt' => $inventory->expires_at?->format('Y-m-d'),
+                'daysRemaining' => round(now()->diffInDays($inventory->expires_at, false, true), 2),
+                'quantity' => (float) $inventory->quantity,
+            ]);
+
         $email = strtolower($request->user()->email);
 
         $pendingInvitations = TeamInvitation::query()
@@ -169,6 +187,7 @@ class DashboardController extends Controller
             'topDrugs' => $topDrugs,
             'topLaboratoryTests' => $topLaboratoryTests,
             'lowStockItems' => $lowStockItems,
+            'expiringDrugs' => $expiringDrugs,
         ]);
     }
 

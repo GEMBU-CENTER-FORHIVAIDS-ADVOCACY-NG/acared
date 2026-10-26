@@ -1,9 +1,19 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Check, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import CouponController from '@/actions/App/Http/Controllers/CouponController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,7 +42,7 @@ import {
 } from '@/routes/coupons';
 import { destroy as couponsBulkDestroy } from '@/routes/coupons/bulk';
 
-type PatientOption = { slug: string; fullName: string };
+type PatientOption = { slug: string; label: string };
 type Coupon = {
     id: number;
     patientId: string;
@@ -90,16 +100,15 @@ const emptyForm: Form = {
 
 export default function CouponsIndex({
     coupons,
-    patients,
     filters,
     summary,
 }: {
     coupons: Paginator;
-    patients: PatientOption[];
     filters: Filters;
     summary: { pending: number; approved: number; rejected: number; totalUsed: number; totalDiscounts: number };
 }) {
     const { currentTeam } = usePage().props;
+    const team = currentTeam?.slug;
     const [search, setSearch] = useState(filters.q);
     const [statusFilter, setStatusFilter] = useState(filters.status);
     const [form, setForm] = useState<Form>(emptyForm);
@@ -109,7 +118,73 @@ export default function CouponsIndex({
     const [deleting, setDeleting] = useState<Coupon | null>(null);
     const [approving, setApproving] = useState<Coupon | null>(null);
     const [rejecting, setRejecting] = useState<Coupon | null>(null);
-    const team = currentTeam?.slug;
+
+    // Server-side patient search state
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<PatientOption[]>([]);
+    const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const patientSearchInputRef = useRef<HTMLInputElement>(null);
+    const patientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Debounced search for patients using fetch to avoid Inertia JSON response error
+    const searchPatients = useCallback((query: string) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        if (!query.trim()) {
+            setPatientSearchResults([]);
+            return;
+        }
+
+        setPatientSearchLoading(true);
+        debounceTimerRef.current = setTimeout(() => {
+            const url = CouponController.searchPatients.url(team ?? '', { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setPatientSearchResults(results);
+                    setPatientSearchLoading(false);
+                })
+                .catch(() => {
+                    setPatientSearchLoading(false);
+                });
+        }, 300);
+    }, [team]);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!patientSearchOpen) {
+            return;
+        }
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                patientSearchContainerRef.current &&
+                !patientSearchContainerRef.current.contains(event.target as Node)
+            ) {
+                setPatientSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [patientSearchOpen]);
+
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
     const visit = (patch: Partial<Filters>) =>
         router.get(
             couponsIndex.url(team ?? '', { query: { ...filters, ...patch } }),
@@ -138,6 +213,8 @@ export default function CouponsIndex({
             ...emptyForm,
             code: Math.random().toString(36).slice(2, 10).toUpperCase(),
         });
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
         setOpen(true);
     };
     const openEdit = (coupon: Coupon) => {
@@ -158,6 +235,8 @@ export default function CouponsIndex({
             is_active: coupon.isActive,
             fund_type: coupon.fundType ?? '',
         });
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
         setOpen(true);
     };
     const submit = (event: React.FormEvent) => {
@@ -229,7 +308,7 @@ export default function CouponsIndex({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(e) => {
                             e.preventDefault();
                             visit({ q: search, status: statusFilter, page: 1 });
@@ -239,7 +318,7 @@ export default function CouponsIndex({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search code or patient"
-                            className="w-72"
+                            className="max-w-sm"
                         />
                         <Select
                             value={statusFilter}
@@ -265,14 +344,15 @@ export default function CouponsIndex({
                         </Button>
                     )}
                 </div>
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        aria-label="Select all"
-                                        type="checkbox"
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>
+                                        <input
+                                            aria-label="Select all"
+                                            type="checkbox"
                                         checked={
                                             coupons.data.length > 0 &&
                                             coupons.data.every((c) =>
@@ -380,39 +460,60 @@ export default function CouponsIndex({
                                                 {c.status === 'approved' ? 'Approved' : c.status === 'rejected' ? 'Rejected' : 'Pending'}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="space-x-1 text-right">
-                                            {c.status === 'pending' && (
-                                                <>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        onClick={() => handleApprove(c)}
                                                     >
-                                                        Approve
+                                                        <MoreHorizontal className="size-4" />
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleReject(c)}
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {c.status === 'pending' && (
+                                                        <>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    handleApprove(
+                                                                        c,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Check className="mr-2 h-4 w-4" />
+                                                                Approve
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    handleReject(
+                                                                        c,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <X className="mr-2 h-4 w-4" />
+                                                                Reject
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                        </>
+                                                    )}
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openEdit(c)
+                                                        }
                                                     >
-                                                        Reject
-                                                    </Button>
-                                                </>
-                                            )}
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openEdit(c)}
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeleting(c)}
-                                            >
-                                                Delete
-                                            </Button>
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setDeleting(c)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -442,7 +543,8 @@ export default function CouponsIndex({
                             </TableRow>
                         </TableFooter>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: coupons.current_page,
@@ -473,28 +575,58 @@ export default function CouponsIndex({
                             </p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-1">
-                                <Label>Patient</Label>
-                                <Select
-                                    value={form.patient_id}
-                                    onValueChange={(v) =>
-                                        setForm({ ...form, patient_id: v })
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select patient" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {patients.map((p) => (
-                                            <SelectItem
-                                                key={p.slug}
-                                                value={p.slug}
-                                            >
-                                                {p.slug} — {p.fullName}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-1" ref={patientSearchContainerRef}>
+                                <Label htmlFor="coupon-patient-search">Patient</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="coupon-patient-search"
+                                        ref={patientSearchInputRef}
+                                        placeholder="Search patient by name, code, or phone…"
+                                        value={form.patient_id ? (patientSearchResults.find((p) => p.slug === form.patient_id)?.label ?? form.patient_id) : patientSearchQuery}
+                                        readOnly={!!form.patient_id}
+                                        onClick={() => {
+                                            if (!form.patient_id) {
+                                                setPatientSearchOpen(true);
+                                            }
+                                        }}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setForm({ ...form, patient_id: '' });
+                                            setPatientSearchQuery(value);
+                                            searchPatients(value);
+                                            setPatientSearchOpen(true);
+                                        }}
+                                    />
+                                    {patientSearchOpen && !form.patient_id && (
+                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                            {patientSearchLoading && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    Searching…
+                                                </div>
+                                            )}
+                                            {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    No patients found
+                                                </div>
+                                            )}
+                                            {patientSearchResults.map((option) => (
+                                                <button
+                                                    key={option.slug}
+                                                    type="button"
+                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                    onClick={() => {
+                                                        setForm({ ...form, patient_id: option.slug });
+                                                        setPatientSearchQuery('');
+                                                        setPatientSearchResults([]);
+                                                        setPatientSearchOpen(false);
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="space-y-1">
                                 <Label>Code</Label>
@@ -643,7 +775,6 @@ export default function CouponsIndex({
                 onOpenChange={(open) => {
                     if (!open) setDeleting(null);
                 }}
-                destructive
                 title={`Delete ${deleting?.code ?? 'coupon'}?`}
                 description="The coupon will no longer be available."
                 confirmLabel="Delete"

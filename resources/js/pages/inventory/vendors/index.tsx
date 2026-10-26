@@ -1,9 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -41,7 +49,6 @@ type Vendor = {
     mobile: string | null;
     address: string | null;
     company: string | null;
-    purchaseOrdersCount: number;
     createdAt: string | null;
     updatedAt: string | null;
 };
@@ -213,40 +220,43 @@ export default function VendorsIndex({
                     />
                     <Button onClick={openCreate}>Create vendor</Button>
                 </div>
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applySearch();
-                    }}
-                >
-                    <Input
-                        className="w-full sm:max-w-sm"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search vendors..."
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
-                {selectedIds.length > 0 ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">
-                            {selectedIds.length} selected
-                        </span>
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => setBulkDeleteOpen(true)}
-                        >
-                            Delete selected
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applySearch();
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search vendors..."
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
                         </Button>
-                    </div>
-                ) : null}
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                    </form>
+                    {selectedIds.length > 0 ? (
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {selectedIds.length} selected
+                            </span>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setBulkDeleteOpen(true)}
+                            >
+                                Delete selected
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead>
                                     <input
@@ -287,7 +297,6 @@ export default function VendorsIndex({
                                 <TableHead>Phone</TableHead>
                                 <TableHead>Mobile</TableHead>
                                 <TableHead>Company</TableHead>
-                                <TableHead>Orders</TableHead>
                                 <TableHead className="text-right">
                                     Actions
                                 </TableHead>
@@ -297,7 +306,7 @@ export default function VendorsIndex({
                             {vendors.data.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={8}
+                                        colSpan={7}
                                         className="py-10 text-center text-muted-foreground"
                                     >
                                         No vendors found.
@@ -344,46 +353,52 @@ export default function VendorsIndex({
                                         <TableCell>
                                             {vendor.company ?? '—'}
                                         </TableCell>
-                                        <TableCell>
-                                            {vendor.purchaseOrdersCount}
-                                        </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setViewing(vendor)
-                                                    }
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        openEdit(vendor)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setDeleting(vendor)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setViewing(vendor)
+                                                        }
+                                                    >
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openEdit(vendor)
+                                                        }
+                                                    >
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        variant="destructive"
+                                                        onClick={() =>
+                                                            setDeleting(vendor)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: vendors.current_page,
@@ -396,13 +411,13 @@ export default function VendorsIndex({
                 />
             </div>
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit vendor' : 'Create vendor'}
                         </SheetTitle>
                         <SheetDescription>
-                            Vendor contact details for purchase orders.
+                            Vendor contact details and information.
                         </SheetDescription>
                     </SheetHeader>
                     <div className="grid gap-4 px-4 py-5 sm:grid-cols-2">
@@ -551,7 +566,6 @@ export default function VendorsIndex({
                 title="Delete vendor?"
                 description={`Delete ${deleting?.name ?? 'this vendor'}?`}
                 confirmLabel="Delete"
-                destructive
                 processing={processing}
                 onConfirm={destroy}
             />
@@ -561,7 +575,6 @@ export default function VendorsIndex({
                 title="Delete selected vendors?"
                 description={`This deletes ${selectedIds.length} selected vendor records.`}
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={destroySelected}
             />

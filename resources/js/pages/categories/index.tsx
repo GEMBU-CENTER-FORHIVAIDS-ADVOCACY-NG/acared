@@ -1,10 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -15,6 +22,10 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import {
+    Card,
+    CardContent,
+} from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -195,7 +206,7 @@ export default function CategoryIndex({
 
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex items-center gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
@@ -205,7 +216,7 @@ export default function CategoryIndex({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search categories..."
-                            className="w-72"
+                            className="max-w-sm"
                             data-test="category-search"
                         />
                         <Button type="submit" variant="secondary">
@@ -214,95 +225,105 @@ export default function CategoryIndex({
                     </form>
                 </div>
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('name')}
-                                    >
-                                        Name
-                                        {sortIndicator('name')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() =>
-                                            toggleSort('discount_percentage')
-                                        }
-                                    >
-                                        Discount
-                                        {sortIndicator('discount_percentage')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>Patients</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead className="w-12 text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {categories.data.length === 0 ? (
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={5}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No categories found.
-                                    </TableCell>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('name')}
+                                        >
+                                            Name
+                                            {sortIndicator('name')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() =>
+                                                toggleSort('discount_percentage')
+                                            }
+                                        >
+                                            Discount
+                                            {sortIndicator('discount_percentage')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Patients</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="w-12 text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
-                            ) : (
-                                categories.data.map((category) => (
-                                    <TableRow
-                                        key={category.id}
-                                        data-test="category-row"
-                                    >
-                                        <TableCell className="font-medium">
-                                            {category.name}
-                                        </TableCell>
-                                        <TableCell>
-                                            {category.discountPercentage}%
-                                        </TableCell>
-                                        <TableCell>
-                                            {category.patientsCount}
-                                        </TableCell>
-                                        <TableCell className="max-w-md truncate text-muted-foreground">
-                                            {category.description ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        openEdit(category)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setToDelete(category)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                            </TableHeader>
+                            <TableBody>
+                                {categories.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No categories found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                ) : (
+                                    categories.data.map((category) => (
+                                        <TableRow
+                                            key={category.id}
+                                            data-test="category-row"
+                                        >
+                                            <TableCell className="font-medium">
+                                                {category.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {category.discountPercentage}%
+                                            </TableCell>
+                                            <TableCell>
+                                                {category.patientsCount}
+                                            </TableCell>
+                                            <TableCell className="max-w-md truncate text-muted-foreground">
+                                                {category.description ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(category)
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setToDelete(category)
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{
@@ -317,7 +338,7 @@ export default function CategoryIndex({
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent>
+                <SheetContent className="w-full overflow-y-auto">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit category' : 'New category'}
@@ -327,7 +348,7 @@ export default function CategoryIndex({
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="flex flex-1 flex-col gap-4 px-4">
+                    <div className="flex flex-1 flex-col gap-4 px-4 pb-4">
                         <div className="space-y-2">
                             <Label htmlFor="category-name">Name</Label>
                             <Input
@@ -406,7 +427,6 @@ export default function CategoryIndex({
                     }
                 }}
                 processing={processing}
-                destructive
                 title={`Delete "${toDelete?.name ?? ''}"?`}
                 description="Patients keep their record but lose this category. This cannot be undone."
                 confirmLabel="Delete"

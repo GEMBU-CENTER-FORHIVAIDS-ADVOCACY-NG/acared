@@ -1,8 +1,17 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -127,7 +136,7 @@ export default function NursingRecordsIndex({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             visit({ q: search, page: 1 });
@@ -137,7 +146,7 @@ export default function NursingRecordsIndex({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search patient or hospital number"
-                            className="w-72"
+                            className="max-w-sm"
                         />
                         <Button type="submit" variant="secondary">
                             Search
@@ -149,9 +158,10 @@ export default function NursingRecordsIndex({
                         </Button>
                     )}
                 </div>
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead>
                                     <input
@@ -232,8 +242,10 @@ export default function NursingRecordsIndex({
                                         <TableCell className="max-w-64 truncate">
                                             {row.purpose ?? '—'}
                                         </TableCell>
-                                        <TableCell className="capitalize">
-                                            {row.status.replace('_', ' ')}
+                                        <TableCell>
+                                            <Badge variant="secondary" className="capitalize">
+                                                {row.status.replace('_', ' ')}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             {row.createdAt
@@ -243,20 +255,29 @@ export default function NursingRecordsIndex({
                                                 : '—'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={view.url({
-                                                        current_team: team,
-                                                        nursing: row.id,
-                                                    })}
-                                                >
-                                                    View
-                                                </Link>
-                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={view.url({
+                                                                current_team: team,
+                                                                nursing: row.id,
+                                                            })}
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -272,7 +293,8 @@ export default function NursingRecordsIndex({
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: records.current_page,

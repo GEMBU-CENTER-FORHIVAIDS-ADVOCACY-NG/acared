@@ -80,10 +80,49 @@ type Props = {
         quantity: number;
         cost: number;
     }[];
+    expiringDrugs: {
+        id: number;
+        sku: string | null;
+        product: string;
+        expiresAt: string;
+        daysRemaining: number;
+        quantity: number;
+    }[];
 };
 
 function formatMoney(symbol: string, value: number): string {
     return `${symbol} ${Math.round(value).toLocaleString()}`;
+}
+
+function formatExpirationDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
+
+function formatDaysRemaining(days: number): string {
+    if (days === 0) {
+        return 'Expiring today';
+    }
+    
+    const daysFormatted = days % 1 !== 0 ? days.toFixed(2) : days.toString();
+    
+    if (days === 1) {
+        return '1 day left';
+    }
+    if (days <= 7) {
+        return `${daysFormatted} days left`;
+    }
+    if (days <= 14) {
+        return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? 's' : ''} left`;
+    }
+    if (days <= 30) {
+        return `${Math.floor(days / 7)} weeks left`;
+    }
+    return `${daysFormatted} days left`;
 }
 
 function Sparkline({ values, color }: { values: number[]; color: string }) {
@@ -342,6 +381,7 @@ export default function Dashboard({
     topDrugs,
     topLaboratoryTests,
     lowStockItems,
+    expiringDrugs,
 }: Props) {
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
     const teamSlug = currentTeam?.slug ?? '';
@@ -748,6 +788,107 @@ export default function Dashboard({
                                                 </TableCell>
                                             </TableRow>
                                         ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Drugs expiring within 60 days</CardTitle>
+                        <CardDescription>
+                            Items approaching their expiration date, sorted by urgency.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>SKU</TableHead>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead>Expiration date</TableHead>
+                                        <TableHead>Days remaining</TableHead>
+                                        <TableHead>Quantity</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {expiringDrugs.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="py-8 text-center text-muted-foreground"
+                                            >
+                                                No drugs are expiring within
+                                                the next 60 days.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        expiringDrugs.map((item) => {
+                                            const statusColor =
+                                                item.daysRemaining <= 7
+                                                    ? 'destructive'
+                                                    : item.daysRemaining <= 30
+                                                      ? 'warning'
+                                                      : 'info';
+
+                                            const statusLabel =
+                                                item.daysRemaining <= 7
+                                                    ? 'Critical'
+                                                    : item.daysRemaining <= 30
+                                                      ? 'Urgent'
+                                                      : 'Expiring soon';
+
+                                            return (
+                                                <TableRow key={item.id}>
+                                                    <TableCell>
+                                                        {item.sku ?? '—'}
+                                                    </TableCell>
+                                                    <TableCell className="font-medium">
+                                                        {item.product}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {formatExpirationDate(
+                                                            item.expiresAt,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className={`font-semibold ${
+                                                            statusColor === 'destructive'
+                                                                ? 'text-destructive'
+                                                                : statusColor === 'warning'
+                                                                  ? 'text-warning'
+                                                                  : 'text-muted-foreground'
+                                                        }`}
+                                                    >
+                                                        {formatDaysRemaining(
+                                                            item.daysRemaining,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {item.quantity.toLocaleString()}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span
+                                                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                statusColor ===
+                                                                'destructive'
+                                                                    ? 'bg-destructive/10 text-destructive'
+                                                                    : statusColor ===
+                                                                      'warning'
+                                                                      ? 'bg-yellow-500/10 text-yellow-600'
+                                                                      : 'bg-blue-500/10 text-blue-600'
+                                                            }`}
+                                                        >
+                                                            {statusLabel}
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>

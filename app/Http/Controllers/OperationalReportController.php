@@ -14,6 +14,66 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OperationalReportController extends Controller
 {
+    public function employeeDeduction(Request $request, string $current_team): Response
+    {
+        $filters = $this->filters($request, true);
+        $query = Patient::query()
+            ->where('wallet', '<', 0)
+            ->whereHas('category', fn (Builder $q) => $q->whereRaw('LOWER(name) = ?', ['employee']))
+            ->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['q'] !== '', fn (Builder $patients) => $patients->where(fn (Builder $patients) => $patients
+                ->where('slug', 'like', '%'.$filters['q'].'%')
+                ->orWhere('fullName', 'like', '%'.$filters['q'].'%')));
+        $totals = (clone $query)
+            ->selectRaw('COALESCE(SUM(wallet), 0) as net, COALESCE(SUM(ABS(wallet)), 0) as absolute')
+            ->first();
+        $summary = [
+            'patients' => (clone $query)->count(),
+            'walletBalance' => (float) ($totals->net ?? 0),
+            'walletTotal' => (float) ($totals->absolute ?? 0),
+        ];
+        $patients = $query->with(['category'])->orderBy('fullName')->paginate($filters['perPage'])->withQueryString()
+            ->through(fn (Patient $patient) => [
+                'id' => $patient->getKey(),
+                'patientId' => $patient->slug,
+                'name' => $patient->fullName,
+                'category' => $patient->category?->name,
+                'wallet' => (float) $patient->wallet,
+                'createdAt' => $patient->created_at?->toIso8601String(),
+                'updatedAt' => $patient->updated_at?->toIso8601String(),
+            ]);
+
+        return Inertia::render('reports/employee-deduction', [
+            'patients' => $patients,
+            'summary' => $summary,
+            'filters' => $filters,
+            'currencySymbol' => DashboardCurrency::symbol(),
+        ]);
+    }
+
+    public function exportEmployeeDeduction(Request $request, string $current_team): StreamedResponse
+    {
+        $filters = $this->filters($request, true);
+        $patients = Patient::query()
+            ->where('wallet', '<', 0)
+            ->whereHas('category', fn (Builder $q) => $q->whereRaw('LOWER(name) = ?', ['employee']))
+            ->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['q'] !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('slug', 'like', '%'.$filters['q'].'%')
+                ->orWhere('fullName', 'like', '%'.$filters['q'].'%')))
+            ->with(['category'])
+            ->orderBy('fullName')->cursor();
+
+        return response()->streamDownload(function () use ($patients): void {
+            $output = fopen('php://output', 'w');
+            fputcsv($output, ['Hospital No.', 'Patient', 'Category', 'Wallet Balance', 'Created At', 'Updated At'], ',', '"', '\\');
+            foreach ($patients as $patient) {
+                fputcsv($output, [$patient->slug, $patient->fullName, $patient->category?->name, $patient->wallet, $patient->created_at, $patient->updated_at], ',', '"', '\\');
+            }
+            fclose($output);
+        }, 'employee-deduction-report.csv', ['Content-Type' => 'text/csv']);
+    }
+
     public function wallet(Request $request, string $current_team): Response
     {
         $filters = $this->filters($request, true);
@@ -136,7 +196,7 @@ class OperationalReportController extends Controller
 
         return [
             'q' => trim((string) ($validated['q'] ?? '')),
-            'from' => $withDates ? ($validated['from'] ?? today()->startOfMonth()->toDateString()) : null,
+            'from' => $withDates ? ($validated['from'] ?? today()->toDateString()) : null,
             'to' => $withDates ? ($validated['to'] ?? today()->toDateString()) : null,
             'perPage' => (int) ($validated['perPage'] ?? 25),
         ];

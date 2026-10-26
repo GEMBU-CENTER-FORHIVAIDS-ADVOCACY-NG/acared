@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreLaboratoryResultsRequest;
 use App\Models\LabInventory;
 use App\Models\Laboratory;
 use App\Models\Line;
@@ -12,6 +13,7 @@ use App\Service\DashboardCurrency;
 use App\Service\InventoryUsageService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -103,13 +105,10 @@ class LaboratoryController extends Controller
             ] : null,
             'resultForm' => $selected ? $this->resultForm($selected, pendingOnly: true) : null,
             'createOptions' => [
-                'patients' => Patient::query()
-                    ->when($selectedPatientId !== '', fn (Builder $query) => $query->where('slug', $selectedPatientId))
-                    ->orderBy('slug')->limit(100)->get()
-                    ->map(fn (Patient $patient) => [
-                        'slug' => $patient->slug,
-                        'label' => "{$patient->slug} - {$patient->fullName}",
-                    ])->values(),
+                'patients' => $this->patientOptions(
+                    search: $request->query('q'),
+                    selectedPatientSlug: $selectedPatientId,
+                ),
                 'tests' => $this->laboratoryTests()
                     ->map(fn (PriceList $test) => [
                         'id' => $test->getKey(),
@@ -219,7 +218,7 @@ class LaboratoryController extends Controller
         $lines = $data['lines'];
 
         $priceLists = PriceList::query()
-            ->with(['labInventory', 'drugInventory', 'inventory'])
+            ->with(['labInventories', 'drugInventories', 'inventories'])
             ->whereIn('id', array_column($lines, 'price_list_id'))
             ->get()
             ->keyBy(fn (PriceList $priceList): int => (int) $priceList->getKey());
@@ -278,9 +277,17 @@ class LaboratoryController extends Controller
     /**
      * Submit results for a paid laboratory request.
      */
-    public function storeResults(Request $request, string $current_team, Laboratory $laboratory): RedirectResponse
+    public function storeResults(StoreLaboratoryResultsRequest $request, string $current_team, Laboratory $laboratory): RedirectResponse
     {
         abort_unless($laboratory->status === 'paid', 422, 'Only paid laboratory requests can receive new results.');
+
+        // Validate inventory availability before submitting results
+        $inventoryErrors = $request->validateInventoryAvailability();
+        if (! empty($inventoryErrors)) {
+            return redirect()->back()
+                ->withErrors($inventoryErrors)
+                ->withInput();
+        }
 
         $this->persistResults($request, $laboratory, deductInventory: true);
 
@@ -480,19 +487,14 @@ class LaboratoryController extends Controller
      */
     private function resultForm(Laboratory $laboratory, bool $pendingOnly): array
     {
-        $lineableId = $laboratory->getKey();
-
-        $tests = PriceList::query()
-            ->whereHas('lines', function (Builder $query) use ($lineableId, $pendingOnly): void {
-                $query->where('lineable_type', Laboratory::class)
-                    ->where('lineable_id', $lineableId);
-
-                if ($pendingOnly) {
-                    $query->whereNull('results');
-                }
+        $lines = $laboratory->lines()
+            ->with(['priceList.parameters', 'priceList.subCategory', 'testResults.priceList'])
+            ->when($pendingOnly, function (Builder $query): void {
+                $query->whereNull('results');
             })
-            ->with(['parameters', 'subCategory'])
             ->get();
+
+        $tests = $lines->map(fn (Line $line) => $line->priceList)->filter()->unique('id')->values();
 
         $steps = [];
 
@@ -500,12 +502,7 @@ class LaboratoryController extends Controller
             $stepTests = [];
 
             foreach ($subcategoryTests as $test) {
-                $line = Line::query()
-                    ->where('lineable_type', Laboratory::class)
-                    ->where('lineable_id', $lineableId)
-                    ->where('price_list_id', $test->id)
-                    ->with('testResults.priceList')
-                    ->first();
+                $line = $lines->first(fn (Line $l) => $l->price_list_id === $test->id);
 
                 if ($test->parameters->isNotEmpty()) {
                     if ($pendingOnly) {
@@ -633,7 +630,7 @@ class LaboratoryController extends Controller
     private function laboratoryTests(): Collection
     {
         return PriceList::query()
-            ->with(['labInventory', 'drugInventory', 'inventory'])
+            ->with(['labInventories', 'drugInventories', 'inventories'])
             ->whereNull('parameter_id')
             ->where('is_category', false)
             ->where(function (Builder $query): void {
@@ -809,5 +806,81 @@ class LaboratoryController extends Controller
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Patients available for laboratory requests, filtered by a search term.
+     *
+     * Only a bounded list is returned because the roster may hold tens of
+     * thousands of patients. The currently selected patient is always kept so
+     * the form never loses the value it was opened with.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function patientOptions(?string $search = null, ?string $selectedPatientSlug = null): Collection
+    {
+        $term = trim((string) $search);
+        $selectedPatientSlug = trim((string) $selectedPatientSlug);
+
+        $patients = Patient::query()
+            ->when($term !== '', function (Builder $query) use ($term): void {
+                $like = '%'.$term.'%';
+                $query->where(function (Builder $query) use ($like): void {
+                    $query->where('slug', 'like', $like)
+                        ->orWhere('fullName', 'like', $like)
+                        ->orWhere('firstName', 'like', $like)
+                        ->orWhere('lastName', 'like', $like);
+                });
+            })
+            ->orderBy('fullName')
+            ->limit(200)
+            ->get(['slug', 'firstName', 'middleName', 'lastName', 'fullName']);
+
+        if ($selectedPatientSlug !== '' && ! $patients->contains('slug', $selectedPatientSlug)) {
+            $selected = Patient::query()
+                ->where('slug', $selectedPatientSlug)
+                ->first(['slug', 'firstName', 'middleName', 'lastName', 'fullName']);
+
+            if ($selected) {
+                $patients->push($selected);
+            }
+        }
+
+        return $patients
+            ->map(fn (Patient $patient) => [
+                'id' => $patient->slug,
+                'name' => trim($patient->slug.' '.$patient->fullName),
+            ])
+            ->values();
+    }
+
+    /**
+     * Search all patients by name or slug.
+     */
+    public function searchPatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $patients = Patient::query()
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('slug')
+            ->limit(50)
+            ->get(['slug', 'fullName'])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+            ])->values();
+
+        return response()->json($patients);
     }
 }

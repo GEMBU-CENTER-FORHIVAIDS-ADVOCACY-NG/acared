@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -29,20 +28,22 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property-read User|null $doctor
  * @property-read Ward|null $ward
  * @property-read Ward|null $bed
- * @property-read Collection<int, Line> $lines
  * @property-read Appointment|null $appointment
  * @property-read Collection<int, Billing> $billings
- * @property-read Collection<int, Laboratory> $laboratories
- * @property-read Collection<int, Complaint> $complaints
+ * @property-read Collection<int, Consultation> $consultations
  * @property-read Collection<int, Examination> $examinations
- * @property-read Collection<int, Diagnose> $diagnoses
+ * @property-read Collection<int, Laboratory> $laboratories
  * @property-read Collection<int, Nursing> $nursings
+ * @property-read Collection<int, Prescription> $prescriptions
+ * @property-read Collection<int, Treatment> $treatments
  * @property-read Team|null $team
  */
 class Admission extends Model
 {
     /** @use HasFactory<AdmissionFactory> */
     use HasFactory;
+
+    public const array INACTIVE_STATUSES = ['discharged'];
 
     protected $guarded = [];
 
@@ -79,23 +80,15 @@ class Admission extends Model
     }
 
     /**
-     * @return MorphMany<Line, $this>
-     */
-    public function lines(): MorphMany
-    {
-        return $this->morphMany(Line::class, 'lineable');
-    }
-
-    /**
      * @return BelongsTo<Appointment, $this>
      */
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
+        return $this->belongsTo(Appointment::class, 'appointment_id');
     }
 
     /**
-     * @return MorphMany<Billing, $this>
+     * @return MorphMany<Billing>
      */
     public function billings(): MorphMany
     {
@@ -103,43 +96,51 @@ class Admission extends Model
     }
 
     /**
-     * @return HasMany<Laboratory, $this>
+     * @return MorphMany<Consultation>
      */
-    public function laboratories(): HasMany
+    public function consultations(): MorphMany
     {
-        return $this->hasMany(Laboratory::class, 'patient_id', 'patient_id');
+        return $this->morphMany(Consultation::class, 'subject');
     }
 
     /**
-     * @return HasMany<Complaint, $this>
+     * @return MorphMany<Examination>
      */
-    public function complaints(): HasMany
+    public function examinations(): MorphMany
     {
-        return $this->hasMany(Complaint::class, 'patient_id', 'patient_id');
+        return $this->morphMany(Examination::class, 'subject');
     }
 
     /**
-     * @return HasMany<Examination, $this>
+     * @return MorphMany<Laboratory>
      */
-    public function examinations(): HasMany
+    public function laboratories(): MorphMany
     {
-        return $this->hasMany(Examination::class, 'patient_id', 'patient_id');
+        return $this->morphMany(Laboratory::class, 'subject');
     }
 
     /**
-     * @return HasMany<Diagnose, $this>
+     * @return MorphMany<Nursing>
      */
-    public function diagnoses(): HasMany
+    public function nursings(): MorphMany
     {
-        return $this->hasMany(Diagnose::class, 'patient_id', 'patient_id');
+        return $this->morphMany(Nursing::class, 'subject');
     }
 
     /**
-     * @return HasMany<Nursing, $this>
+     * @return MorphMany<Prescription>
      */
-    public function nursings(): HasMany
+    public function prescriptions(): MorphMany
     {
-        return $this->hasMany(Nursing::class, 'appointment_id');
+        return $this->morphMany(Prescription::class, 'subject');
+    }
+
+    /**
+     * @return MorphMany<Treatment>
+     */
+    public function treatments(): MorphMany
+    {
+        return $this->morphMany(Treatment::class, 'subject');
     }
 
     /**
@@ -151,30 +152,12 @@ class Admission extends Model
     }
 
     /**
-     * Admission states that no longer hold a bed.
-     *
-     * @var array<int, string>
-     */
-    public const INACTIVE_STATUSES = ['discharged', 'cancelled'];
-
-    /**
-     * An admission that still occupies a bed, whether it was requested
-     * (pending) or has been admitted.
-     *
      * @param  Builder<Admission>  $query
      * @return Builder<Admission>
      */
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNotIn('status', self::INACTIVE_STATUSES);
-    }
-
-    /**
-     * Whether this admission still holds the bed it was raised against.
-     */
-    public function isActive(): bool
-    {
-        return ! in_array($this->status, self::INACTIVE_STATUSES, true);
     }
 
     protected static function booted(): void

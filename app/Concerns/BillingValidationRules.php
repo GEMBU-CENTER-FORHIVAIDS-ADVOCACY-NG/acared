@@ -48,6 +48,13 @@ trait BillingValidationRules
             ],
             'payments.*.coupon_discount_amount' => ['nullable', 'numeric', 'min:0'],
             'payments.*.wallet_debit' => ['nullable', 'numeric', 'min:0'],
+            'payments.*.wallet_patient_id' => [
+                'nullable',
+                'string',
+                Rule::exists('patients', 'slug')->where(
+                    fn ($query) => $query->where('team_id', $teamId)
+                ),
+            ],
         ];
     }
 }

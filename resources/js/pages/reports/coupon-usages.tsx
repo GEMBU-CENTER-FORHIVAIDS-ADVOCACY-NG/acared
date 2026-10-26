@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { FinancialReportSwitcher } from '@/components/financial-report-switcher';
+import { FinancialReportLayout } from '@/components/financial-report-layout';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
@@ -51,41 +51,46 @@ export default function CouponUsages({
     const { printRef, handlePrint } = useReportPrint();
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
-    const visit = (patch: Partial<Filters>) =>
+    const visit = (patch: Partial<Filters>) => {
+        const next = { ...filters, ...patch };
         router.get(
-            index.url(team, { query: { ...filters, ...patch } }),
-            {},
+            index.url(),
+            {
+                from: next.from || undefined,
+                to: next.to || undefined,
+                perPage: next.perPage,
+                page: next.page || undefined,
+            },
             { preserveState: true, preserveScroll: true, replace: true },
         );
+    }
 
     return (
         <>
             <Head title="Coupon usage report" />
-            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-3 no-print">
-                    <Heading
-                        variant="small"
-                        title="Coupon usage report"
-                        description="Coupon redemptions and discounts applied to patient payments."
-                    />
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={handlePrint}>
-                            Print
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <a
-                                href={exportReport.url(team, {
-                                    query: { ...filters, from, to },
-                                })}
-                            >
-                                Export CSV
-                            </a>
-                        </Button>
+            <FinancialReportLayout active="coupon-usages">
+                <div className="flex w-full flex-col space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                        <Heading
+                            variant="small"
+                            title="Coupon usage report"
+                            description="Coupon redemptions and discounts applied to patient payments."
+                        />
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={handlePrint}>
+                                Print
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={exportReport.url(team, {
+                                        query: { ...filters, from, to },
+                                    })}
+                                >
+                                    Export CSV
+                                </a>
+                            </Button>
+                        </div>
                     </div>
-                </div>
-                <div className="no-print">
-                    <FinancialReportSwitcher active="coupon-usages" />
-                </div>
                 <div className="grid gap-3 sm:grid-cols-2 no-print">
                     <Summary
                         label="Coupon uses"
@@ -126,7 +131,7 @@ export default function CouponUsages({
                     <h2 className="mb-3 text-lg font-semibold">
                         Coupon Usage Report from {formatReportDate(from)} to {formatReportDate(to)}
                     </h2>
-                    <div className="rounded-lg border">
+                    <div className="rounded-lg border bg-card">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -198,14 +203,15 @@ export default function CouponUsages({
                         onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
                     />
                 </div>
-            </div>
+                </div>
+            </FinancialReportLayout>
         </>
     );
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-lg border p-4">
+        <div className="rounded-lg border bg-card p-4">
             <p className="text-sm text-muted-foreground">{label}</p>
             <p className="mt-1 text-2xl font-semibold">{value}</p>
         </div>

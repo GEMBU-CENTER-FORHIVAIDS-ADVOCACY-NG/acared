@@ -1,10 +1,19 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -138,7 +147,7 @@ export default function BillingHistory({
 
                 <div className="flex flex-wrap items-end gap-2">
                     <form
-                        className="flex items-center gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
@@ -148,7 +157,7 @@ export default function BillingHistory({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search patient, cashier..."
-                            className="w-72"
+                            className="max-w-sm"
                             data-test="billing-search"
                         />
                         <Button type="submit" variant="secondary">
@@ -194,132 +203,145 @@ export default function BillingHistory({
                     </div>
                 </div>
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('patient_id')}
-                                    >
-                                        Patient ID
-                                        {sortIndicator('patient_id')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Cashier</TableHead>
-                                <TableHead>Billable Type</TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('total')}
-                                    >
-                                        Total
-                                        {sortIndicator('total')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('status')}
-                                    >
-                                        Status
-                                        {sortIndicator('status')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('created_at')}
-                                    >
-                                        Date
-                                        {sortIndicator('created_at')}
-                                    </button>
-                                </TableHead>
-                                <TableHead className="w-32 text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {billings.data.length === 0 ? (
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={8}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No billings found.
-                                    </TableCell>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('patient_id')}
+                                        >
+                                            Patient ID
+                                            {sortIndicator('patient_id')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Patient</TableHead>
+                                    <TableHead>Cashier</TableHead>
+                                    <TableHead>Billable Type</TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('total')}
+                                        >
+                                            Total
+                                            {sortIndicator('total')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('status')}
+                                        >
+                                            Status
+                                            {sortIndicator('status')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('created_at')}
+                                        >
+                                            Date
+                                            {sortIndicator('created_at')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead className="w-32 text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
-                            ) : (
-                                billings.data.map((billing) => (
-                                    <TableRow
-                                        key={billing.id}
-                                        data-test="billing-row"
-                                    >
-                                        <TableCell className="font-medium">
-                                            {billing.patientId}
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.patientName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.cashierName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.billableType ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.total.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="capitalize">
-                                            {billing.status}
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.createdAt
-                                                ? new Date(
-                                                      billing.createdAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={BillingController.show.url(
-                                                        [
-                                                            teamSlug ?? '',
-                                                            billing.id,
-                                                        ],
-                                                    )}
-                                                >
-                                                    Receipt
-                                                </Link>
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                    setToDelete(billing)
-                                                }
-                                            >
-                                                Delete
-                                            </Button>
+                            </TableHeader>
+                            <TableBody>
+                                {billings.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={8}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No billings found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                ) : (
+                                    billings.data.map((billing) => (
+                                        <TableRow
+                                            key={billing.id}
+                                            data-test="billing-row"
+                                        >
+                                            <TableCell className="font-medium">
+                                                {billing.patientId}
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.patientName ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.cashierName ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.billableType ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.total.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary" className="capitalize">
+                                                    {billing.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.createdAt
+                                                    ? new Date(
+                                                          billing.createdAt,
+                                                      ).toLocaleString()
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem asChild>
+                                                            <Link
+                                                                href={BillingController.show.url(
+                                                                    [
+                                                                        teamSlug ?? '',
+                                                                        billing.id,
+                                                                    ],
+                                                                )}
+                                                            >
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                Receipt
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            disabled={billing.status === 'paid'}
+                                                            onClick={() =>
+                                                                setToDelete(billing)
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{
@@ -341,7 +363,6 @@ export default function BillingHistory({
                     }
                 }}
                 processing={processing}
-                destructive
                 title={`Delete billing #${toDelete?.id ?? ''}?`}
                 description="This removes the recorded payment. This cannot be undone."
                 confirmLabel="Delete"

@@ -8,9 +8,12 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { finance, priceList, wallet } from '@/routes/reports';
+import { priceList, wallet } from '@/routes/reports';
+import { index as categorySalesSummaryIndex } from '@/routes/reports/category-sales-summary';
 import { index as clinicalIndex } from '@/routes/reports/clinical';
 import { index as couponUsagesIndex } from '@/routes/reports/coupon-usages';
+import { index as financialReportsIndex } from '@/routes/reports/financial';
+import { index as paymentMethodSalesSummaryIndex } from '@/routes/reports/payment-method-sales-summary';
 import { index as salesIndex } from '@/routes/reports/sales';
 
 type Report = {
@@ -30,7 +33,7 @@ const reportUrls: Record<
     string,
     ((currentTeam: string) => string) | undefined
 > = {
-    finance: (team) => finance.url({ current_team: team }),
+    finance: (team) => financialReportsIndex.url({ current_team: team }),
     'sales:item': (team) =>
         salesIndex.url({ current_team: team, dimension: 'item' }),
     'sales:department': (team) =>
@@ -39,6 +42,8 @@ const reportUrls: Record<
         salesIndex.url({ current_team: team, dimension: 'patient' }),
     'sales:method': (team) =>
         salesIndex.url({ current_team: team, dimension: 'method' }),
+    'category-sales-summary': (team) => categorySalesSummaryIndex.url({ current_team: team }),
+    'payment-method-sales-summary': (team) => paymentMethodSalesSummaryIndex.url({ current_team: team }),
     'coupon-usages': (team) => couponUsagesIndex.url({ current_team: team }),
     wallet: (team) => wallet.url({ current_team: team }),
     'price-list': (team) => priceList.url({ current_team: team }),

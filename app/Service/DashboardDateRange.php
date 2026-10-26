@@ -29,7 +29,7 @@ final class DashboardDateRange
     /**
      * @return array{0: CarbonImmutable, 1: CarbonImmutable}
      */
-    public static function range(?string $filter = 'month', ?CarbonImmutable $now = null): array
+    public static function range(?string $filter = 'today', ?CarbonImmutable $now = null): array
     {
         $now ??= CarbonImmutable::now();
 
@@ -52,7 +52,7 @@ final class DashboardDateRange
     /**
      * @return list<array{start: CarbonImmutable, end: CarbonImmutable, label: string}>
      */
-    public static function buckets(?string $filter = 'month', ?CarbonImmutable $now = null): array
+    public static function buckets(?string $filter = 'today', ?CarbonImmutable $now = null): array
     {
         $now ??= CarbonImmutable::now();
 
@@ -144,7 +144,7 @@ final class DashboardDateRange
     {
         return is_string($filter) && array_key_exists($filter, self::FILTERS)
             ? $filter
-            : 'month';
+            : 'today';
     }
 
     /**

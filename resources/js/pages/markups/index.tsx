@@ -1,9 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -147,40 +155,43 @@ export default function MarkupsIndex({
                     />
                     <Button onClick={openCreate}>Create markup</Button>
                 </div>
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters();
-                    }}
-                >
-                    <Input
-                        className="w-full sm:max-w-sm"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search markups..."
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
-                {selected.length ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">
-                            {selected.length} selected
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setBulkDeleteOpen(true)}
-                        >
-                            Delete selected
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters();
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search markups..."
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
                         </Button>
-                    </div>
-                ) : null}
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                    </form>
+                    {selected.length ? (
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {selected.length} selected
+                            </span>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setBulkDeleteOpen(true)}
+                            >
+                                Delete selected
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead>
                                     <input
@@ -280,42 +291,50 @@ export default function MarkupsIndex({
                                                 : '—'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setViewing(markup)
-                                                    }
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openEdit(markup)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setDeleting(markup)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setViewing(markup)
+                                                        }
+                                                    >
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openEdit(markup)
+                                                        }
+                                                    >
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setDeleting(markup)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: markups.current_page,
@@ -328,7 +347,7 @@ export default function MarkupsIndex({
                 />
             </div>
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="sm:max-w-sm">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-sm">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit markup' : 'Create markup'}
@@ -379,7 +398,7 @@ export default function MarkupsIndex({
                 open={viewing !== null}
                 onOpenChange={(open) => !open && setViewing(null)}
             >
-                <SheetContent className="sm:max-w-sm">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-sm">
                     <SheetHeader>
                         <SheetTitle>Markup details</SheetTitle>
                     </SheetHeader>
@@ -417,9 +436,8 @@ export default function MarkupsIndex({
                 open={deleting !== null}
                 onOpenChange={(open) => !open && setDeleting(null)}
                 title="Delete markup?"
-                description={`Delete ${deleting?.name ?? 'this markup'}? Purchase order items using it may also be removed.`}
+                description={`Delete ${deleting?.name ?? 'this markup'}? Items using it may also be removed.`}
                 confirmLabel="Delete"
-                destructive
                 processing={processing}
                 onConfirm={deleteOne}
             />
@@ -427,9 +445,8 @@ export default function MarkupsIndex({
                 open={bulkDeleteOpen}
                 onOpenChange={setBulkDeleteOpen}
                 title="Delete selected markups?"
-                description="Purchase order items using these markups may also be affected."
+                description="Items using these markups may also be affected."
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={deleteSelected}
             />

@@ -1,9 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -320,100 +328,117 @@ export default function LabIntakeIndex({
                     <Button onClick={openCreate}>Add {itemLabel}</Button>
                 </div>
 
-                <form
-                    className="flex items-center gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters({ q: search });
-                    }}
-                >
-                    <Input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search catalog..."
-                        className="w-72"
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters({ q: search });
+                        }}
+                    >
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search catalog..."
+                            className="max-w-sm"
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
+                        </Button>
+                    </form>
+                </div>
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Subcategory</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Category?</TableHead>
-                                <TableHead>Inventory?</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {items.data.length === 0 ? (
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={7}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No {itemLabel}s found.
-                                    </TableCell>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Subcategory</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Price</TableHead>
+                                    <TableHead>Category?</TableHead>
+                                    <TableHead>Inventory?</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
-                            ) : (
-                                items.data.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            {item.categoryName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.subcategoryName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>{item.name}</TableCell>
-                                        <TableCell>
-                                            {currencySymbol}{' '}
-                                            {item.price.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.isCategory ? 'Yes' : 'No'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.isInventory ? 'Yes' : 'No'}
-                                        </TableCell>
-                                        <TableCell className="space-x-2 text-right">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => setViewing(item)}
-                                            >
-                                                View
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                onClick={() => openEdit(item)}
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() =>
-                                                    setToDelete(item)
-                                                }
-                                            >
-                                                Delete
-                                            </Button>
+                            </TableHeader>
+                            <TableBody>
+                                {items.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-8 text-center text-muted-foreground"
+                                        >
+                                            No {itemLabel}s found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                ) : (
+                                    items.data.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                {item.categoryName ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.subcategoryName ?? '—'}
+                                            </TableCell>
+                                            <TableCell>{item.name}</TableCell>
+                                            <TableCell>
+                                                {currencySymbol}{' '}
+                                                {item.price.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.isCategory ? 'Yes' : 'No'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.isInventory ? 'Yes' : 'No'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setViewing(item)
+                                                            }
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(item)
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setToDelete(item)
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{
@@ -428,7 +453,7 @@ export default function LabIntakeIndex({
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? `Edit ${itemLabel}` : `Add ${itemLabel}`}
@@ -438,7 +463,7 @@ export default function LabIntakeIndex({
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="mt-6 space-y-4">
+                    <div className="mt-6 space-y-4 px-4 pb-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
                             <Input

@@ -1,9 +1,18 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -248,27 +257,30 @@ export default function LabInventoriesIndex({
                     </div>
                 </div>
 
-                <form
-                    className="flex items-center gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters({ q: search });
-                    }}
-                >
-                    <Input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search product, form, SKU..."
-                        className="w-72"
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters({ q: search });
+                        }}
+                    >
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search product, form, SKU..."
+                            className="max-w-sm"
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
+                        </Button>
+                    </form>
+                </div>
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead className="w-10" />
                                 <TableHead>Product</TableHead>
@@ -333,40 +345,56 @@ export default function LabInventoriesIndex({
                                             {currencySymbol}{' '}
                                             {item.cost.toLocaleString()}
                                         </TableCell>
-                                        <TableCell className="capitalize">
-                                            {item.status}
+                                        <TableCell>
+                                            <Badge variant="secondary" className="capitalize">
+                                                {item.status}
+                                            </Badge>
                                         </TableCell>
-                                        <TableCell className="space-x-2 text-right">
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                onClick={() => setViewing(item)}
-                                            >
-                                                View
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                onClick={() => openEdit(item)}
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() =>
-                                                    setToDelete(item)
-                                                }
-                                            >
-                                                Delete
-                                            </Button>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setViewing(item)
+                                                        }
+                                                    >
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openEdit(item)
+                                                        }
+                                                    >
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setToDelete(item)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{
@@ -381,7 +409,7 @@ export default function LabInventoriesIndex({
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit inventory' : 'Add inventory'}
@@ -390,7 +418,7 @@ export default function LabInventoriesIndex({
                             Link a catalog item to stock quantities and costing.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="mt-6 grid gap-4">
+                    <div className="mt-6 grid gap-4 px-4 pb-4">
                         <div className="space-y-2">
                             <Label>Product</Label>
                             <SelectNative
@@ -568,7 +596,7 @@ export default function LabInventoriesIndex({
             </Dialog>
 
             <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>Stock adjustment</SheetTitle>
                         <SheetDescription>
@@ -576,7 +604,7 @@ export default function LabInventoriesIndex({
                             products.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="mt-6 space-y-4">
+                    <div className="mt-6 space-y-4 px-4 pb-4">
                         <div className="space-y-2">
                             <Label>Type</Label>
                             <SelectNative

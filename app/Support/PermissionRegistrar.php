@@ -50,6 +50,34 @@ class PermissionRegistrar
     ];
 
     /**
+     * Page-level permissions that are independent of model permissions.
+     *
+     * These allow fine-grained control when multiple sidebar groups share
+     * the same underlying model (e.g., Reception and Consultations both use
+     * the Appointment model, but should be visible to different roles).
+     *
+     * @var array<int, string>
+     */
+    protected array $pagePermissions = [
+        'view reception',
+        'view consultations',
+        'view laboratories',
+        'view lab-intake',
+        'view price-lists',
+        'view pharmacy',
+        'view inventory',
+        'view nursing',
+        'view reports',
+        'view finance',
+        'view roles',
+        'view permissions',
+        'view users',
+        'view markups',
+        'view methods',
+        'view coupons',
+    ];
+
+    /**
      * Get the list of policy abilities.
      *
      * @return array<int, string>
@@ -157,7 +185,7 @@ class PermissionRegistrar
     }
 
     /**
-     * Synchronize permissions for all discovered models.
+     * Synchronize permissions for all discovered models and page-level permissions.
      *
      * Creates missing permissions and returns all generated permission names.
      * Does NOT delete permissions that no longer have a corresponding model.
@@ -180,6 +208,15 @@ class PermissionRegistrar
 
                 $permissionNames->push($permissionName);
             }
+        }
+
+        // Create page-level permissions
+        foreach ($this->pagePermissions as $pagePermission) {
+            Permission::firstOrCreate([
+                'name' => $pagePermission,
+            ]);
+
+            $permissionNames->push($pagePermission);
         }
 
         // Flush the permission cache so changes take effect
@@ -212,9 +249,26 @@ class PermissionRegistrar
             ];
         }
 
+        // Add page-level permissions as a separate group
+        $groups[] = [
+            'model' => null,
+            'label' => 'Pages',
+            'permissions' => $this->pagePermissions,
+        ];
+
         // Sort by label
         usort($groups, fn (array $a, array $b) => strcasecmp($a['label'], $b['label']));
 
         return $groups;
+    }
+
+    /**
+     * Get the page-level permissions.
+     *
+     * @return array<int, string>
+     */
+    public function getPagePermissions(): array
+    {
+        return $this->pagePermissions;
     }
 }

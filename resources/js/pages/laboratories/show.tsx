@@ -61,6 +61,14 @@ export default function LaboratoryShow({
         );
     }
 
+    function printResult() {
+        const cleanup = () =>
+            document.body.classList.remove('printing-lab-result');
+        document.body.classList.add('printing-lab-result');
+        window.addEventListener('afterprint', cleanup, { once: true });
+        window.print();
+    }
+
     return (
         <>
             <Head title={`Lab #${laboratory.id}`} />
@@ -72,7 +80,7 @@ export default function LaboratoryShow({
                         description={laboratory.facilityAddress ?? undefined}
                     />
                     <div className="flex flex-wrap gap-2">
-                        <Button type="button" onClick={() => window.print()}>
+                        <Button type="button" onClick={printResult}>
                             Print result
                         </Button>
                         <Button asChild variant="secondary">
@@ -118,7 +126,45 @@ export default function LaboratoryShow({
                     ))}
                 </div>
 
-                <Card>
+                {/* Print-only wrapper for invoice header and results card */}
+                <div className="hidden lab-result-print-wrapper">
+                    <div className="lab-result-print-header">
+                        <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 4px 0' }}>
+                            {currentTeam?.name ?? 'Facility'}
+                        </h1>
+                        <p style={{ fontSize: '12px', margin: '0 0 12px 0', color: '#666' }}>
+                            {laboratory.facilityAddress ?? ''}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', marginBottom: '12px' }}>
+                            <div>
+                                <span style={{ color: '#666' }}>Lab No.:</span>{' '}
+                                <strong>{laboratory.id}</strong>
+                            </div>
+                            <div>
+                                <span style={{ color: '#666' }}>Date:</span>{' '}
+                                <strong>
+                                    {laboratory.createdAt
+                                        ? new Date(laboratory.createdAt).toLocaleString()
+                                        : '—'}
+                                </strong>
+                            </div>
+                            <div>
+                                <span style={{ color: '#666' }}>Patient:</span>{' '}
+                                <strong>{laboratory.patientName ?? '—'}</strong>
+                            </div>
+                            <div>
+                                <span style={{ color: '#666' }}>Hospital No.:</span>{' '}
+                                <strong>{laboratory.patientId}</strong>
+                            </div>
+                            <div>
+                                <span style={{ color: '#666' }}>Doctor:</span>{' '}
+                                <strong>{laboratory.doctorName ?? '—'}</strong>
+                            </div>
+                        </div>
+                        <hr style={{ border: 'none', borderTop: '2px solid #000', margin: '12px 0' }} />
+                    </div>
+
+                    <Card className="lab-result-print">
                     <CardHeader>
                         <CardTitle>Results</CardTitle>
                         <CardDescription>
@@ -157,6 +203,7 @@ export default function LaboratoryShow({
                         )}
                     </CardContent>
                 </Card>
+                </div>
             </div>
         </>
     );

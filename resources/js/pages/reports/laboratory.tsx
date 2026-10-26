@@ -5,6 +5,8 @@ import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
 import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -84,7 +86,7 @@ export default function LaboratoryReport({
                     </div>
                 </div>
 
-                <div className="rounded-lg border p-4 no-print">
+                <div className="rounded-lg border bg-card p-4 no-print">
                     <p className="text-sm text-muted-foreground">
                         Submitted ({summary.count})
                     </p>
@@ -149,66 +151,70 @@ export default function LaboratoryReport({
                     <h2 className="mb-3 text-lg font-semibold">
                         Laboratory Investigation Report from {formatReportDate(from)} to {formatReportDate(to)}
                     </h2>
-                    <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Hosp No.</TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Consultant</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Total</TableHead>
-                                <TableHead className="text-right">
-                                    View
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {laboratories.data.length === 0 ? (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={6}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No submitted laboratory requests found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                laboratories.data.map((lab) => (
-                                    <TableRow key={lab.id}>
-                                        <TableCell>{lab.patientId}</TableCell>
-                                        <TableCell>
-                                            {lab.patientName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {lab.doctorName ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="capitalize">
-                                            {lab.status}
-                                        </TableCell>
-                                        <TableCell>
-                                            {currencySymbol}{' '}
-                                            {lab.total.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="secondary"
-                                            >
-                                                <Link
-                                                    href={`/${teamSlug}/laboratories/${lab.id}`}
-                                                >
-                                                    Open
-                                                </Link>
-                                            </Button>
-                                        </TableCell>
+                    <Card>
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Hosp No.</TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Consultant</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Total</TableHead>
+                                        <TableHead className="text-right">
+                                            View
+                                        </TableHead>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                    </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {laboratories.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="py-8 text-center text-muted-foreground"
+                                            >
+                                                No submitted laboratory requests found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        laboratories.data.map((lab) => (
+                                            <TableRow key={lab.id}>
+                                                <TableCell>{lab.patientId}</TableCell>
+                                                <TableCell>
+                                                    {lab.patientName ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {lab.doctorName ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary" className="capitalize">
+                                                        {lab.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {currencySymbol}{' '}
+                                                    {lab.total.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="secondary"
+                                                    >
+                                                        <Link
+                                                            href={`/${teamSlug}/laboratories/${lab.id}`}
+                                                        >
+                                                            Open
+                                                        </Link>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="no-print">

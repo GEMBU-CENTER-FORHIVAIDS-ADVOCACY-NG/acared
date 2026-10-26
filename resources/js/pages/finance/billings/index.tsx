@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ import type {
     BillingCountStats,
     BillingDateFilterOption,
     BillingFormFilters,
+    BillingPatientOption,
     CouponOption,
     FinanceBillingOption,
     NewBillingOptions,
@@ -47,6 +48,7 @@ type PaymentRow = {
     coupon_id: string;
     coupon_discount_amount: string;
     wallet_debit: string;
+    wallet_patient_id: string;
 };
 
 type NewPatientRow = {
@@ -87,6 +89,7 @@ function emptyPayment(methodId: string, amount: string): PaymentRow {
         coupon_id: '',
         coupon_discount_amount: amount,
         wallet_debit: amount,
+        wallet_patient_id: '',
     };
 }
 
@@ -148,6 +151,15 @@ export default function BillingIndex({
     const [error, setError] = useState<string | null>(null);
     const [paymentMethodErrors, setPaymentMethodErrors] = useState<number[]>([]);
 
+    // Wallet patient search state per payment row
+    const [walletPatientSearchQueries, setWalletPatientSearchQueries] = useState<Record<number, string>>({});
+    const [walletPatientSearchResults, setWalletPatientSearchResults] = useState<Record<number, BillingPatientOption[]>>({});
+    const [walletPatientSearchOpen, setWalletPatientSearchOpen] = useState<Record<number, boolean>>({});
+    const [walletPatientSearchLoading, setWalletPatientSearchLoading] = useState<Record<number, boolean>>({});
+    const walletPatientSearchInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+    const walletPatientSearchContainerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+    const walletDebounceTimerRefs = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({});
+
     const [newOpen, setNewOpen] = useState(false);
     const [itemsOpen, setItemsOpen] = useState(false);
     const [existingPatientId, setExistingPatientId] = useState('');
@@ -157,6 +169,15 @@ export default function BillingIndex({
     ]);
     const [newProcessing, setNewProcessing] = useState(false);
     const [newError, setNewError] = useState<string | null>(null);
+
+    // Server-side patient search state
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<BillingPatientOption[]>([]);
+    const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const patientSearchInputRef = useRef<HTMLInputElement>(null);
+    const patientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const selected = useMemo(
         () =>
@@ -175,6 +196,160 @@ export default function BillingIndex({
             lines.reduce((sum, line) => sum + (Number(line.unitPrice) || 0), 0),
         [lines],
     );
+
+    // Debounced search for patients using fetch to avoid Inertia JSON response error
+    const searchPatients = useCallback((query: string) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        if (!query.trim()) {
+            setPatientSearchResults([]);
+            return;
+        }
+
+        setPatientSearchLoading(true);
+        debounceTimerRef.current = setTimeout(() => {
+            const url = BillingController.searchPatients.url(teamSlug, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setPatientSearchResults(results);
+                    setPatientSearchLoading(false);
+                })
+                .catch(() => {
+                    setPatientSearchLoading(false);
+                });
+        }, 300);
+    }, [teamSlug]);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!patientSearchOpen) {
+            return;
+        }
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                patientSearchContainerRef.current &&
+                !patientSearchContainerRef.current.contains(event.target as Node)
+            ) {
+                setPatientSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [patientSearchOpen]);
+
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
+    // Debounced search for wallet patients using fetch to avoid Inertia JSON response error
+    const searchWalletPatients = useCallback((rowIndex: number, query: string) => {
+        if (walletDebounceTimerRefs.current[rowIndex]) {
+            clearTimeout(walletDebounceTimerRefs.current[rowIndex]);
+        }
+
+        if (!query.trim()) {
+            setWalletPatientSearchResults((prev) => {
+                const next = { ...prev };
+                delete next[rowIndex];
+                return next;
+            });
+            return;
+        }
+
+        setWalletPatientSearchLoading((prev) => ({ ...prev, [rowIndex]: true }));
+        walletDebounceTimerRefs.current[rowIndex] = setTimeout(() => {
+            const url = BillingController.searchPatients.url(teamSlug, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setWalletPatientSearchResults((prev) => ({
+                        ...prev,
+                        [rowIndex]: results,
+                    }));
+                    setWalletPatientSearchLoading((prev) => ({
+                        ...prev,
+                        [rowIndex]: false,
+                    }));
+                })
+                .catch(() => {
+                    setWalletPatientSearchLoading((prev) => ({
+                        ...prev,
+                        [rowIndex]: false,
+                    }));
+                });
+        }, 300);
+    }, [teamSlug]);
+
+    // Close wallet patient dropdown on outside click
+    useEffect(() => {
+        const openRows = Object.entries(walletPatientSearchOpen).filter(([, open]) => open);
+        if (openRows.length === 0) {
+            return;
+        }
+
+        const handleClick = (event: MouseEvent) => {
+            openRows.forEach(([rowIndexStr]) => {
+                const rowIndex = Number(rowIndexStr);
+                if (
+                    walletPatientSearchContainerRefs.current[rowIndex] &&
+                    !walletPatientSearchContainerRefs.current[rowIndex]?.contains(event.target as Node)
+                ) {
+                    setWalletPatientSearchOpen((prev) => ({
+                        ...prev,
+                        [rowIndex]: false,
+                    }));
+                }
+            });
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [walletPatientSearchOpen]);
+
+    // Cleanup wallet debounce timers
+    useEffect(() => {
+        return () => {
+            Object.values(walletDebounceTimerRefs.current).forEach((timer) => {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+            });
+        };
+    }, []);
+
+    // Get label for selected wallet patient
+    const getWalletPatientLabel = useCallback((rowIndex: number, patientSlug: string) => {
+        if (!patientSlug) return '';
+        const results = walletPatientSearchResults[rowIndex] ?? [];
+        const found = results.find((p) => p.slug === patientSlug);
+        return found?.label ?? patientSlug;
+    }, [walletPatientSearchResults]);
+
+    const selectedPatientLabel = useMemo(() => {
+        if (!existingPatientId) {
+            return '';
+        }
+        const found = patientSearchResults.find((p) => p.slug === existingPatientId);
+        return found?.label ?? existingPatientId;
+    }, [existingPatientId, patientSearchResults]);
 
     const stateLgas = useMemo(
         () =>
@@ -253,6 +428,7 @@ export default function BillingIndex({
                         ? 0
                         : row.coupon_discount_amount,
                 wallet_debit: row.wallet_debit === '' ? 0 : row.wallet_debit,
+                wallet_patient_id: row.wallet_patient_id === '' ? null : row.wallet_patient_id,
             })),
         };
 
@@ -300,6 +476,9 @@ export default function BillingIndex({
     function openNewBilling() {
         setPatient(emptyPatient());
         setExistingPatientId('');
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
+        setPatientSearchOpen(false);
         setLines([{ price_list_id: '', unitPrice: '' }]);
         setNewError(null);
         setNewOpen(true);
@@ -685,28 +864,110 @@ export default function BillingIndex({
                                                 ) : null}
 
                                                 {name === 'Wallet' ? (
-                                                    <div className="space-y-2">
-                                                        <Label>
-                                                            Wallet debit
-                                                        </Label>
-                                                        <Input
-                                                            type="number"
-                                                            value={
-                                                                row.wallet_debit
-                                                            }
-                                                            onChange={(event) =>
-                                                                updatePayment(
-                                                                    index,
-                                                                    {
-                                                                        wallet_debit:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    },
-                                                                )
-                                                            }
-                                                            data-test="payment-wallet"
-                                                        />
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-2">
+                                                            <Label>
+                                                                Wallet debit
+                                                            </Label>
+                                                            <Input
+                                                                type="number"
+                                                                value={
+                                                                    row.wallet_debit
+                                                                }
+                                                                onChange={(event) =>
+                                                                    updatePayment(
+                                                                        index,
+                                                                        {
+                                                                            wallet_debit:
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                                data-test="payment-wallet"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2" ref={(el) => {
+                                                            walletPatientSearchContainerRefs.current[index] = el;
+                                                        }}>
+                                                            <Label>
+                                                                Credit to patient
+                                                                <span className="text-muted-foreground ml-1">
+                                                                    (default: {selected?.patientId})
+                                                                </span>
+                                                            </Label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    data-test="wallet-patient"
+                                                                    ref={(el) => {
+                                                                        walletPatientSearchInputRefs.current[index] = el;
+                                                                    }}
+                                                                    placeholder="Search patient to credit wallet..."
+                                                                    value={row.wallet_patient_id ? getWalletPatientLabel(index, row.wallet_patient_id) : (walletPatientSearchQueries[index] ?? '')}
+                                                                    onClick={() => {
+                                                                        if (!row.wallet_patient_id) {
+                                                                            setWalletPatientSearchOpen((prev) => ({
+                                                                                ...prev,
+                                                                                [index]: true,
+                                                                            }));
+                                                                        }
+                                                                    }}
+                                                                    onChange={(event) => {
+                                                                        const value = event.target.value;
+                                                                        updatePayment(index, { wallet_patient_id: '' });
+                                                                        setWalletPatientSearchQueries((prev) => ({
+                                                                            ...prev,
+                                                                            [index]: value,
+                                                                        }));
+                                                                        searchWalletPatients(index, value);
+                                                                        setWalletPatientSearchOpen((prev) => ({
+                                                                            ...prev,
+                                                                            [index]: true,
+                                                                        }));
+                                                                    }}
+                                                                />
+                                                                {walletPatientSearchOpen[index] && !row.wallet_patient_id && (
+                                                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                                                        {walletPatientSearchLoading[index] && (
+                                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                                                Searching…
+                                                                            </div>
+                                                                        )}
+                                                                        {!walletPatientSearchLoading[index] &&
+                                                                         (walletPatientSearchResults[index] ?? []).length === 0 &&
+                                                                         walletPatientSearchQueries[index]?.trim() && (
+                                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                                                No patients found.
+                                                                            </div>
+                                                                        )}
+                                                                        {(walletPatientSearchResults[index] ?? []).map((patient) => (
+                                                                            <button
+                                                                                key={patient.slug}
+                                                                                type="button"
+                                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                                                onClick={() => {
+                                                                                    updatePayment(index, {
+                                                                                        wallet_patient_id: patient.slug,
+                                                                                    });
+                                                                                    setWalletPatientSearchQueries((prev) => {
+                                                                                        const next = { ...prev };
+                                                                                        delete next[index];
+                                                                                        return next;
+                                                                                    });
+                                                                                    setWalletPatientSearchOpen((prev) => ({
+                                                                                        ...prev,
+                                                                                        [index]: false,
+                                                                                    }));
+                                                                                }}
+                                                                            >
+                                                                                {patient.label}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 ) : null}
 
@@ -926,28 +1187,73 @@ export default function BillingIndex({
                     </SheetHeader>
 
                     <div className="space-y-4 px-4 pb-6">
-                        <div className="space-y-2">
+                        <div className="space-y-2" ref={patientSearchContainerRef}>
                             <Label htmlFor="existing-patient">
                                 Existing patient
                             </Label>
-                            <SelectNative
-                                id="existing-patient"
-                                value={existingPatientId}
-                                data-test="new-billing-patient"
-                                onChange={(event) =>
-                                    setExistingPatientId(event.target.value)
-                                }
-                            >
-                                <option value="">Create a new patient…</option>
-                                {newBillingOptions.patients.map((option) => (
-                                    <option
-                                        key={option.slug}
-                                        value={option.slug}
-                                    >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </SelectNative>
+                            <div className="relative">
+                                <Input
+                                    id="existing-patient"
+                                    data-test="new-billing-patient"
+                                    ref={patientSearchInputRef}
+                                    placeholder="Search patient by name, code, or phone…"
+                                    value={existingPatientId ? selectedPatientLabel : patientSearchQuery}
+                                    readOnly={!!existingPatientId}
+                                    onClick={() => {
+                                        if (!existingPatientId) {
+                                            setPatientSearchOpen(true);
+                                        }
+                                    }}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setExistingPatientId('');
+                                        setPatientSearchQuery(value);
+                                        searchPatients(value);
+                                        setPatientSearchOpen(true);
+                                    }}
+                                />
+                                {patientSearchOpen && !existingPatientId && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        {patientSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients found
+                                            </div>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                            onClick={() => {
+                                                setExistingPatientId('');
+                                                setPatientSearchQuery('');
+                                                setPatientSearchResults([]);
+                                                setPatientSearchOpen(false);
+                                            }}
+                                        >
+                                            <span className="text-muted-foreground">Create a new patient…</span>
+                                        </button>
+                                        {patientSearchResults.map((option) => (
+                                            <button
+                                                key={option.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setExistingPatientId(option.slug);
+                                                    setPatientSearchQuery('');
+                                                    setPatientSearchResults([]);
+                                                    setPatientSearchOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {!existingPatientId ? (

@@ -42,8 +42,18 @@ class NursingController extends Controller
     {
         $nursing->load(['patient', 'nurse', 'billing']);
 
+        $section = in_array($section, self::SECTIONS, true) ? $section : 'overview';
+        $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
+            ? (int) $request->query('perPage', 25)
+            : 25;
+        $page = max(1, (int) $request->query('page', 1));
+
+        $records = $section !== 'overview'
+            ? [$section => $this->clinicalRecords->recordsPaginated($nursing->patient_id, $section, $page, $perPage)]
+            : $this->clinicalRecords->records($nursing->patient_id);
+
         return Inertia::render('nursing/records/view', [
-            'section' => in_array($section, self::SECTIONS, true) ? $section : 'overview',
+            'section' => $section,
             'nursing' => [
                 'id' => $nursing->getKey(),
                 'patientId' => $nursing->patient_id,
@@ -65,9 +75,15 @@ class NursingController extends Controller
                 'status' => $nursing->status,
                 'createdAt' => $nursing->created_at?->toIso8601String(),
             ],
-            'records' => $this->clinicalRecords->records($nursing->patient_id),
+            'records' => $records,
             'options' => $this->clinicalRecords->options(),
             'currencySymbol' => DashboardCurrency::symbol(),
+            'pagination' => $section !== 'overview'
+                ? [
+                    'currentPage' => $page,
+                    'perPage' => $perPage,
+                ]
+                : null,
         ]);
     }
 

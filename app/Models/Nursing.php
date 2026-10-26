@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property int|null $user_id
  * @property string|null $purpose
  * @property string $status
+ * @property CarbonInterface|null $starts_at
+ * @property CarbonInterface|null $ends_at
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read User|null $user
@@ -168,6 +170,14 @@ class Nursing extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'starts_at' => 'datetime',
+            'ends_at' => 'datetime',
+        ];
     }
 
     protected static function booted(): void

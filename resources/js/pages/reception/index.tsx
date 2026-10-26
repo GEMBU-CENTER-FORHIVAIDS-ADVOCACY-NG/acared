@@ -31,10 +31,13 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { index as nursingRecordsIndex } from '@/routes/nursing/records';
 import { index } from '@/routes/reception';
+import { card as patientCard } from '@/routes/reception/patient';
 import type {
     BillingOption,
     DoctorOption,
+    NurseOption,
     ReceptionAppointment,
     ReceptionFilters,
     ReceptionOption,
@@ -60,7 +63,7 @@ function formatDateTimeLocal(date: Date): string {
 
 function getDefaultFutureSlot(): string {
     const now = new Date();
-    const remainder = 30 - (now.getMinutes() % 30);
+    const remainder = 10 - (now.getMinutes() % 10);
     now.setMinutes(now.getMinutes() + remainder, 0, 0);
     return formatDateTimeLocal(now);
 }
@@ -68,6 +71,7 @@ function getDefaultFutureSlot(): string {
 const EMPTY_APPOINTMENT = {
     billing_id: '',
     doctor_id: '',
+    nurse_id: '',
     starts_at: '',
     purpose: '',
     vital_signs: [] as VitalSignForm[],
@@ -84,6 +88,7 @@ export default function ReceptionIndex({
     filters,
     dateFilterOptions,
     doctorOptions,
+    nurseOptions,
     billingOptions,
     vitalSigns,
 }: {
@@ -92,6 +97,7 @@ export default function ReceptionIndex({
     filters: ReceptionFilters;
     dateFilterOptions: ReceptionOption[];
     doctorOptions: DoctorOption[];
+    nurseOptions: NurseOption[];
     billingOptions: BillingOption[];
     vitalSigns: VitalSignOption[];
 }) {
@@ -100,6 +106,7 @@ export default function ReceptionIndex({
 
     const [appointmentOpen, setAppointmentOpen] = useState(false);
     const [appointmentForm, setAppointmentForm] = useState(EMPTY_APPOINTMENT);
+    const [staffType, setStaffType] = useState<'doctor' | 'nurse'>('doctor');
     const [transferOpen, setTransferOpen] = useState(false);
     const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER);
     const [processing, setProcessing] = useState(false);
@@ -153,6 +160,7 @@ export default function ReceptionIndex({
             ...EMPTY_APPOINTMENT,
             starts_at: startsAt || getDefaultFutureSlot(),
         });
+        setStaffType('doctor');
         setError(null);
         setAppointmentOpen(true);
     }
@@ -160,11 +168,6 @@ export default function ReceptionIndex({
     function submitAppointment() {
         if (!appointmentForm.billing_id) {
             setError('Please select a billing record.');
-            return;
-        }
-
-        if (!appointmentForm.doctor_id) {
-            setError('Please select an assigned doctor.');
             return;
         }
 
@@ -178,10 +181,22 @@ export default function ReceptionIndex({
 
         const payload = {
             ...appointmentForm,
-            vital_signs: appointmentForm.vital_signs.filter(
-                (vitalSign) => vitalSign.results.trim() !== '',
-            ),
+            billing_id: parseInt(appointmentForm.billing_id, 10),
+            doctor_id: appointmentForm.doctor_id
+                ? parseInt(appointmentForm.doctor_id, 10)
+                : undefined,
+            nurse_id: appointmentForm.nurse_id
+                ? parseInt(appointmentForm.nurse_id, 10)
+                : undefined,
+            vital_signs: appointmentForm.vital_signs
+                .filter((vitalSign) => vitalSign.results.trim() !== '')
+                .map((vitalSign) => ({
+                    ...vitalSign,
+                    price_list_id: parseInt(vitalSign.price_list_id, 10),
+                })),
         };
+
+        const isNurseAppointment = !!appointmentForm.nurse_id;
 
         router.post(
             ReceptionController.storeAppointment.url(teamSlug),
@@ -192,9 +207,14 @@ export default function ReceptionIndex({
                     setError(
                         Object.values(errors)[0] ?? 'Something went wrong.',
                     ),
-                onSuccess: () => {
+                onSuccess: (page) => {
                     setAppointmentOpen(false);
                     setAppointmentForm(EMPTY_APPOINTMENT);
+                    // If not redirected to patient card (e.g., nurse appointment
+                    // was handled differently), navigate to nursing records
+                    if (isNurseAppointment && page.props.page !== 'reception/patient-card') {
+                        router.get(nursingRecordsIndex.url(teamSlug));
+                    }
                 },
                 onFinish: () => setProcessing(false),
             },
@@ -312,6 +332,7 @@ export default function ReceptionIndex({
                             displayEventTime={false}
                             displayEventEnd={false}
                             events={events}
+                            slotDuration="00:10:00"
                             selectable
                             dateClick={(info) =>
                                 openSchedule(formatDateTimeLocal(info.date))
@@ -341,8 +362,8 @@ export default function ReceptionIndex({
                             Schedule appointment
                         </SheetTitle>
                         <SheetDescription className="text-sm text-muted-foreground">
-                            Select a billing record and doctor. Appointments are
-                            scheduled for 30 minutes.
+                            Select a billing record and a doctor or nurse.
+                            Appointments are scheduled for 10 minutes.
                         </SheetDescription>
                     </SheetHeader>
 
@@ -385,29 +406,95 @@ export default function ReceptionIndex({
                             ) : null}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="appointment-doctor">
-                                Doctor <span className="text-destructive">*</span>
+                        <div className="space-y-3 rounded-lg border bg-card p-4">
+                            <Label>
+                                Staff member
                             </Label>
-                            <SelectNative
-                                id="appointment-doctor"
-                                placeholder="Select a doctor"
-                                value={appointmentForm.doctor_id}
-                                onChange={(event) =>
-                                    setAppointmentForm((current) => ({
-                                        ...current,
-                                        doctor_id: event.target.value,
-                                    }))
-                                }
-                                data-test="appointment-doctor"
-                            >
-                                <option value="">Select a doctor</option>
-                                {doctorOptions.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {option.name}
-                                    </option>
-                                ))}
-                            </SelectNative>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStaffType('doctor');
+                                        setAppointmentForm((current) => ({
+                                            ...current,
+                                            doctor_id: '',
+                                            nurse_id: '',
+                                        }));
+                                    }}
+                                    className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                                        staffType === 'doctor'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Doctor
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStaffType('nurse');
+                                        setAppointmentForm((current) => ({
+                                            ...current,
+                                            doctor_id: '',
+                                            nurse_id: '',
+                                        }));
+                                    }}
+                                    className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                                        staffType === 'nurse'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Nurse
+                                </button>
+                            </div>
+                            {staffType === 'doctor' ? (
+                                <SelectNative
+                                    id="appointment-doctor"
+                                    placeholder="Select a doctor"
+                                    value={appointmentForm.doctor_id}
+                                    onChange={(event) =>
+                                        setAppointmentForm((current) => ({
+                                            ...current,
+                                            doctor_id: event.target.value,
+                                        }))
+                                    }
+                                    data-test="appointment-doctor"
+                                >
+                                    <option value="">Select a doctor</option>
+                                    {doctorOptions.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            ) : (
+                                <SelectNative
+                                    id="appointment-nurse"
+                                    placeholder="Select a nurse"
+                                    value={appointmentForm.nurse_id}
+                                    onChange={(event) =>
+                                        setAppointmentForm((current) => ({
+                                            ...current,
+                                            nurse_id: event.target.value,
+                                        }))
+                                    }
+                                    data-test="appointment-nurse"
+                                >
+                                    <option value="">Select a nurse</option>
+                                    {nurseOptions.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            )}
+                            {staffType === 'nurse' && (
+                                <p className="text-xs text-muted-foreground">
+                                    Nurse appointments will redirect to the
+                                    maternity page after scheduling.
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -427,7 +514,7 @@ export default function ReceptionIndex({
                                 data-test="appointment-start"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Default consultation slot is 30 minutes.
+                                Default consultation slot is 10 minutes.
                             </p>
                         </div>
 
@@ -555,7 +642,6 @@ export default function ReceptionIndex({
                             disabled={
                                 processing ||
                                 !appointmentForm.billing_id ||
-                                !appointmentForm.doctor_id ||
                                 !appointmentForm.starts_at
                             }
                             data-test="submit-appointment"

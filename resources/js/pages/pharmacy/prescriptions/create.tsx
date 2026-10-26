@@ -1,11 +1,19 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import Heading from '@/components/heading';
-import PatientSelect from '@/components/patient-select';
+import PrescriptionController from '@/actions/App/Http/Controllers/Pharmacy/PrescriptionController';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
 import {
     Table,
@@ -66,6 +74,54 @@ export default function PrescriptionCreate({
     const [lines, setLines] = useState<PrescriptionLine[]>([newLine()]);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Server-side patient search state
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<
+        { slug: string; label: string }[]
+    >([]);
+    const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const patientSearchInputRef = useRef<HTMLInputElement>(null);
+    const patientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const searchPatients = useCallback((query: string) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        if (!query.trim()) {
+            setPatientSearchResults([]);
+            return;
+        }
+
+        setPatientSearchLoading(true);
+        debounceTimerRef.current = setTimeout(() => {
+            const url = PrescriptionController.searchPatients.url(teamSlug, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setPatientSearchResults(results);
+                    setPatientSearchLoading(false);
+                })
+                .catch(() => {
+                    setPatientSearchLoading(false);
+                });
+        }, 300);
+    }, [teamSlug]);
+
+    const selectedPatientLabel = (() => {
+        if (!patientId) {
+            return '';
+        }
+        const found = patientSearchResults.find((p) => p.slug === patientId);
+        return found?.label ?? patientId;
+    })();
     const priceById = useMemo(
         () => new Map(formOptions.priceLists.map((item) => [item.id, item])),
         [formOptions.priceLists],
@@ -96,19 +152,6 @@ export default function PrescriptionCreate({
 
                 return updated;
             }),
-        );
-    }
-
-    function searchPatients(term: string) {
-        return router.get(
-            createRoute.url(teamSlug),
-            { patient_id: selectedPatientId || undefined, q: term },
-            {
-                only: ['formOptions.patients'],
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
         );
     }
 
@@ -164,20 +207,70 @@ export default function PrescriptionCreate({
                         description="Select a patient and add medications with a dosage schedule."
                     />
                 </div>
-                <div className="rounded-xl border bg-card p-4 md:p-6">
-                    <div className="mb-6 max-w-lg space-y-2">
-                        <PatientSelect
-                            id="patient_id"
-                            label="Patient"
-                            value={patientId}
-                            options={formOptions.patients}
-                            onChange={setPatientId}
-                            onSearch={searchPatients}
-                            disabled={selectedPatientId !== ''}
-                        />
-                    </div>
-                    <div className="overflow-x-auto">
-                        <Table>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Prescription details</CardTitle>
+                        <CardDescription>
+                            Select a patient and add medications with a dosage schedule.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-visible space-y-6">
+                        <div className="max-w-lg space-y-2" ref={patientSearchContainerRef}>
+                            <Label htmlFor="patient_id">
+                                Patient
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="patient_id"
+                                    ref={patientSearchInputRef}
+                                    placeholder="Search patient by name, code, or phone…"
+                                    value={patientId ? selectedPatientLabel : patientSearchQuery}
+                                    readOnly={!!patientId && selectedPatientId !== ''}
+                                    onClick={() => {
+                                        if (!patientId || selectedPatientId === '') {
+                                            setPatientSearchOpen(true);
+                                        }
+                                    }}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setPatientId('');
+                                        setPatientSearchQuery(value);
+                                        searchPatients(value);
+                                        setPatientSearchOpen(true);
+                                    }}
+                                />
+                                {patientSearchOpen && !patientId && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        {patientSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients found
+                                            </div>
+                                        )}
+                                        {patientSearchResults.map((option) => (
+                                            <button
+                                                key={option.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setPatientId(option.slug);
+                                                    setPatientSearchQuery('');
+                                                    setPatientSearchResults([]);
+                                                    setPatientSearchOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <Table overflow="overflow-visible">
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Drug</TableHead>
@@ -327,35 +420,35 @@ export default function PrescriptionCreate({
                                 })}
                             </TableBody>
                         </Table>
-                    </div>
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={() =>
-                                setLines((current) => [...current, newLine()])
-                            }
-                        >
-                            <Plus className="mr-2 size-4" />
-                            Add drug
-                        </Button>
-                        <p className="text-lg font-semibold">
-                            Total: {currencySymbol} {total.toLocaleString()}
-                        </p>
-                    </div>
-                    {error ? (
-                        <p className="mt-4 text-sm text-destructive">{error}</p>
-                    ) : null}
-                    <div className="mt-6 flex gap-2">
-                        <Button variant="secondary" asChild>
-                            <Link href={prescriptionsIndex.url(teamSlug)}>
-                                Cancel
-                            </Link>
-                        </Button>
-                        <Button disabled={processing} onClick={submit}>
-                            {processing ? 'Creating...' : 'Create prescription'}
-                        </Button>
-                    </div>
-                </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={() =>
+                                    setLines((current) => [...current, newLine()])
+                                }
+                            >
+                                <Plus className="mr-2 size-4" />
+                                Add drug
+                            </Button>
+                            <p className="text-lg font-semibold">
+                                Total: {currencySymbol} {total.toLocaleString()}
+                            </p>
+                        </div>
+                        {error ? (
+                            <p className="text-sm text-destructive">{error}</p>
+                        ) : null}
+                        <div className="flex gap-2">
+                            <Button variant="secondary" asChild>
+                                <Link href={prescriptionsIndex.url(teamSlug)}>
+                                    Cancel
+                                </Link>
+                            </Button>
+                            <Button disabled={processing} onClick={submit}>
+                                {processing ? 'Creating...' : 'Create prescription'}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </>
     );

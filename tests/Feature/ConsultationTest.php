@@ -4,6 +4,7 @@ use App\Models\Admission;
 use App\Models\Appointment;
 use App\Models\Category;
 use App\Models\Complaint;
+use App\Models\Consultation;
 use App\Models\Diagnose;
 use App\Models\DrugInventory;
 use App\Models\Examination;
@@ -33,13 +34,22 @@ function consultationPatient(User $user): Patient
     ]);
 }
 
-function consultationAppointment(User $user, array $overrides = []): Appointment
+function consultationRecord(User $user, array $overrides = []): Consultation
 {
-    return Appointment::factory()->create(array_merge([
+    $appointment = Appointment::factory()->create([
         'team_id' => $user->currentTeam->getKey(),
         'patient_id' => consultationPatient($user)->slug,
         'user_id' => $user->getKey(),
         'doctor_id' => $user->getKey(),
+    ]);
+
+    return Consultation::factory()->create(array_merge([
+        'team_id' => $user->currentTeam->getKey(),
+        'patient_id' => $appointment->patient_id,
+        'user_id' => $user->getKey(),
+        'doctor_id' => $user->getKey(),
+        'appointment_id' => $appointment->getKey(),
+        'billing_id' => $appointment->billing_id,
     ], $overrides));
 }
 
@@ -58,7 +68,7 @@ test('guests are redirected to the login page', function () {
 
 test('the consultations index lists team consultations', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
 
     $this->actingAs($user)
         ->get(consultationTeamUrl($user))
@@ -74,7 +84,7 @@ test('the consultations index lists team consultations', function () {
 
 test('calendar events link to the consultation view', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
 
     $this->actingAs($user)
         ->get(consultationTeamUrl($user))
@@ -87,7 +97,7 @@ test('calendar events link to the consultation view', function () {
 
 test('the consultation view shows the patient clinical records', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
 
     Vital::factory()->create([
         'team_id' => $user->currentTeam->getKey(),
@@ -108,7 +118,7 @@ test('the consultation view shows the patient clinical records', function () {
 
 test('a consultation can be started', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user, ['status' => 'scheduled']);
+    $appointment = consultationRecord($user, ['status' => 'scheduled']);
 
     $this->actingAs($user)
         ->patch(consultationTeamUrl($user, '/'.$appointment->getKey().'/start'))
@@ -119,7 +129,7 @@ test('a consultation can be started', function () {
 
 test('a consultation can be ended', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user, ['status' => 'started']);
+    $appointment = consultationRecord($user, ['status' => 'started']);
 
     $this->actingAs($user)
         ->patch(consultationTeamUrl($user, '/'.$appointment->getKey().'/end'))
@@ -130,7 +140,7 @@ test('a consultation can be ended', function () {
 
 test('a complaint can be recorded for the consultation patient', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
 
     $this->actingAs($user)
         ->post(consultationTeamUrl($user, '/'.$appointment->getKey().'/records/complaints'), [
@@ -150,7 +160,7 @@ test('a complaint can be recorded for the consultation patient', function () {
 
 test('an examination and diagnosis can be recorded', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
 
     $this->actingAs($user)->post(
         consultationTeamUrl($user, '/'.$appointment->getKey().'/records/examinations'),
@@ -168,7 +178,7 @@ test('an examination and diagnosis can be recorded', function () {
 
 test('an admission request can be recorded', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
     $ward = Ward::factory()->ward()->create(['team_id' => $user->currentTeam->getKey()]);
 
     $this->actingAs($user)
@@ -188,7 +198,7 @@ test('an admission request can be recorded', function () {
 
 test('a treatment records lines, total and a linked billing', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
     $priceList = consultationPriceList($user, ['name' => 'Dressing']);
 
     $this->actingAs($user)
@@ -211,7 +221,7 @@ test('a treatment records lines, total and a linked billing', function () {
 
 test('a prescription computes lines and total', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
     $drug = consultationPriceList($user, ['name' => 'Paracetamol']);
 
     $this->actingAs($user)
@@ -240,7 +250,7 @@ test('a prescription computes lines and total', function () {
 
 test('a laboratory request computes lines and total', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
     $test = consultationPriceList($user, ['name' => 'Malaria RDT']);
 
     $this->actingAs($user)
@@ -262,7 +272,7 @@ test('a laboratory request computes lines and total', function () {
 
 test('treatment, laboratory and prescription lines capture the price list price and inventory cost', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
     $teamId = $user->currentTeam->getKey();
 
     $service = consultationPriceList($user, ['name' => 'Dressing', 'price' => 2000]);
@@ -324,7 +334,7 @@ test('treatment, laboratory and prescription lines capture the price list price 
 
 test('a record can be updated and deleted', function () {
     $user = User::factory()->create();
-    $appointment = consultationAppointment($user);
+    $appointment = consultationRecord($user);
     $priceList = consultationPriceList($user, ['name' => 'Test']);
 
     $this->actingAs($user)->post(
@@ -359,7 +369,7 @@ test('consultations from another team are not visible', function () {
     $user = User::factory()->create();
     $otherUser = User::factory()->create();
 
-    $appointment = consultationAppointment($otherUser);
+    $appointment = consultationRecord($otherUser);
 
     $this->actingAs($user)
         ->get(consultationTeamUrl($user, '/'.$appointment->getKey()))

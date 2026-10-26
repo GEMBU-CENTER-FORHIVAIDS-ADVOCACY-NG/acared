@@ -201,6 +201,79 @@ test('a cash payment is recorded and the invoice is marked paid', function () {
     expect($billing->fresh()->status)->toBe('paid');
     expect(Payment::query()->where('billing_id', $billing->getKey())->sum('amount'))->toEqual(5000.0);
 });
+test('a successful payment marks line items as paid', function () {
+    $user = User::factory()->create();
+    $cash = teamMethod($user, 'Cash');
+    $billingGroup = PriceList::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'name' => 'Billing',
+        'is_category' => true,
+    ]);
+    $item = PriceList::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'subcategory_id' => $billingGroup->getKey(),
+        'price' => 1500,
+    ]);
+    $category = Category::factory()->create(['team_id' => $user->currentTeam->getKey()]);
+
+    $this->actingAs($user)
+        ->post(billingTeamUrl($user, '/new'), [
+            'firstName' => 'Jane',
+            'lastName' => 'Doe',
+            'gender' => 'Female',
+            'birthDate' => now()->subYears(30)->format('Y-m-d'),
+            'phone' => '08000000000',
+            'country_id' => Country::factory()->create()->getKey(),
+            'state_id' => State::factory()->create()->getKey(),
+            'lga_id' => Lga::factory()->create()->getKey(),
+            'address' => '1 Test Street',
+            'category_id' => $category->getKey(),
+            'billings' => [
+                [
+                    'total' => 3000,
+                    'lines' => [
+                        ['price_list_id' => $item->getKey(), 'unitPrice' => 1500],
+                        ['price_list_id' => $item->getKey(), 'unitPrice' => 1500],
+                    ],
+                ],
+            ],
+        ])
+        ->assertRedirect(billingTeamUrl($user));
+
+    $patient = Patient::query()->where('firstName', 'Jane')->first();
+    expect($patient)->not->toBeNull();
+
+    $billing = Billing::query()->where('patient_id', $patient->slug)->first();
+    expect($billing)->not->toBeNull();
+    expect($billing->status)->toBe('billed');
+
+    $lines = Line::query()
+        ->where('lineable_id', $billing->getKey())
+        ->where('lineable_type', Billing::class)
+        ->get();
+
+    expect($lines->count())->toBe(2);
+    expect($lines->every(fn ($line) => $line->paid === false))->toBeTrue();
+
+    $this->actingAs($user)
+        ->post(billingTeamUrl($user), [
+            'billing_id' => $billing->getKey(),
+            'payments' => [
+                ['method_id' => $cash->getKey(), 'amount' => 3000],
+            ],
+        ])
+        ->assertRedirect(billingTeamUrl($user));
+
+    expect($billing->fresh()->status)->toBe('paid');
+
+    $freshLines = Line::query()
+        ->where('lineable_id', $billing->getKey())
+        ->where('lineable_type', Billing::class)
+        ->get();
+
+    expect($freshLines->every(fn ($line) => $line->paid === true))->toBeTrue();
+});
+
 test('a payment cannot be recorded against a non-billed invoice', function () {
     $user = User::factory()->create();
     $cash = teamMethod($user, 'Cash');

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Admission;
-use App\Models\Appointment;
 use App\Models\Complaint;
+use App\Models\Consultation;
 use App\Models\Diagnose;
 use App\Models\Examination;
 use App\Models\Laboratory;
@@ -110,37 +110,37 @@ class ConsultationRecordController extends Controller
     /**
      * Store a new clinical record on the consultation.
      */
-    public function store(Request $request, string $current_team, Appointment $appointment, string $type): RedirectResponse
+    public function store(Request $request, string $current_team, Consultation $consultation, string $type): RedirectResponse
     {
-        $config = $this->createRecord($request, $this->appointmentContext($appointment), $type);
+        $config = $this->createRecord($request, $this->consultationContext($consultation), $type);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $config['label'].' recorded.']);
 
-        return to_route('consultations.view', ['current_team' => $current_team, 'appointment' => $appointment->getKey(), 'section' => $type]);
+        return to_route('consultations.view', ['current_team' => $current_team, 'consultation' => $consultation->getKey(), 'section' => $type]);
     }
 
     /**
      * Update an existing clinical record.
      */
-    public function update(Request $request, string $current_team, Appointment $appointment, string $type, int $record): RedirectResponse
+    public function update(Request $request, string $current_team, Consultation $consultation, string $type, int $record): RedirectResponse
     {
-        $config = $this->updateRecord($request, $this->appointmentContext($appointment), $type, $record);
+        $config = $this->updateRecord($request, $this->consultationContext($consultation), $type, $record);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $config['label'].' updated.']);
 
-        return to_route('consultations.view', ['current_team' => $current_team, 'appointment' => $appointment->getKey(), 'section' => $type]);
+        return to_route('consultations.view', ['current_team' => $current_team, 'consultation' => $consultation->getKey(), 'section' => $type]);
     }
 
     /**
      * Delete a clinical record and its dependent lines and billings.
      */
-    public function destroy(Request $request, string $current_team, Appointment $appointment, string $type, int $record): RedirectResponse
+    public function destroy(Request $request, string $current_team, Consultation $consultation, string $type, int $record): RedirectResponse
     {
-        $config = $this->deleteRecord($this->appointmentContext($appointment), $type, $record);
+        $config = $this->deleteRecord($this->consultationContext($consultation), $type, $record);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $config['label'].' deleted.']);
 
-        return to_route('consultations.view', ['current_team' => $current_team, 'appointment' => $appointment->getKey(), 'section' => $type]);
+        return to_route('consultations.view', ['current_team' => $current_team, 'consultation' => $consultation->getKey(), 'section' => $type]);
     }
 
     /**
@@ -296,13 +296,13 @@ class ConsultationRecordController extends Controller
      *
      * @return RecordContext
      */
-    private function appointmentContext(Appointment $appointment): array
+    private function consultationContext(Consultation $consultation): array
     {
         return [
-            'team_id' => (int) $appointment->team_id,
-            'patient_id' => $appointment->patient_id,
-            'appointment_id' => $appointment->getKey(),
-            'user_id' => (int) $appointment->user_id,
+            'team_id' => (int) $consultation->team_id,
+            'patient_id' => $consultation->patient_id,
+            'appointment_id' => $consultation->getKey(),
+            'user_id' => (int) $consultation->user_id,
         ];
     }
 
@@ -479,7 +479,7 @@ class ConsultationRecordController extends Controller
 
         /** @var Collection<int, PriceList> $priceLists */
         $priceLists = PriceList::query()
-            ->with(['labInventory', 'drugInventory', 'inventory'])
+            ->with(['labInventories', 'drugInventories', 'inventories'])
             ->whereIn('id', array_column($lines, 'price_list_id'))
             ->get()
             ->keyBy(fn (PriceList $priceList): int => (int) $priceList->getKey());
@@ -487,10 +487,20 @@ class ConsultationRecordController extends Controller
         $data['lines'] = array_map(function (array $line) use ($priceLists): array {
             $priceList = $priceLists->get((int) $line['price_list_id']);
 
+            $unitCost = $line['unitCost'] ?? null;
+
+            if ($unitCost === null && $priceList) {
+                $inventory = $priceList->inventories->first()
+                    ?? $priceList->drugInventories->first()
+                    ?? $priceList->labInventories->first();
+
+                $unitCost = $inventory?->cost ?? null;
+            }
+
             return [
                 ...$line,
-                'unitPrice' => (float) ($line['unitPrice'] ?? $priceList->price ?? 0),
-                'unitCost' => $line['unitCost'] ?? $priceList?->unitCost(),
+                'unitPrice' => (float) ($line['unitPrice'] ?? $priceList?->price ?? 0),
+                'unitCost' => $unitCost,
             ];
         }, $lines);
 

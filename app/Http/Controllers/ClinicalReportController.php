@@ -24,18 +24,30 @@ class ClinicalReportController extends Controller
         'examinations' => ['title' => 'Examinations report', 'model' => Examination::class, 'label' => 'Examination'],
     ];
 
+    /** @var array<string, string> */
+    private const REPORT_TITLES = [
+        'complaints' => 'Complaints report',
+        'diagnoses' => 'Diagnoses report',
+        'examinations' => 'Examinations report',
+    ];
+
     public function index(Request $request, string $current_team, ?string $report = null): Response
     {
         if ($report === null) {
-            return Inertia::render('reports/clinical/catalog', [
-                'reports' => collect(self::REPORTS)->map(fn (array $item) => $item['title'])->all(),
-            ]);
+            return $this->dashboard($request);
         }
 
         abort_unless(array_key_exists($report, self::REPORTS), 404);
 
         $filters = $this->filters($request);
         $model = self::REPORTS[$report]['model'];
+        $totalRecords = (clone $model::query())
+            ->when($filters['q'] !== '', fn (Builder $query) => $query->whereHas('patient', fn (Builder $patient) => $patient
+                ->where('fullName', 'like', '%'.$filters['q'].'%')
+                ->orWhere('slug', 'like', '%'.$filters['q'].'%')))
+            ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->count();
+
         $records = $model::query()
             ->with(['patient', 'doctor'])
             ->when($filters['q'] !== '', fn (Builder $query) => $query->whereHas('patient', fn (Builder $patient) => $patient
@@ -57,8 +69,73 @@ class ClinicalReportController extends Controller
         return Inertia::render('reports/clinical/index', [
             'report' => ['key' => $report, 'title' => self::REPORTS[$report]['title'], 'label' => self::REPORTS[$report]['label']],
             'records' => $records,
+            'summary' => ['records' => (int) $totalRecords],
             'filters' => $filters,
-            'reports' => collect(self::REPORTS)->map(fn (array $item) => $item['title']),
+            'reports' => self::REPORT_TITLES,
+        ]);
+    }
+
+    /**
+     * Render the clinical dashboard with overview metrics.
+     */
+    private function dashboard(Request $request): Response
+    {
+        $filters = $this->filters($request);
+
+        $totalRecords = 0;
+        $perReportStats = collect(self::REPORTS)->mapWithKeys(function (array $config, string $key) use (&$totalRecords, $filters) {
+            /** @var class-string<Complaint|Diagnose|Examination> $model */
+            $model = $config['model'];
+            $count = $model::query()
+                ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
+                ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
+                ->count();
+
+            $totalRecords += $count;
+
+            return [
+                $key => [
+                    'records' => $count,
+                ],
+            ];
+        });
+
+        $recentRecords = collect(self::REPORTS)
+            ->mapWithKeys(function (array $config, string $key) {
+                /** @var class-string<Complaint|Diagnose|Examination> $model */
+                $model = $config['model'];
+
+                return [
+                    $key => $model::query()
+                        ->with(['patient', 'doctor'])
+                        ->latest()
+                        ->limit(3)
+                        ->get()
+                        ->map(fn (Complaint|Diagnose|Examination $record) => [
+                            'id' => $record->getKey(),
+                            'patientId' => $record->patient_id,
+                            'patientName' => $record->patient?->fullName,
+                            'doctor' => $record->doctor?->name,
+                            'notes' => $this->notes($record->notes),
+                            'createdAt' => $record->created_at?->toIso8601String(),
+                            'type' => $config['label'],
+                        ]),
+                ];
+            })
+            ->flatten()
+            ->sortByDesc('createdAt')
+            ->take(10)
+            ->values();
+
+        return Inertia::render('reports/clinical/index', [
+            'report' => null,
+            'dashboard' => [
+                'totalRecords' => $totalRecords,
+                'perReport' => $perReportStats,
+                'recentRecords' => $recentRecords,
+            ],
+            'filters' => $filters,
+            'reports' => self::REPORT_TITLES,
         ]);
     }
 
@@ -105,7 +182,7 @@ class ClinicalReportController extends Controller
 
         return [
             'q' => trim((string) ($validated['q'] ?? '')),
-            'from' => $validated['from'] ?? today()->startOfMonth()->toDateString(),
+            'from' => $validated['from'] ?? today()->toDateString(),
             'to' => $validated['to'] ?? today()->toDateString(),
             'perPage' => (int) ($validated['perPage'] ?? 25),
         ];

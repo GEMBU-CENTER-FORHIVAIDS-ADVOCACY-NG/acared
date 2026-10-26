@@ -1,9 +1,20 @@
 import { Head, router } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+} from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -139,180 +150,191 @@ export default function PermissionsIndex({
                     />
                     <Button onClick={openCreate}>Create permission</Button>
                 </div>
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters();
-                    }}
-                >
-                    <Input
-                        className="w-full sm:max-w-sm"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search permissions..."
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
-                {selected.length ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">
-                            {selected.length} selected
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setBulkDeleteOpen(true)}
-                        >
-                            Delete selected
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters();
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search permissions..."
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
                         </Button>
-                    </div>
-                ) : null}
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        type="checkbox"
-                                        aria-label="Select all permissions"
-                                        checked={
-                                            permissions.data.length > 0 &&
-                                            permissions.data.every(
-                                                (permission) =>
-                                                    selected.includes(
-                                                        permission.id,
-                                                    ),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelected(
-                                                event.target.checked
-                                                    ? [
-                                                          ...new Set([
-                                                              ...selected,
-                                                              ...permissions.data.map(
-                                                                  (permission) =>
-                                                                      permission.id,
-                                                              ),
-                                                          ]),
-                                                      ]
-                                                    : selected.filter(
-                                                          (id) =>
-                                                              !permissions.data.some(
-                                                                  (permission) =>
-                                                                      permission.id ===
-                                                                      id,
-                                                              ),
-                                                      ),
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Guard</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead>Updated</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {permissions.data.length === 0 ? (
+                    </form>
+                    {selected.length ? (
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {selected.length} selected
+                            </span>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setBulkDeleteOpen(true)}
+                            >
+                                Delete selected
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={6}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No permissions found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                permissions.data.map((permission) => (
-                                    <TableRow key={permission.id}>
-                                        <TableCell>
-                                            <input
-                                                type="checkbox"
-                                                aria-label={`Select ${permission.name}`}
-                                                checked={selected.includes(
-                                                    permission.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelected(
-                                                        event.target.checked
-                                                            ? [
+                                    <TableHead>
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Select all permissions"
+                                            checked={
+                                                permissions.data.length > 0 &&
+                                                permissions.data.every(
+                                                    (permission) =>
+                                                        selected.includes(
+                                                            permission.id,
+                                                        ),
+                                                )
+                                            }
+                                            onChange={(event) =>
+                                                setSelected(
+                                                    event.target.checked
+                                                        ? [
+                                                              ...new Set([
                                                                   ...selected,
-                                                                  permission.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      permission.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {permission.name}
-                                        </TableCell>
-                                        <TableCell>
-                                            {permission.guardName}
-                                        </TableCell>
-                                        <TableCell>
-                                            {permission.createdAt
-                                                ? new Date(
-                                                      permission.createdAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {permission.updatedAt
-                                                ? new Date(
-                                                      permission.updatedAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setViewing(permission)
-                                                    }
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openEdit(permission)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setDeleting(permission)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                                                  ...permissions.data.map(
+                                                                      (permission) =>
+                                                                          permission.id,
+                                                                  ),
+                                                              ]),
+                                                          ]
+                                                        : selected.filter(
+                                                              (id) =>
+                                                                  !permissions.data.some(
+                                                                      (permission) =>
+                                                                          permission.id ===
+                                                                          id,
+                                                                  ),
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                    </TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Guard</TableHead>
+                                    <TableHead>Created</TableHead>
+                                    <TableHead>Updated</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {permissions.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No permissions found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                ) : (
+                                    permissions.data.map((permission) => (
+                                        <TableRow key={permission.id}>
+                                            <TableCell>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Select ${permission.name}`}
+                                                    checked={selected.includes(
+                                                        permission.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelected(
+                                                            event.target.checked
+                                                                ? [
+                                                                      ...selected,
+                                                                      permission.id,
+                                                                  ]
+                                                                : selected.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          permission.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                {permission.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {permission.guardName}
+                                            </TableCell>
+                                            <TableCell>
+                                                {permission.createdAt
+                                                    ? new Date(
+                                                          permission.createdAt,
+                                                      ).toLocaleString()
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {permission.updatedAt
+                                                    ? new Date(
+                                                          permission.updatedAt,
+                                                      ).toLocaleString()
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setViewing(permission)
+                                                            }
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(permission)
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setDeleting(permission)
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: permissions.current_page,
@@ -327,7 +349,7 @@ export default function PermissionsIndex({
 
             {/* Create/Edit Permission Sheet */}
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="sm:max-w-sm">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-sm">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit permission' : 'Create permission'}
@@ -378,7 +400,7 @@ export default function PermissionsIndex({
                 open={viewing !== null}
                 onOpenChange={(open) => !open && setViewing(null)}
             >
-                <SheetContent className="sm:max-w-sm">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-sm">
                     <SheetHeader>
                         <SheetTitle>Permission details</SheetTitle>
                     </SheetHeader>
@@ -419,7 +441,6 @@ export default function PermissionsIndex({
                 title="Delete permission?"
                 description={`Delete "${deleting?.name}"? Roles with this permission will lose it.`}
                 confirmLabel="Delete"
-                destructive
                 processing={processing}
                 onConfirm={deleteOne}
             />
@@ -429,7 +450,6 @@ export default function PermissionsIndex({
                 title="Delete selected permissions?"
                 description="Roles with these permissions will lose them."
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={deleteSelected}
             />

@@ -10,10 +10,8 @@ use App\Models\Stock;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Service\DashboardCurrency;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -23,262 +21,273 @@ class PurchaseOrderController extends Controller
 {
     public function index(Request $request): Response
     {
-        $filters = [
-            'q' => trim((string) $request->query('q', '')),
-            'status' => in_array($request->query('status'), ['pending', 'approved', 'posted'], true) ? $request->query('status') : 'all',
-            'perPage' => in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true) ? (int) $request->query('perPage', 25) : 25,
-        ];
+        $search = trim((string) $request->query('q', ''));
+        $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
+            ? (int) $request->query('perPage', 25)
+            : 25;
 
-        $orders = PurchaseOrder::query()
-            ->with(['vendor', 'user', 'items.inventory.priceList', 'items.inventory.drugForm', 'items.markup'])
-            ->withCount('items')
-            ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
-                $like = '%'.$filters['q'].'%';
-                $query->where(function (Builder $query) use ($like): void {
-                    $query->where('slug', 'like', $like)
-                        ->orWhereHas('vendor', fn (Builder $query) => $query->where('name', 'like', $like))
-                        ->orWhereHas('user', fn (Builder $query) => $query->where('name', 'like', $like));
-                });
-            })
-            ->when($filters['status'] !== 'all', fn (Builder $query) => $query->where('status', $filters['status']))
-            ->latest()
-            ->paginate($filters['perPage'])
+        $purchaseOrders = PurchaseOrder::query()
+            ->with(['vendor', 'user', 'items.inventory.priceList', 'items.inventory.drugForm'])
+            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
+                $query->where('slug', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%");
+            }))
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
             ->withQueryString()
-            ->through(fn (PurchaseOrder $order) => $this->present($order, true));
+            ->through(fn (PurchaseOrder $po) => [
+                'id' => $po->id,
+                'slug' => $po->slug,
+                'vendor' => $po->vendor ? [
+                    'id' => $po->vendor->id,
+                    'name' => $po->vendor->name,
+                ] : null,
+                'user' => $po->user ? [
+                    'id' => $po->user->id,
+                    'name' => $po->user->name,
+                ] : null,
+                'subPrice' => $po->subPrice,
+                'subCost' => $po->subCost,
+                'discount' => $po->discount,
+                'total' => $po->total,
+                'items_count' => $po->items->count(),
+                'status' => $po->status,
+                'items' => $po->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'inventory_id' => $item->inventory_id,
+                    'inventory_name' => trim(($item->inventory?->priceList?->name ?? '').' '.($item->inventory?->drugForm?->name ?? '')) ?: 'Unknown',
+                    'quantity' => $item->quantity,
+                    'unitPrice' => $item->unitPrice,
+                    'unitCost' => $item->unitCost,
+                    'expires_at' => $item->expires_at instanceof \DateTimeInterface ? $item->expires_at->format('Y-m-d') : ($item->expires_at ?? null),
+                ]),
+                'createdAt' => $po->created_at?->toIso8601String(),
+                'updatedAt' => $po->updated_at?->toIso8601String(),
+            ]);
+
+        $vendors = Vendor::query()->orderBy('name')->get();
+        $users = User::query()->orderBy('name')->get();
+        $markups = Markup::query()->orderBy('name')->get();
+        $inventories = Inventory::query()
+            ->with(['priceList', 'drugForm'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Inventory $inv) => [
+                'id' => $inv->id,
+                'label' => ($inv->priceList?->name ?? '').' '.($inv->drugForm?->name ?? ''),
+                'priceListName' => $inv->priceList?->name ?? '',
+                'drugFormName' => $inv->drugForm?->name ?? '',
+            ]);
+
+        $nextSlug = self::generateNextSlug();
 
         return Inertia::render('inventory/purchase-orders/index', [
             'currencySymbol' => DashboardCurrency::symbol(),
-            'orders' => $orders,
-            'filters' => $filters,
-            'summary' => [
-                'pending' => PurchaseOrder::query()->where('status', 'pending')->count(),
-                'approved' => PurchaseOrder::query()->where('status', 'approved')->count(),
-                'posted' => PurchaseOrder::query()->where('status', 'posted')->count(),
-            ],
-            'formOptions' => [
-                'vendors' => Vendor::query()->orderBy('name')->get(['id', 'name']),
-                'inventories' => Inventory::query()->with(['priceList', 'drugForm'])->orderBy('price_list_id')->get()
-                    ->map(fn (Inventory $inventory) => ['id' => $inventory->id, 'name' => ($inventory->priceList->name ?? 'Item').' '.($inventory->drugForm->name ?? '')]),
-                'markups' => Markup::query()->orderBy('name')->get(['id', 'name', 'value']),
-                'users' => $request->user()->currentTeam->members()->orderBy('name')->get(['users.id', 'users.name']),
-            ],
-        ]);
-    }
-
-    public function show(string $current_team, PurchaseOrder $purchase_order): Response
-    {
-        $purchase_order->load(['vendor', 'user', 'items.inventory.priceList', 'items.inventory.drugForm', 'items.markup']);
-
-        return Inertia::render('inventory/purchase-orders/show', [
-            'currencySymbol' => DashboardCurrency::symbol(),
-            'order' => $this->present($purchase_order, true),
+            'nextSlug' => $nextSlug,
+            'purchaseOrders' => $purchaseOrders,
+            'vendors' => $vendors,
+            'users' => $users,
+            'markups' => $markups,
+            'inventories' => $inventories,
+            'filters' => ['q' => $search, 'perPage' => $perPage],
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $validated = $this->validated($request);
         $teamId = $request->user()->currentTeam->getKey();
 
-        DB::transaction(function () use ($data, $request, $teamId): void {
-            $lastId = PurchaseOrder::withoutGlobalScopes()->lockForUpdate()->max('id') ?? 0;
-            $order = PurchaseOrder::create([
+        $items = $validated['items'] ?? [];
+        unset($validated['items']);
+
+        DB::transaction(function () use ($validated, $teamId, $items) {
+            $purchaseOrder = PurchaseOrder::create([
+                ...$validated,
                 'team_id' => $teamId,
-                'slug' => 'PUR-'.str_pad((string) ($lastId + 1), 5, '0', STR_PAD_LEFT),
-                'vendor_id' => $data['vendor_id'],
-                'user_id' => $request->user()->getKey(),
-                'subPrice' => $data['subPrice'],
-                'subCost' => $data['subCost'],
-                'discount' => $data['discount'],
-                'total' => $data['total'],
-                'status' => 'pending',
             ]);
 
-            foreach ($data['items'] as $item) {
-                $this->createItem($order, $item, $teamId);
-            }
-        });
-
-        return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
-    }
-
-    public function update(Request $request, string $current_team, PurchaseOrder $purchase_order): RedirectResponse
-    {
-        abort_if($purchase_order->status === 'posted', 409, 'Posted purchase orders cannot be edited.');
-        $data = $this->validated($request);
-        $teamId = $request->user()->currentTeam->getKey();
-
-        DB::transaction(function () use ($data, $purchase_order, $teamId): void {
-            $purchase_order->update([
-                'vendor_id' => $data['vendor_id'],
-                'subPrice' => $data['subPrice'],
-                'subCost' => $data['subCost'],
-                'discount' => $data['discount'],
-                'total' => $data['total'],
-            ]);
-            $purchase_order->items()->delete();
-            foreach ($data['items'] as $item) {
-                $this->createItem($purchase_order, $item, $teamId);
-            }
-        });
-
-        return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
-    }
-
-    public function approve(Request $request, string $current_team, PurchaseOrder $purchase_order): RedirectResponse
-    {
-        abort_unless($purchase_order->status === 'pending', 409, 'Only pending purchase orders can be approved.');
-        $purchase_order->update(['status' => 'approved']);
-
-        return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
-    }
-
-    public function post(Request $request, string $current_team, PurchaseOrder $purchase_order): RedirectResponse
-    {
-        abort_unless($purchase_order->status === 'approved', 409, 'Only approved purchase orders can be posted.');
-        $validated = $request->validate([
-            'received_by' => ['required', 'integer', Rule::exists('team_members', 'user_id')->where('team_id', $request->user()->currentTeam->getKey())],
-        ]);
-        $teamId = $request->user()->currentTeam->getKey();
-
-        DB::transaction(function () use ($request, $purchase_order, $validated, $teamId): void {
-            $order = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchase_order->getKey());
-            abort_unless($order->status === 'approved', 409, 'This purchase order is no longer approved.');
-            $order->load('items.inventory.priceList');
-
-            foreach ($order->items as $item) {
-                $inventory = Inventory::query()->lockForUpdate()->whereKey($item->inventory_id)->firstOrFail();
-                $inventory->increment('quantity', $item->quantity);
-                $inventory->update([
-                    'price' => $item->unitPrice,
-                    'cost' => $item->unitCost,
-                    'status' => $inventory->quantity <= $inventory->min_qty ? 'low' : 'available',
-                    'expires_at' => $item->expires_at,
-                ]);
-                $inventory->priceList?->update(['price' => $item->unitPrice]);
-
-                $attributes = [
+            foreach ($items as $itemData) {
+                OrderItem::create([
                     'team_id' => $teamId,
-                    'user_id' => $request->user()->getKey(),
-                    'inventory_id' => $inventory->getKey(),
-                    'receivable_id' => $validated['received_by'],
-                    'receivable_type' => User::class,
-                    'quantity' => $item->quantity,
-                    'status' => 'Purchased',
-                ];
-                Stock::create([...$attributes, 'stockable_id' => $order->getKey(), 'stockable_type' => PurchaseOrder::class, 'quantity' => -$item->quantity]);
-                Stock::create([...$attributes, 'stockable_id' => $inventory->getKey(), 'stockable_type' => Inventory::class]);
+                    'purchase_order_id' => $purchaseOrder->id,
+                    'inventory_id' => $itemData['inventory_id'],
+                    'markup_id' => $itemData['markup_id'] ?? null,
+                    'quantity' => $itemData['quantity'],
+                    'unitPrice' => $itemData['unitPrice'],
+                    'unitCost' => $itemData['unitCost'],
+                    'totalPrice' => $itemData['totalPrice'] ?? $itemData['quantity'] * $itemData['unitPrice'],
+                    'totalCost' => $itemData['totalCost'] ?? $itemData['quantity'] * $itemData['unitCost'],
+                ]);
             }
+        });
 
-            $order->update(['status' => 'posted']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Purchase order created.']);
+
+        return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
+    }
+
+    public function update(Request $request, string $current_team, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $validated = $this->validated($request, $purchaseOrder);
+        $teamId = $purchaseOrder->team_id;
+
+        $items = $validated['items'] ?? [];
+        unset($validated['items']);
+
+        DB::transaction(function () use ($validated, $teamId, $purchaseOrder, $items) {
+            $purchaseOrder->update($validated);
+
+            $purchaseOrder->items()->delete();
+
+            foreach ($items as $itemData) {
+                OrderItem::create([
+                    'team_id' => $teamId,
+                    'purchase_order_id' => $purchaseOrder->id,
+                    'inventory_id' => $itemData['inventory_id'],
+                    'markup_id' => $itemData['markup_id'] ?? null,
+                    'quantity' => $itemData['quantity'],
+                    'unitPrice' => $itemData['unitPrice'],
+                    'unitCost' => $itemData['unitCost'],
+                    'totalPrice' => $itemData['totalPrice'] ?? $itemData['quantity'] * $itemData['unitPrice'],
+                    'totalCost' => $itemData['totalCost'] ?? $itemData['quantity'] * $itemData['unitCost'],
+                ]);
+            }
         });
 
         return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
     }
 
-    public function destroy(Request $request, string $current_team, PurchaseOrder $purchase_order): RedirectResponse
+    public function destroy(Request $request, string $current_team, PurchaseOrder $purchaseOrder): RedirectResponse
     {
-        abort_if($purchase_order->status === 'posted', 409, 'Posted purchase orders cannot be deleted.');
-        $purchase_order->delete();
+        $purchaseOrder->delete();
 
         return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
     {
-        $teamId = $request->user()->currentTeam->getKey();
-        $data = $request->validate([
+        $validated = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
-            'ids.*' => ['integer', Rule::exists('purchase_orders', 'id')->where('team_id', $teamId)],
+            'ids.*' => ['integer', 'distinct'],
         ]);
-        PurchaseOrder::query()->whereIn('id', $data['ids'])->where('status', '!=', 'posted')->delete();
+
+        PurchaseOrder::query()->whereKey($validated['ids'])->delete();
 
         return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
     }
 
-    /** @return array<string, mixed> */
-    private function validated(Request $request): array
+    public function approve(Request $request, string $current_team, PurchaseOrder $purchaseOrder): RedirectResponse
     {
-        $teamId = $request->user()->currentTeam->getKey();
-        $data = $request->validate([
-            'vendor_id' => ['required', 'integer', Rule::exists('vendors', 'id')->where('team_id', $teamId)],
+        $purchaseOrder->update(['status' => 'approved']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Purchase order approved.']);
+
+        return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
+    }
+
+    public function postInventory(Request $request, string $current_team, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $validated = $request->validate([
+            'received_by' => ['required', 'integer', 'exists:users,id'],
+            'expiry_dates' => ['nullable', 'array'],
+            'expiry_dates.*' => ['nullable', 'date'],
+        ]);
+
+        $expiryDates = array_change_key_case($validated['expiry_dates'] ?? []);
+
+        DB::transaction(function () use ($validated, $expiryDates, $purchaseOrder) {
+            $receiver = User::findOrFail($validated['received_by']);
+            $team = $purchaseOrder->team;
+
+            foreach ($purchaseOrder->items as $item) {
+                // Get expiry date from form input, or use existing order item expiry
+                $expiresAt = $expiryDates[(string) $item->id] ?? null;
+
+                // Update the order item's expiry date
+                $item->update(['expires_at' => $expiresAt]);
+
+                Stock::create([
+                    'team_id' => $team->id,
+                    'user_id' => auth()->id(),
+                    'inventory_id' => $item->inventory_id,
+                    'stockable_id' => $item->purchase_order_id,
+                    'stockable_type' => PurchaseOrder::class,
+                    'receivable_id' => $receiver->id,
+                    'receivable_type' => User::class,
+                    'quantity' => -$item->quantity,
+                    'status' => 'Purchased',
+                ]);
+
+                Stock::create([
+                    'team_id' => $team->id,
+                    'user_id' => auth()->id(),
+                    'inventory_id' => $item->inventory_id,
+                    'stockable_id' => $item->purchase_order_id,
+                    'stockable_type' => Inventory::class,
+                    'receivable_id' => $receiver->id,
+                    'receivable_type' => User::class,
+                    'quantity' => $item->quantity,
+                    'status' => 'Purchased',
+                ]);
+
+                // Add ordered quantity to inventory and update price, cost, and expiry date
+                $item->inventory->increment('quantity', $item->quantity, [
+                    'price' => $item->unitPrice,
+                    'cost' => $item->unitCost,
+                    'status' => 'stocked',
+                    'expires_at' => $expiresAt,
+                ]);
+
+                // Update PriceList price and cost
+                if ($item->inventory->priceList) {
+                    $item->inventory->priceList->update([
+                        'price' => $item->unitPrice,
+                    ]);
+                }
+            }
+
+            $purchaseOrder->update(['status' => 'posted']);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Stock posted to inventory.']);
+
+        return to_route('purchase-orders.index', $request->user()->currentTeam->slug);
+    }
+
+    /**
+     * Generate the next purchase order slug.
+     */
+    private static function generateNextSlug(): string
+    {
+        $last = PurchaseOrder::latest('id')->first();
+        $nextNumber = $last ? $last->id + 1 : 1;
+
+        return 'PUR-'.str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validated(Request $request, ?PurchaseOrder $purchaseOrder = null): array
+    {
+        return $request->validate([
+            'slug' => ['required', 'string', 'max:255', Rule::unique('purchase_orders', 'slug')->ignore($purchaseOrder?->id)],
+            'vendor_id' => ['required', 'integer', 'exists:vendors,id'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'subPrice' => ['required', 'numeric', 'min:0'],
+            'subCost' => ['required', 'numeric', 'min:0'],
             'discount' => ['required', 'numeric', 'min:0'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.inventory_id' => ['required', 'integer', Rule::exists('inventories', 'id')->where('team_id', $teamId)],
-            'items.*.markup_id' => ['required', 'integer', Rule::exists('mark_ups', 'id')->where('team_id', $teamId)],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.unitCost' => ['required', 'numeric', 'min:0'],
-            'items.*.expires_at' => ['required', 'date', 'after_or_equal:today'],
+            'total' => ['required', 'numeric', 'min:0'],
+            'status' => ['required', 'string', 'max:50'],
+            'items' => ['nullable', 'array'],
+            'items.*.inventory_id' => ['required_with:items', 'integer', 'exists:inventories,id'],
+            'items.*.markup_id' => ['nullable', 'integer', 'exists:mark_ups,id'],
+            'items.*.quantity' => ['required_with:items', 'numeric', 'min:1'],
+            'items.*.unitPrice' => ['required_with:items', 'numeric', 'min:0'],
+            'items.*.unitCost' => ['required_with:items', 'numeric', 'min:0'],
+            'items.*.totalPrice' => ['nullable', 'numeric', 'min:0'],
+            'items.*.totalCost' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $items = [];
-        $subCost = 0.0;
-        $subPrice = 0.0;
-
-        foreach ($data['items'] as $item) {
-            $markup = Markup::query()->whereKey($item['markup_id'])->firstOrFail();
-            $unitCost = (float) $item['unitCost'];
-            $unitPrice = round($unitCost + ($unitCost * (float) $markup->value / 100), 2);
-            $quantity = (int) $item['quantity'];
-            $totalCost = $quantity * $unitCost;
-            $totalPrice = $quantity * $unitPrice;
-            $items[] = [...$item, 'unitPrice' => $unitPrice, 'totalCost' => $totalCost, 'totalPrice' => $totalPrice];
-            $subCost += $totalCost;
-            $subPrice += $totalPrice;
-        }
-
-        return [
-            'vendor_id' => $data['vendor_id'],
-            'items' => $items,
-            'subPrice' => $subPrice,
-            'subCost' => $subCost,
-            'discount' => (float) $data['discount'],
-            'total' => $subCost - (float) $data['discount'],
-        ];
-    }
-
-    /** @param array<string, mixed> $item */
-    private function createItem(PurchaseOrder $order, array $item, int $teamId): OrderItem
-    {
-        return $order->items()->create([
-            ...$item,
-            'team_id' => $teamId,
-        ]);
-    }
-
-    /** @return array<string, mixed> */
-    private function present(PurchaseOrder $order, bool $withItems = false): array
-    {
-        $result = [
-            'id' => $order->getKey(),
-            'slug' => $order->slug,
-            'vendorId' => $order->vendor_id,
-            'vendorName' => $order->vendor?->name,
-            'userName' => $order->user?->name,
-            'subPrice' => (float) $order->subPrice,
-            'subCost' => (float) $order->subCost,
-            'discount' => (float) $order->discount,
-            'total' => (float) $order->total,
-            'status' => $order->status,
-            'itemsCount' => (int) ($order->items_count ?? $order->items->count()),
-            'createdAt' => $order->created_at?->toIso8601String(),
-        ];
-
-        if ($withItems) {
-            $result['items'] = $order->items->map(fn (OrderItem $item) => [
-                'id' => $item->getKey(),
-                'inventoryId' => $item->inventory_id,
-                'itemName' => ($item->inventory?->priceList->name ?? 'Inventory item').' '.($item->inventory?->drugForm->name ?? ''),
-                'markupId' => $item->markup_id,
-                'markupName' => $item->markup?->name,
-                'quantity' => (int) $item->quantity,
-                'unitCost' => (float) $item->unitCost,
-                'unitPrice' => (float) $item->unitPrice,
-                'totalCost' => (float) $item->totalCost,
-                'totalPrice' => (float) $item->totalPrice,
-                'expiresAt' => Carbon::parse($item->expires_at)->toDateString(),
-            ])->values()->all();
-        }
-
-        return $result;
     }
 }

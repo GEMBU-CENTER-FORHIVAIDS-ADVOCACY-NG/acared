@@ -6,29 +6,18 @@ import '@fullcalendar/react/themes/forma/theme.css';
 import '@fullcalendar/react/themes/forma/palettes/blue.css';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SelectNative } from '@/components/ui/select-native';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { index, view } from '@/routes/consultations';
 import type {
     ConsultationEvent,
     ConsultationFilters,
-    ConsultationItem,
     ConsultationSidebar,
     ConsultationStatusOption,
     DoctorOption,
 } from '@/types';
 
 type Props = {
-    consultations: ConsultationItem[];
     filters: ConsultationFilters;
     statusOptions: ConsultationStatusOption[];
     doctorOptions: DoctorOption[];
@@ -45,7 +34,6 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function ConsultationsIndex({
-    consultations,
     filters,
     statusOptions,
     doctorOptions,
@@ -255,8 +243,8 @@ export default function ConsultationsIndex({
                                                         href={view.url({
                                                             current_team:
                                                                 teamSlug,
-                                                            appointment:
-                                                                item.id,
+                                                            consultation:
+                                                                 item.id,
                                                         })}
                                                         className="text-sm font-medium hover:underline"
                                                     >
@@ -281,96 +269,6 @@ export default function ConsultationsIndex({
                         </CardContent>
                     </Card>
                 </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>All consultations</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Hospital No.</TableHead>
-                                    <TableHead>Patient</TableHead>
-                                    <TableHead>Doctor</TableHead>
-                                    <TableHead>Starts At</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Purpose</TableHead>
-                                    <TableHead className="text-right">
-                                        Action
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {consultations.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No consultations found.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    consultations.map((consultation) => (
-                                        <TableRow key={consultation.id}>
-                                            <TableCell className="font-medium">
-                                                {consultation.patientId}
-                                            </TableCell>
-                                            <TableCell>
-                                                {consultation.patientName ??
-                                                    'Unknown patient'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {consultation.doctorName ?? '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {consultation.startsAt
-                                                    ? new Date(
-                                                          consultation.startsAt,
-                                                      ).toLocaleString()
-                                                    : '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    className={
-                                                        STATUS_BADGE[
-                                                            consultation
-                                                                .statusColor
-                                                        ] ?? STATUS_BADGE.gray
-                                                    }
-                                                >
-                                                    {consultation.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="max-w-[12rem] truncate">
-                                                {consultation.purpose ?? '—'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button
-                                                    asChild
-                                                    size="sm"
-                                                    variant="secondary"
-                                                >
-                                                    <Link
-                                                        href={view.url({
-                                                            current_team:
-                                                                teamSlug,
-                                                            appointment:
-                                                                consultation.id,
-                                                        })}
-                                                    >
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
             </div>
         </>
     );

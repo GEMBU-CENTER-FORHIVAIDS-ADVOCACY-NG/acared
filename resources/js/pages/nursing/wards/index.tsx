@@ -1,9 +1,24 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import {
+    ArchiveRestore,
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -150,7 +165,7 @@ export default function WardsIndex({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             visit({ q: search, page: 1 });
@@ -160,7 +175,7 @@ export default function WardsIndex({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search wards and beds"
-                            className="w-72"
+                            className="max-w-sm"
                         />
                         <Button type="submit" variant="secondary">
                             Search
@@ -180,9 +195,10 @@ export default function WardsIndex({
                         </Button>
                     )}
                 </div>
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead>
                                     <input
@@ -272,80 +288,100 @@ export default function WardsIndex({
                                                 ? `${ward.beds.length} beds / ${ward.capacity}`
                                                 : '—'}
                                         </TableCell>
-                                        <TableCell className="capitalize">
-                                            {ward.deletedAt
-                                                ? 'Deleted'
-                                                : ward.status}
+                                        <TableCell>
+                                            <Badge variant="secondary" className="capitalize">
+                                                {ward.deletedAt
+                                                    ? 'Deleted'
+                                                    : ward.status}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             {ward.activeAdmissionsCount}
                                         </TableCell>
-                                        <TableCell className="space-x-1 text-right">
-                                            {ward.deletedAt ? (
-                                                <>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
                                                     <Button
                                                         size="sm"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            router.patch(
-                                                                restore.url({
-                                                                    current_team:
-                                                                        team,
-                                                                    ward: ward.id,
-                                                                }),
-                                                                {},
-                                                                {
-                                                                    preserveScroll: true,
-                                                                },
-                                                            )
-                                                        }
+                                                        variant="outline"
                                                     >
-                                                        Restore
+                                                        <MoreHorizontal className="size-4" />
                                                     </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            router.delete(
-                                                                forceDestroy.url(
-                                                                    {
-                                                                        current_team:
-                                                                            team,
-                                                                        ward: ward.id,
-                                                                    },
-                                                                ),
-                                                                {
-                                                                    preserveScroll: true,
-                                                                },
-                                                            )
-                                                        }
-                                                    >
-                                                        Delete permanently
-                                                    </Button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            startEdit(ward)
-                                                        }
-                                                        disabled={!ward.isWard}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setDeleting(ward)
-                                                        }
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </>
-                                            )}
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {ward.deletedAt ? (
+                                                        <>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    router.patch(
+                                                                        restore.url({
+                                                                            current_team:
+                                                                                team,
+                                                                            ward: ward.id,
+                                                                        }),
+                                                                        {},
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <ArchiveRestore className="mr-2 h-4 w-4" />
+                                                                Restore
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                variant="destructive"
+                                                                onClick={() =>
+                                                                    router.delete(
+                                                                        forceDestroy.url(
+                                                                            {
+                                                                                current_team:
+                                                                                    team,
+                                                                                ward: ward.id,
+                                                                            },
+                                                                        ),
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete permanently
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    startEdit(
+                                                                        ward,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    !ward.isWard
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                variant="destructive"
+                                                                onClick={() =>
+                                                                    setDeleting(
+                                                                        ward,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -361,7 +397,8 @@ export default function WardsIndex({
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: wards.current_page,
@@ -507,7 +544,6 @@ export default function WardsIndex({
                 onOpenChange={(open) => {
                     if (!open) setDeleting(null);
                 }}
-                destructive
                 title={`Delete ${deleting?.name ?? 'ward'}?`}
                 description="This moves the ward or bed to deleted records."
                 confirmLabel="Delete"

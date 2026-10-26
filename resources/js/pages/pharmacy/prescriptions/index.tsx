@@ -3,9 +3,12 @@ import {
     ArchiveX,
     CircleCheck,
     Clock,
+    Eye,
+    MoreHorizontal,
     PackageX,
     RotateCcw,
     Search,
+    Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -13,6 +16,12 @@ import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Card,
     CardContent,
@@ -197,53 +206,50 @@ export default function PrescriptionsIndex({
 
 
 
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters({ q: search });
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={search}
+                            placeholder="Search prescriptions"
+                            onChange={(event) => setSearch(event.target.value)}
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
+                        </Button>
+                    </form>
+                    <SelectNative
+                        className="w-44"
+                        value={status}
+                        onChange={(event) => {
+                            setStatus(event.target.value);
+                            applyFilters({
+                                status: event.target.value,
+                            });
+                        }}
+                    >
+                        <option value="all">All statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="billed">Billed</option>
+                        <option value="paid">Paid</option>
+                        <option value="dispensed">Dispensed</option>
+                        <option value="refunded">Refunded</option>
+                    </SelectNative>
+                </div>
                 <Card>
-                    <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <CardHeader>
                         <div className="space-y-1">
                             <CardTitle>Prescription records</CardTitle>
                             <CardDescription>
                                 Search by hospital number, patient name, or
                                 prescriber.
                             </CardDescription>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Input
-                                className="w-full sm:w-64"
-                                value={search}
-                                placeholder="Search prescriptions"
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        applyFilters({ q: search });
-                                    }
-                                }}
-                            />
-                            <SelectNative
-                                className="w-full sm:w-44"
-                                value={status}
-                                onChange={(event) => {
-                                    setStatus(event.target.value);
-                                    applyFilters({
-                                        status: event.target.value,
-                                    });
-                                }}
-                            >
-                                <option value="all">All statuses</option>
-                                <option value="pending">Pending</option>
-                                <option value="billed">Billed</option>
-                                <option value="paid">Paid</option>
-                                <option value="dispensed">Dispensed</option>
-                                <option value="refunded">Refunded</option>
-                            </SelectNative>
-                            <Button
-                                variant="secondary"
-                                onClick={() => applyFilters({ q: search })}
-                            >
-                                <Search className="mr-2 size-4" />
-                                Search
-                            </Button>
                         </div>
                     </CardHeader>
                     {selected.length > 0 ? (
@@ -385,40 +391,53 @@ export default function PrescriptionsIndex({
                                                           ).toLocaleDateString()
                                                         : '—'}
                                                 </TableCell>
-                                                <TableCell className="space-x-2 text-right">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={showRoute.url(
-                                                                {
-                                                                    current_team:
-                                                                        teamSlug,
-                                                                    prescription:
-                                                                        item.id,
-                                                                },
-                                                            )}
-                                                        >
-                                                            View
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        disabled={[
-                                                            'paid',
-                                                            'dispensed',
-                                                            'refunded',
-                                                        ].includes(item.status)}
-                                                        onClick={() => {
-                                                            setError(null);
-                                                            setDeleting(item);
-                                                        }}
-                                                    >
-                                                        Delete
-                                                    </Button>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link
+                                                                    href={showRoute.url(
+                                                                        {
+                                                                            current_team:
+                                                                                teamSlug,
+                                                                            prescription:
+                                                                                item.id,
+                                                                        },
+                                                                    )}
+                                                                >
+                                                                    <Eye className="mr-2 h-4 w-4" />
+                                                                    View
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                variant="destructive"
+                                                                disabled={[
+                                                                    'paid',
+                                                                    'dispensed',
+                                                                    'refunded',
+                                                                ].includes(
+                                                                    item.status,
+                                                                )}
+                                                                onClick={() => {
+                                                                    setError(null);
+                                                                    setDeleting(
+                                                                        item,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
                                         ))

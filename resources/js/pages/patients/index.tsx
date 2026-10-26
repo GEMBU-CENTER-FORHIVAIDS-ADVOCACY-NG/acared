@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import PatientController from '@/actions/App/Http/Controllers/PatientController';
 import ConfirmDialog from '@/components/confirm-dialog';
@@ -8,6 +9,13 @@ import TabsBar from '@/components/tabs-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SelectNative } from '@/components/ui/select-native';
 import {
@@ -257,7 +265,7 @@ export default function PatientIndex({
 
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex items-center gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
@@ -267,7 +275,7 @@ export default function PatientIndex({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search hospital no, name, email..."
-                            className="w-72"
+                            className="max-w-sm"
                             data-test="patient-search"
                         />
                         <Button type="submit" variant="secondary">
@@ -349,74 +357,76 @@ export default function PatientIndex({
                     </p>
                 ) : null}
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-10">
-                                    <input
-                                        type="checkbox"
-                                        checked={allSelected}
-                                        onChange={toggleAll}
-                                        aria-label="Select all"
-                                    />
-                                </TableHead>
-                                <TableHead>Hospital No</TableHead>
-                                <TableHead>ART No</TableHead>
-                                <TableHead>NHIS/Other</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Full name</TableHead>
-                                <TableHead>Gender</TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('birthDate')}
-                                    >
-                                        Birth date
-                                        {sortIndicator('birthDate')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>Email address</TableHead>
-                                <TableHead>Phone</TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center"
-                                        onClick={() => toggleSort('created_at')}
-                                    >
-                                        Registered
-                                        {sortIndicator('created_at')}
-                                    </button>
-                                </TableHead>
-                                <TableHead className="w-12 text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {patients.data.length === 0 ? (
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={12}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No patients found.
-                                    </TableCell>
+                                    <TableHead className="w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSelected}
+                                            onChange={toggleAll}
+                                            aria-label="Select all"
+                                        />
+                                    </TableHead>
+                                    <TableHead>Hospital No</TableHead>
+                                    <TableHead>ART No</TableHead>
+                                    <TableHead>NHIS/Other</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Full name</TableHead>
+                                    <TableHead>Gender</TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('birthDate')}
+                                        >
+                                            Birth date
+                                            {sortIndicator('birthDate')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Email address</TableHead>
+                                    <TableHead>Phone</TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center"
+                                            onClick={() => toggleSort('created_at')}
+                                        >
+                                            Registered
+                                            {sortIndicator('created_at')}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead className="w-12 text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
-                            ) : (
-                                patients.data.map((patient) => (
-                                    <PatientRow
-                                        key={patient.id}
-                                        patient={patient}
-                                        selected={selected.includes(patient.id)}
-                                        onToggle={() => toggleRow(patient.id)}
-                                    />
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                            </TableHeader>
+                            <TableBody>
+                                {patients.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={12}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No patients found.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    patients.data.map((patient) => (
+                                        <PatientRow
+                                            key={patient.id}
+                                            patient={patient}
+                                            selected={selected.includes(patient.id)}
+                                            onToggle={() => toggleRow(patient.id)}
+                                        />
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{
@@ -438,7 +448,6 @@ export default function PatientIndex({
                     }
                 }}
                 processing={processing}
-                destructive
                 title={
                     confirm === 'delete-selected'
                         ? `Delete ${selected.length} patients?`
@@ -507,40 +516,54 @@ function PatientRow({
                     : '—'}
             </TableCell>
             <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="sm" asChild>
-                        <Link href={showUrl([teamSlug, patient.id])}>View</Link>
-                    </Button>
-                    <Button variant="ghost" size="sm" asChild>
-                        <Link href={editUrl([teamSlug, patient.id])}>Edit</Link>
-                    </Button>
-                    {patient.deletedAt ? (
-                        <>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setConfirm('restore')}
-                            >
-                                Restore
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setConfirm('force-delete')}
-                            >
-                                Force delete
-                            </Button>
-                        </>
-                    ) : (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setConfirm('delete')}
-                        >
-                            Delete
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                            <MoreHorizontal className="size-4" />
                         </Button>
-                    )}
-                </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                            <Link href={showUrl([teamSlug, patient.id])}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={editUrl([teamSlug, patient.id])}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                            </Link>
+                        </DropdownMenuItem>
+                        {patient.deletedAt ? (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setConfirm('restore')}
+                                >
+                                    <RotateCcw className="mr-2 h-4 w-4" />
+                                    Restore
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => setConfirm('force-delete')}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Force delete
+                                </DropdownMenuItem>
+                            </>
+                        ) : (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setConfirm('delete')}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </TableCell>
 
             <ConfirmDialog

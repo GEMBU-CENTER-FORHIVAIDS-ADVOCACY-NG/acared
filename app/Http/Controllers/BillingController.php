@@ -21,6 +21,7 @@ use App\Service\DashboardCurrency;
 use App\Service\DashboardTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -111,14 +112,9 @@ class BillingController extends Controller
             'stats' => $this->stats($dateFilter),
             'newBillingOptions' => [
                 ...$this->patientFormOptions(),
-                'patients' => Patient::query()->orderBy('slug')->limit(50)->get()
-                    ->map(fn (Patient $patient) => [
-                        'slug' => $patient->slug,
-                        'label' => "{$patient->slug} - {$patient->fullName}",
-                    ])->values(),
                 'priceLists' => PriceList::query()
                     ->where('is_category', false)
-                    ->whereHas('subCategory', fn (Builder $query) => $query->where('name', 'Billing'))
+                    ->whereHas('category', fn (Builder $query) => $query->whereRaw('LOWER(name) = ?', ['billing']))
                     ->orderBy('name')
                     ->get()
                     ->map(fn (PriceList $priceList) => [
@@ -128,6 +124,36 @@ class BillingController extends Controller
                     ])->values(),
             ],
         ]);
+    }
+
+    /**
+     * Search patients by name or slug for the current team.
+     */
+    public function searchPatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $patients = Patient::query()
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('slug')
+            ->limit(50)
+            ->get(['slug', 'fullName'])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+            ])->values();
+
+        return response()->json($patients);
     }
 
     /**
@@ -276,9 +302,10 @@ class BillingController extends Controller
                 }
 
                 if ($method->name === 'Wallet' && ($paymentData['wallet_debit'] ?? 0) > 0) {
+                    $walletPatientId = $paymentData['wallet_patient_id'] ?? $billing->patient_id;
                     $payment->walletHistories()->create([
                         'team_id' => $teamId,
-                        'patient_id' => $billing->patient_id,
+                        'patient_id' => $walletPatientId,
                         'user_id' => $user->getKey(),
                         'method_id' => $method->getKey(),
                         'debit' => $paymentData['wallet_debit'],
@@ -287,6 +314,11 @@ class BillingController extends Controller
             }
 
             $billing->update(['status' => 'paid']);
+
+            Line::query()
+                ->where('lineable_id', $billing->getKey())
+                ->where('lineable_type', $billing->billable_type)
+                ->update(['paid' => true]);
 
             $billable = $billing->billable;
 

@@ -302,7 +302,7 @@ test('users cannot leave teams they dont belong to', function () {
         ->actingAs($user)
         ->delete(route('teams.leave', $team));
 
-    $response->assertForbidden();
+    $response->assertRedirect(route('forbidden'));
 });
 
 test('deleting team switches other affected users to their personal team', function () {
@@ -386,7 +386,7 @@ test('users cannot switch to team they dont belong to', function () {
         ->actingAs($user)
         ->post(route('teams.switch', $team));
 
-    $response->assertForbidden();
+    $response->assertRedirect(route('forbidden'));
 });
 
 test('guests cannot access teams', function () {

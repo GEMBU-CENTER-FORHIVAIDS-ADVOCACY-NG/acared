@@ -1,10 +1,14 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import Pagination from '@/components/pagination';
+import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
+import { TreatmentViewModal } from '@/components/treatment-view-modal';
 import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ConsultationRecordController from '@/actions/App/Http/Controllers/ConsultationRecordController';
 import {
     show as wardRoundShow,
     view as wardRoundView,
@@ -12,11 +16,13 @@ import {
 import { ConsultationRecordForm } from '@/pages/consultations/record-form';
 import type {
     ConsultationFormValues,
+    ConsultationPagination,
     ConsultationRecord,
     ConsultationRecordOptions,
     ConsultationRecordType,
-    ConsultationRecords,
+    ConsultationRecordsWithPagination,
     ConsultationSection,
+    PaginatedConsultationRecords,
 } from '@/types';
 
 type AdmissionSummary = {
@@ -49,9 +55,10 @@ type Props = {
     section: ConsultationSection;
     admission: AdmissionSummary;
     detail: AdmissionDetail;
-    records: ConsultationRecords;
+    records: ConsultationRecordsWithPagination;
     options: ConsultationRecordOptions;
     currencySymbol: string;
+    pagination: ConsultationPagination | null;
 };
 
 const SECTIONS: { key: ConsultationSection; label: string }[] = [
@@ -80,6 +87,7 @@ export default function WardRoundView({
     records,
     options,
     currencySymbol,
+    pagination,
 }: Props) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
@@ -90,13 +98,51 @@ export default function WardRoundView({
     );
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
+    const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
 
     const recordType = (
         section === 'overview' ? null : section
     ) as ConsultationRecordType | null;
-    const currentRecords: ConsultationRecord[] = recordType
-        ? (records[recordType] ?? [])
-        : [];
+
+    const isPaginated = recordType
+        ? typeof records[recordType] !== 'undefined'
+            && 'data' in records[recordType]
+            && 'currentPage' in records[recordType]
+        : false;
+
+    const paginatedRecords: PaginatedConsultationRecords | null = isPaginated
+        ? records[recordType as keyof typeof records] as PaginatedConsultationRecords
+        : null;
+
+    const currentRecords: ConsultationRecord[] = isPaginated
+        ? paginatedRecords.data
+        : recordType
+            ? (records[recordType] as ConsultationRecord[])
+            : [];
+
+    function applyPagination(page: number, perPage?: number) {
+        if (!recordType) {
+            return;
+        }
+
+        const currentPerPage = perPage ?? pagination?.perPage ?? 25;
+
+        router.get(
+            wardRoundView.url({
+                current_team: teamSlug,
+                admission: admission.id,
+                section: recordType,
+            }, {
+                query: {
+                    page,
+                    perPage: currentPerPage,
+                },
+            }),
+            {},
+            { preserveState: false, preserveScroll: true, replace: true },
+        );
+    }
 
     function switchSection(next: ConsultationSection) {
         router.get(
@@ -287,42 +333,60 @@ export default function WardRoundView({
                         </CardContent>
                     </Card>
                 ) : (
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>
-                                {
-                                    SECTIONS.find(
-                                        (item) => item.key === section,
-                                    )?.label
+                    <>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle>
+                                    {
+                                        SECTIONS.find(
+                                            (item) => item.key === section,
+                                        )?.label
+                                    }
+                                </CardTitle>
+                                <Button size="sm" onClick={openCreate}>
+                                    New
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                {currentRecords.length === 0 ? (
+                                    <p className="py-8 text-center text-muted-foreground">
+                                        No records yet.
+                                    </p>
+                                ) : (
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {currentRecords.map((record) => (
+                                            <RecordCard
+                                                key={record.id}
+                                                type={
+                                                    recordType as ConsultationRecordType
+                                                }
+                                                record={record}
+                                                currencySymbol={currencySymbol}
+                                                onEdit={() => openEdit(record)}
+                                                onDelete={() => destroy(record)}
+                                                onViewVitalSigns={(r) => setViewVitalSigns(r)}
+                                                onViewTreatment={(r) => setViewTreatment(r)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                        {isPaginated && paginatedRecords ? (
+                            <Pagination
+                                meta={{
+                                    currentPage: paginatedRecords.currentPage,
+                                    lastPage: paginatedRecords.lastPage,
+                                    perPage: paginatedRecords.perPage,
+                                    total: paginatedRecords.total,
+                                }}
+                                onPageChange={(page) => applyPagination(page)}
+                                onPerPageChange={(perPage) =>
+                                    applyPagination(1, perPage)
                                 }
-                            </CardTitle>
-                            <Button size="sm" onClick={openCreate}>
-                                New
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            {currentRecords.length === 0 ? (
-                                <p className="py-8 text-center text-muted-foreground">
-                                    No records yet.
-                                </p>
-                            ) : (
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                    {currentRecords.map((record) => (
-                                        <RecordCard
-                                            key={record.id}
-                                            type={
-                                                recordType as ConsultationRecordType
-                                            }
-                                            record={record}
-                                            currencySymbol={currencySymbol}
-                                            onEdit={() => openEdit(record)}
-                                            onDelete={() => destroy(record)}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            />
+                        ) : null}
+                    </>
                 )}
             </div>
 
@@ -339,6 +403,26 @@ export default function WardRoundView({
                     onSubmit={submit}
                 />
             ) : null}
+
+            <VitalSignsViewModal
+                record={viewVitalSigns}
+                open={viewVitalSigns !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewVitalSigns(null);
+                    }
+                }}
+            />
+
+            <TreatmentViewModal
+                record={viewTreatment}
+                open={viewTreatment !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewTreatment(null);
+                    }
+                }}
+            />
         </>
     );
 }
@@ -358,12 +442,16 @@ function RecordCard({
     currencySymbol,
     onEdit,
     onDelete,
+    onViewVitalSigns,
+    onViewTreatment,
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
     currencySymbol: string;
     onEdit: () => void;
     onDelete: () => void;
+    onViewVitalSigns: (record: ConsultationRecord) => void;
+    onViewTreatment: (record: ConsultationRecord) => void;
 }) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
@@ -409,7 +497,24 @@ function RecordCard({
                     </div>
                 ) : null}
 
-                {type !== 'complaints' &&
+                {type === 'vital-signs' ? (
+                    <div className="space-y-1">
+                        {(record.lines ?? []).map((line) => (
+                            <div
+                                key={line.id}
+                                className="flex items-center justify-between text-sm"
+                            >
+                                <span>{line.price_list?.name ?? '-'}</span>
+                                <span className="text-muted-foreground">
+                                    {line.results ?? '-'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+
+                {type !== 'vital-signs' &&
+                type !== 'complaints' &&
                 type !== 'examinations' &&
                 type !== 'diagnoses' &&
                 type !== 'admissions' ? (
@@ -419,11 +524,9 @@ function RecordCard({
                                 key={line.id}
                                 className="flex items-center justify-between text-sm"
                             >
-                                <span>{line.priceList?.name ?? '-'}</span>
+                                <span>{line.price_list?.name ?? '-'}</span>
                                 <span className="text-muted-foreground">
-                                    {type === 'vital-signs'
-                                        ? (line.results ?? '-')
-                                        : `x${line.quantity}`}
+                                    x{line.quantity}
                                 </span>
                             </div>
                         ))}
@@ -444,6 +547,24 @@ function RecordCard({
             </div>
 
             <div className="mt-3 flex items-center gap-2">
+                {type === 'vital-signs' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewVitalSigns(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'treatments' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewTreatment(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
                 {type === 'laboratories' && teamSlug ? (
                     <Button
                         size="sm"
@@ -457,10 +578,20 @@ function RecordCard({
                         </Link>
                     </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" onClick={onEdit}>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={record.status === 'paid'}
+                    onClick={onEdit}
+                >
                     Edit
                 </Button>
-                <Button size="sm" variant="ghost" onClick={onDelete}>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={record.status === 'paid'}
+                    onClick={onDelete}
+                >
                     Delete
                 </Button>
             </div>

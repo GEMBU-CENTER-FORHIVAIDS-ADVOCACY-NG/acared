@@ -317,7 +317,7 @@ export default function TeamEdit({
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
                                                         data-test="member-remove-button"
                                                         onClick={() =>
@@ -375,7 +375,7 @@ export default function TeamEdit({
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
                                                         data-test="invitation-cancel-button"
                                                         onClick={() =>

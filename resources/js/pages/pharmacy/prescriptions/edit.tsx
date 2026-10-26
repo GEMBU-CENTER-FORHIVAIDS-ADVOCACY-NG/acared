@@ -1,9 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import Heading from '@/components/heading';
-import PatientSelect from '@/components/patient-select';
+import PrescriptionController from '@/actions/App/Http/Controllers/Pharmacy/PrescriptionController';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -13,6 +13,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
 import {
     Table,
@@ -24,7 +25,6 @@ import {
 } from '@/components/ui/table';
 import type { Team } from '@/types';
 import {
-    edit as editRoute,
     index as prescriptionsIndex,
     show as showRoute,
     update as updateRoute,
@@ -95,6 +95,54 @@ export default function PrescriptionEdit({
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Server-side patient search state
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<
+        { slug: string; label: string }[]
+    >([]);
+    const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const patientSearchInputRef = useRef<HTMLInputElement>(null);
+    const patientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const searchPatients = useCallback((query: string) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        if (!query.trim()) {
+            setPatientSearchResults([]);
+            return;
+        }
+
+        setPatientSearchLoading(true);
+        debounceTimerRef.current = setTimeout(() => {
+            const url = PrescriptionController.searchPatients.url(teamSlug, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setPatientSearchResults(results);
+                    setPatientSearchLoading(false);
+                })
+                .catch(() => {
+                    setPatientSearchLoading(false);
+                });
+        }, 300);
+    }, [teamSlug]);
+
+    const selectedPatientLabel = (() => {
+        if (!patientId) {
+            return '';
+        }
+        const found = patientSearchResults.find((p) => p.slug === patientId);
+        return found?.label ?? patientId;
+    })();
+
     const priceById = useMemo(
         () => new Map(formOptions.priceLists.map((item) => [item.id, item])),
         [formOptions.priceLists],
@@ -125,22 +173,6 @@ export default function PrescriptionEdit({
 
                 return updated;
             }),
-        );
-    }
-
-    function searchPatients(term: string) {
-        return router.get(
-            editRoute.url({
-                current_team: teamSlug,
-                prescription: prescription.id,
-            }),
-            { q: term },
-            {
-                only: ['formOptions.patients'],
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
         );
     }
 
@@ -239,187 +271,227 @@ export default function PrescriptionEdit({
                             dosage.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="max-w-md space-y-2">
-                            <PatientSelect
-                                id="patient_id"
-                                label="Patient"
-                                value={patientId}
-                                options={formOptions.patients}
-                                onChange={setPatientId}
-                                onSearch={searchPatients}
-                            />
+                    <CardContent className="overflow-visible space-y-6">
+                        <div className="max-w-md space-y-2" ref={patientSearchContainerRef}>
+                            <Label htmlFor="patient_id">
+                                Patient
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="patient_id"
+                                    ref={patientSearchInputRef}
+                                    placeholder="Search patient by name, code, or phone…"
+                                    value={patientId ? selectedPatientLabel : patientSearchQuery}
+                                    onClick={() => {
+                                        setPatientSearchOpen(true);
+                                    }}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setPatientId('');
+                                        setPatientSearchQuery(value);
+                                        searchPatients(value);
+                                        setPatientSearchOpen(true);
+                                    }}
+                                />
+                                {patientSearchOpen && !patientId && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        {patientSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients found
+                                            </div>
+                                        )}
+                                        {patientSearchResults.map((option) => (
+                                            <button
+                                                key={option.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setPatientId(option.slug);
+                                                    setPatientSearchQuery('');
+                                                    setPatientSearchResults([]);
+                                                    setPatientSearchOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Drug</TableHead>
-                                        <TableHead>Frequency</TableHead>
-                                        <TableHead>Duration</TableHead>
-                                        <TableHead>Dosage</TableHead>
-                                        <TableHead>Qty</TableHead>
-                                        <TableHead className="text-right">
-                                            Line total
-                                        </TableHead>
-                                        <TableHead />
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {lines.map((line, index) => {
-                                        const price =
-                                            priceById.get(
-                                                Number(line.price_list_id),
-                                            )?.price ?? 0;
-                                        const lineTotal =
-                                            (Number(line.quantity) || 0) *
-                                            price;
-                                        return (
-                                            <TableRow key={line.id ?? index}>
-                                                <TableCell className="min-w-[280px] align-top">
-                                                    <SelectNative
-                                                        className="h-auto py-1.5"
-                                                        value={
-                                                            line.price_list_id
-                                                        }
-                                                        onChange={(event) =>
-                                                            setLinePriceList(
-                                                                index,
+                        <Table overflow="overflow-visible">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Drug</TableHead>
+                                    <TableHead>Frequency</TableHead>
+                                    <TableHead>Duration</TableHead>
+                                    <TableHead>Dosage</TableHead>
+                                    <TableHead>Qty</TableHead>
+                                    <TableHead className="text-right">
+                                        Line total
+                                    </TableHead>
+                                    <TableHead />
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {lines.map((line, index) => {
+                                    const price =
+                                        priceById.get(
+                                            Number(line.price_list_id),
+                                        )?.price ?? 0;
+                                    const lineTotal =
+                                        (Number(line.quantity) || 0) *
+                                        price;
+                                    return (
+                                        <TableRow key={line.id ?? index}>
+                                            <TableCell className="min-w-[280px] align-top">
+                                                <SelectNative
+                                                    className="h-auto py-1.5"
+                                                    value={
+                                                        line.price_list_id
+                                                    }
+                                                    onChange={(event) =>
+                                                        setLinePriceList(
+                                                            index,
+                                                            event.target
+                                                                .value,
+                                                        )
+                                                    }
+                                                >
+                                                    <option value="">
+                                                        Select drug
+                                                    </option>
+                                                    {formOptions.priceLists.map(
+                                                        (option) => (
+                                                            <option
+                                                                key={
+                                                                    option.id
+                                                                }
+                                                                value={
+                                                                    option.id
+                                                                }
+                                                            >
+                                                                {
+                                                                    option.name
+                                                                }
+                                                                {option.drugForm
+                                                                    ? ` - ${option.drugForm}`
+                                                                    : ''}
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </SelectNative>
+                                            </TableCell>
+                                            <TableCell>
+                                                <SelectNative
+                                                    value={line.frequency}
+                                                    onChange={(event) =>
+                                                        updateLine(index, {
+                                                            frequency:
                                                                 event.target
                                                                     .value,
-                                                            )
-                                                        }
-                                                    >
-                                                        <option value="">
-                                                            Select drug
-                                                        </option>
-                                                        {formOptions.priceLists.map(
-                                                            (option) => (
-                                                                <option
-                                                                    key={
-                                                                        option.id
-                                                                    }
-                                                                    value={
-                                                                        option.id
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        option.name
-                                                                    }
-                                                                    {option.drugForm
-                                                                        ? ` - ${option.drugForm}`
-                                                                        : ''}
-                                                                </option>
-                                                            ),
-                                                        )}
-                                                    </SelectNative>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <SelectNative
-                                                        value={line.frequency}
-                                                        onChange={(event) =>
-                                                            updateLine(index, {
-                                                                frequency:
-                                                                    event.target
-                                                                        .value,
-                                                            })
-                                                        }
-                                                    >
-                                                        {FREQUENCIES.map(
-                                                            (frequency) => (
-                                                                <option
-                                                                    key={
-                                                                        frequency.value
-                                                                    }
-                                                                    value={
-                                                                        frequency.value
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        frequency.label
-                                                                    }
-                                                                </option>
-                                                            ),
-                                                        )}
-                                                    </SelectNative>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        value={line.duration}
-                                                        onChange={(event) =>
-                                                            updateLine(index, {
-                                                                duration:
-                                                                    event.target
-                                                                        .value,
-                                                            })
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        value={line.dosage}
-                                                        onChange={(event) =>
-                                                            updateLine(index, {
-                                                                dosage: event
-                                                                    .target
+                                                        })
+                                                    }
+                                                >
+                                                    {FREQUENCIES.map(
+                                                        (frequency) => (
+                                                            <option
+                                                                key={
+                                                                    frequency.value
+                                                                }
+                                                                value={
+                                                                    frequency.value
+                                                                }
+                                                            >
+                                                                {
+                                                                    frequency.label
+                                                                }
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </SelectNative>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={line.duration}
+                                                    onChange={(event) =>
+                                                        updateLine(index, {
+                                                            duration:
+                                                                event.target
                                                                     .value,
-                                                            })
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        value={line.quantity}
-                                                        onChange={(event) =>
-                                                            updateLine(index, {
-                                                                quantity:
-                                                                    event.target
-                                                                        .value,
-                                                            })
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {currencySymbol}{' '}
-                                                    {lineTotal.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        disabled={
-                                                            lines.length === 1
-                                                        }
-                                                        onClick={() =>
-                                                            setLines(
-                                                                (current) =>
-                                                                    current.filter(
-                                                                        (
-                                                                            _,
-                                                                            i,
-                                                                        ) =>
-                                                                            i !==
-                                                                            index,
-                                                                    ),
-                                                            )
-                                                        }
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                                        })
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={line.dosage}
+                                                    onChange={(event) =>
+                                                        updateLine(index, {
+                                                            dosage: event
+                                                                .target
+                                                                .value,
+                                                        })
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={line.quantity}
+                                                    onChange={(event) =>
+                                                        updateLine(index, {
+                                                            quantity:
+                                                                event.target
+                                                                    .value,
+                                                        })
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {currencySymbol}{' '}
+                                                {lineTotal.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    disabled={
+                                                        lines.length === 1
+                                                    }
+                                                    onClick={() =>
+                                                        setLines(
+                                                            (current) =>
+                                                                current.filter(
+                                                                    (
+                                                                        _,
+                                                                        i,
+                                                                    ) =>
+                                                                        i !==
+                                                                        index,
+                                                                ),
+                                                        )
+                                                    }
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
 
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <Button

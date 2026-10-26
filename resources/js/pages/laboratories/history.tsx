@@ -1,9 +1,18 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
@@ -143,7 +152,7 @@ export default function LaboratoryHistory({
 
                 <div className="flex flex-wrap items-end gap-2">
                     <form
-                        className="flex items-center gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
@@ -153,7 +162,7 @@ export default function LaboratoryHistory({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search patient, doctor..."
-                            className="w-72"
+                            className="max-w-sm"
                         />
                         <Button type="submit" variant="secondary">
                             Search
@@ -214,9 +223,10 @@ export default function LaboratoryHistory({
                     </Button>
                 </div>
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead>
                                     <button
@@ -285,8 +295,10 @@ export default function LaboratoryHistory({
                                             {currencySymbol}{' '}
                                             {lab.total.toLocaleString()}
                                         </TableCell>
-                                        <TableCell className="capitalize">
-                                            {lab.status}
+                                        <TableCell>
+                                            <Badge variant="secondary" className="capitalize">
+                                                {lab.status}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             {lab.createdAt
@@ -295,32 +307,46 @@ export default function LaboratoryHistory({
                                                   ).toLocaleString()
                                                 : '—'}
                                         </TableCell>
-                                        <TableCell className="space-x-2 text-right">
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="secondary"
-                                            >
-                                                <Link
-                                                    href={baseUrl(`/${lab.id}`)}
-                                                >
-                                                    View
-                                                </Link>
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => setToDelete(lab)}
-                                            >
-                                                Delete
-                                            </Button>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={baseUrl(
+                                                                `/${lab.id}`,
+                                                            )}
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        disabled={lab.status === 'paid'}
+                                                        onClick={() =>
+                                                            setToDelete(lab)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{

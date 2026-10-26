@@ -11,6 +11,7 @@ use App\Models\PriceList;
 use App\Service\DashboardCurrency;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -22,6 +23,7 @@ class SalesReportController extends Controller
     /** @var array<string, string> */
     private const DIMENSIONS = [
         'item' => 'Sales by item',
+        'category' => 'Sales by category',
         'department' => 'Sales by department',
         'patient' => 'Sales by patient',
         'method' => 'Sales by payment method',
@@ -35,8 +37,8 @@ class SalesReportController extends Controller
         $rows = $this->orderedQuery($dimension, $filters)
             ->paginate($filters['perPage'])
             ->withQueryString()
-            ->through(fn (Line|Payment $record) => $dimension === 'item'
-                ? $this->itemRow($record)
+            ->through(fn (Line|Payment $record) => in_array($dimension, ['item', 'category'], true)
+                ? $this->itemRow($record, $dimension)
                 : $this->paymentRow($record, $dimension));
 
         return Inertia::render('reports/sales/index', [
@@ -60,38 +62,77 @@ class SalesReportController extends Controller
         return response()->streamDownload(function () use ($rows, $dimension): void {
             $output = fopen('php://output', 'w');
 
-            if ($dimension === 'item') {
-                fputcsv($output, ['Hospital No.', 'Patient', 'Item', 'Quantity', 'Cost', 'Price', 'Subtotal', 'Date'], ',', '"', '\\');
+            if (in_array($dimension, ['item', 'category'], true)) {
+                $includeItem = $dimension === 'item';
+
+                if ($includeItem) {
+                    fputcsv($output, ['Hospital No.', 'Patient', 'Item', 'Quantity', 'Cost', 'Price', 'Subtotal', 'Date'], ',', '"', '\\');
+                } else {
+                    fputcsv($output, ['Hospital No.', 'Patient', 'Quantity', 'Cost', 'Price', 'Subtotal', 'Date'], ',', '"', '\\');
+                }
 
                 foreach ($rows as $line) {
-                    fputcsv($output, [
-                        $line->patient_id,
-                        $line->patient?->fullName,
-                        $line->priceList?->name,
-                        $line->quantity,
-                        $line->unitCost,
-                        $line->unitPrice,
-                        $line->totalPrice,
-                        $line->created_at?->toDateTimeString(),
-                    ], ',', '"', '\\');
+                    if ($includeItem) {
+                        fputcsv($output, [
+                            $line->patient_id,
+                            $line->patient?->fullName,
+                            $line->priceList?->name,
+                            $line->quantity,
+                            $line->unitCost,
+                            $line->unitPrice,
+                            $line->totalPrice,
+                            $line->created_at?->toDateTimeString(),
+                        ], ',', '"', '\\');
+                    } else {
+                        fputcsv($output, [
+                            $line->patient_id,
+                            $line->patient?->fullName,
+                            $line->quantity,
+                            $line->unitCost,
+                            $line->unitPrice,
+                            $line->totalPrice,
+                            $line->created_at?->toDateTimeString(),
+                        ], ',', '"', '\\');
+                    }
                 }
             } else {
-                fputcsv($output, ['Hospital No.', 'Patient Name', 'Received By', 'Department', 'Payment Method', 'Amount', 'Discount', 'Wallet', 'Mercy Fund', 'Infant Formula', 'Date'], ',', '"', '\\');
+                $includeDepartment = $dimension === 'department';
+
+                if ($includeDepartment) {
+                    fputcsv($output, ['Hospital No.', 'Patient Name', 'Received By', 'Department', 'Payment Method', 'Amount', 'Discount', 'Wallet', 'Mercy Fund', 'Infant Formula', 'Date'], ',', '"', '\\');
+                } else {
+                    fputcsv($output, ['Hospital No.', 'Patient Name', 'Received By', 'Payment Method', 'Amount', 'Discount', 'Wallet', 'Mercy Fund', 'Infant Formula', 'Date'], ',', '"', '\\');
+                }
 
                 foreach ($rows as $payment) {
-                    fputcsv($output, [
-                        $payment->patient_id,
-                        $payment->patient?->fullName,
-                        $payment->user?->name,
-                        $this->department($payment),
-                        $payment->method?->name,
-                        $payment->amount,
-                        $payment->discount_amount,
-                        $payment->wallet,
-                        $payment->mercy_fund,
-                        $payment->infant_formula,
-                        $payment->created_at?->toDateTimeString(),
-                    ], ',', '"', '\\');
+                    if ($includeDepartment) {
+                        fputcsv($output, [
+                            $payment->patient_id,
+                            $payment->patient?->fullName,
+                            $payment->user?->name,
+                            $this->department($payment),
+                            $payment->method?->name,
+                            $payment->amount,
+                            $payment->discount_amount,
+                            $payment->wallet,
+                            $payment->mercy_fund,
+                            $payment->infant_formula,
+                            $payment->created_at?->toDateTimeString(),
+                        ], ',', '"', '\\');
+                    } else {
+                        fputcsv($output, [
+                            $payment->patient_id,
+                            $payment->patient?->fullName,
+                            $payment->user?->name,
+                            $payment->method?->name,
+                            $payment->amount,
+                            $payment->discount_amount,
+                            $payment->wallet,
+                            $payment->mercy_fund,
+                            $payment->infant_formula,
+                            $payment->created_at?->toDateTimeString(),
+                        ], ',', '"', '\\');
+                    }
                 }
             }
 
@@ -107,7 +148,7 @@ class SalesReportController extends Controller
     {
         $query = $this->query($dimension, $filters);
 
-        if ($dimension === 'item') {
+        if (in_array($dimension, ['item', 'category'], true)) {
             return [
                 'transactions' => (clone $query)->count(),
                 'items' => (clone $query)->distinct()->count('price_list_id'),
@@ -134,10 +175,11 @@ class SalesReportController extends Controller
      */
     private function query(string $dimension, array $filters): Builder
     {
-        if ($dimension === 'item') {
+        if (in_array($dimension, ['item', 'category'], true)) {
             return Line::query()
+                ->where('paid', true)
                 ->where('unitPrice', '<>', 0)
-                ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+                ->whereBetween('lines.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
                 ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                     $search = '%'.$filters['q'].'%';
 
@@ -159,7 +201,7 @@ class SalesReportController extends Controller
                         ->orWhereHas('patient', fn (Builder $relation): Builder => $relation->where('fullName', 'like', $search))
                         ->orWhereHas('method', fn (Builder $relation): Builder => $relation->where('name', 'like', $search))
                         ->orWhereHas('user', fn (Builder $relation): Builder => $relation->where('name', 'like', $search))
-                        ->orWhereHas('billing', fn (Builder $relation): Builder => $relation->where('billable_type', 'like', $search));
+                        ->orWhereHas('billing.lines.priceList.category', fn (Builder $relation): Builder => $relation->where('name', 'like', $search));
                 });
             });
     }
@@ -171,14 +213,23 @@ class SalesReportController extends Controller
     private function orderedQuery(string $dimension, array $filters): Builder
     {
         $query = $this->query($dimension, $filters)->with(
-            $dimension === 'item'
-                ? ['priceList', 'patient']
-                : ['patient', 'method', 'user', 'billing']
+            in_array($dimension, ['item', 'category'], true)
+                ? ['priceList.category', 'patient']
+                : ['patient', 'method', 'user', 'billing.lines.priceList.category']
         );
 
         return match ($dimension) {
             'item' => $query
                 ->orderBy(PriceList::query()->select('name')->whereColumn('price_lists.id', 'lines.price_list_id'))
+                ->orderByDesc('created_at'),
+            'category' => $query
+                ->orderBy(fn (QueryBuilder $q) => $q
+                    ->select('cat.name')
+                    ->from('price_lists as cat')
+                    ->join('price_lists as pl', 'cat.id', '=', 'pl.category_id')
+                    ->whereColumn('pl.id', 'lines.price_list_id')
+                    ->limit(1)
+                )
                 ->orderByDesc('created_at'),
             'patient' => $query
                 ->orderBy(Patient::query()->select('slug')->whereColumn('patients.slug', 'payments.patient_id'))
@@ -187,38 +238,45 @@ class SalesReportController extends Controller
                 ->orderBy(Method::query()->select('name')->whereColumn('methods.id', 'payments.method_id'))
                 ->orderByDesc('created_at'),
             default => $query
-                ->orderBy(Billing::query()->select('billable_type')->whereColumn('billings.id', 'payments.billing_id'))
                 ->orderByDesc('created_at'),
         };
     }
 
     /** @return array<string, mixed> */
-    private function itemRow(Line $line): array
+    private function itemRow(Line $line, string $dimension = 'item'): array
     {
-        return [
+        $group = $dimension === 'category'
+            ? ($line->priceList?->category?->name ?? 'Uncategorized')
+            : ($line->priceList?->name ?? 'Unknown item');
+
+        $row = [
             'id' => $line->getKey(),
-            'group' => $line->priceList?->name ?? 'Unknown item',
+            'group' => $group,
             'patientId' => $line->patient_id,
             'patientName' => $line->patient?->fullName,
-            'item' => $line->priceList?->name ?? 'Unknown item',
             'quantity' => (float) $line->quantity,
             'unitCost' => (float) $line->unitCost,
             'unitPrice' => (float) $line->unitPrice,
             'totalPrice' => (float) $line->totalPrice,
             'createdAt' => $line->created_at?->toIso8601String(),
         ];
+
+        if ($dimension === 'item') {
+            $row['item'] = $line->priceList?->name ?? 'Unknown item';
+        }
+
+        return $row;
     }
 
     /** @return array<string, mixed> */
     private function paymentRow(Payment $payment, string $dimension): array
     {
-        return [
+        $row = [
             'id' => $payment->getKey(),
             'group' => $this->group($payment, $dimension),
             'patientId' => $payment->patient_id,
             'patientName' => $payment->patient?->fullName,
             'receivedBy' => $payment->user?->name,
-            'department' => $this->department($payment),
             'method' => $payment->method?->name,
             'amount' => (float) $payment->amount,
             'discountAmount' => (float) $payment->discount_amount,
@@ -227,6 +285,12 @@ class SalesReportController extends Controller
             'infantFormula' => (float) $payment->infant_formula,
             'createdAt' => $payment->created_at?->toIso8601String(),
         ];
+
+        if ($dimension === 'department') {
+            $row['department'] = $this->department($payment);
+        }
+
+        return $row;
     }
 
     private function group(Payment $payment, string $dimension): string
@@ -244,9 +308,24 @@ class SalesReportController extends Controller
             return 'Wallet Deposit';
         }
 
-        return $payment->billing->billable_type
-            ? class_basename($payment->billing->billable_type)
-            : 'Unknown';
+        $category = $this->getCategoryFromBilling($payment->billing);
+
+        return $category ?? 'Unknown';
+    }
+
+    private function getCategoryFromBilling(Billing $billing): ?string
+    {
+        $lineableType = $billing->billable_type;
+        $lineableId = $billing->billable_id;
+
+        return Line::query()
+            ->where('lineable_id', $lineableId)
+            ->where('lineable_type', $lineableType)
+            ->join('price_lists', 'price_lists.id', '=', 'lines.price_list_id')
+            ->whereNotNull('price_lists.category_id')
+            ->join('price_lists as categories', 'categories.id', '=', 'price_lists.category_id')
+            ->select('categories.name')
+            ->first()?->name;
     }
 
     /**
@@ -281,6 +360,35 @@ class SalesReportController extends Controller
             return $totals;
         }
 
+        if ($dimension === 'category') {
+            $rows = (clone $query)
+                ->join('price_lists as pl', 'pl.id', '=', 'lines.price_list_id')
+                ->selectRaw('COALESCE(pl.category_id, 0) as category_key, SUM(lines.quantity) as quantity, SUM(lines.totalCost) as cost, SUM(lines.unitPrice) as price, SUM(lines.totalPrice) as amount')
+                ->groupBy('category_key')
+                ->get();
+
+            $names = PriceList::query()
+                ->whereIn('id', $rows->pluck('category_key')->filter())
+                ->pluck('name', 'id');
+
+            $totals = [];
+
+            foreach ($rows as $row) {
+                $label = $row->category_key
+                    ? ($names[$row->category_key] ?? 'Unknown category')
+                    : 'Uncategorized';
+
+                $totals[$label] = [
+                    'quantity' => (float) $row->quantity,
+                    'cost' => (float) $row->cost,
+                    'price' => (float) $row->price,
+                    'amount' => (float) $row->amount,
+                ];
+            }
+
+            return $totals;
+        }
+
         if ($dimension === 'department') {
             $rows = (clone $query)
                 ->selectRaw('billing_id, SUM(amount) as amount, SUM(discount_amount) as discount, SUM(wallet) as wallet, SUM(mercy_fund) as mercy_fund, SUM(infant_formula) as infant_formula')
@@ -299,7 +407,7 @@ class SalesReportController extends Controller
 
                 $label = ! $billing
                     ? 'Wallet Deposit'
-                    : ($billing->billable_type ? class_basename($billing->billable_type) : 'Unknown');
+                    : ($this->getCategoryFromBilling($billing) ?? 'Unknown');
 
                 $this->addPaymentTotals($totals, $label, $row);
             }

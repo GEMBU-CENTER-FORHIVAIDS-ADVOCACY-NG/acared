@@ -1,10 +1,11 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Pill, RotateCcw, Trash2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
     Card,
     CardContent,
@@ -32,6 +33,7 @@ import {
 import type { Team } from '@/types';
 import {
     destroy as destroyRoute,
+    dispense as dispenseRoute,
     edit as editRoute,
     index as prescriptionsIndex,
     refund as refundRoute,
@@ -64,15 +66,18 @@ type Prescription = {
     billings: { id: number; total: number; status: string }[];
     canEdit: boolean;
     canRefund: boolean;
+    canDispense: boolean;
     canDelete: boolean;
 };
 
 export default function PrescriptionShow({
     currencySymbol,
     prescription,
+    hospitalName,
 }: {
     currencySymbol: string;
     prescription: Prescription;
+    hospitalName: string;
 }) {
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
     const teamSlug = currentTeam?.slug ?? '';
@@ -83,6 +88,82 @@ export default function PrescriptionShow({
     >(Object.fromEntries(prescription.lines.map((line) => [line.id, true])));
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const printPrescription = useCallback(() => {
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) return;
+
+        const date = prescription.createdAt
+            ? new Date(prescription.createdAt).toLocaleDateString()
+            : '—';
+
+        const rows = prescription.lines
+            .map(
+                (line) => `
+                <tr>
+                    <td style="padding:6px 8px;border:1px solid #000;">${line.name ?? 'Drug'}</td>
+                    <td style="padding:6px 8px;border:1px solid #000;">${line.frequency ?? '—'}</td>
+                    <td style="padding:6px 8px;border:1px solid #000;">${line.duration ?? '—'}</td>
+                    <td style="padding:6px 8px;border:1px solid #000;">${line.dosage ?? '—'}</td>
+                    <td style="padding:6px 8px;border:1px solid #000;">${line.quantity.toLocaleString()}</td>
+                </tr>`,
+            )
+            .join('');
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Prescription</title>
+                <style>
+                    @page { size: A5 landscape; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5; margin: 0; padding: 10mm; }
+                    h2 { margin: 0; font-size: 18px; text-align: center; }
+                    h3 { margin: 0 0 10px; font-size: 14px; }
+                    p { margin: 4px 0 0; font-size: 14px; text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th { background: #f0f0f0; font-weight: bold; padding: 6px 8px; border: 1px solid #000; text-align: left; }
+                    td { padding: 6px 8px; border: 1px solid #000; }
+                    tr { page-break-inside: avoid; }
+                    .info-table { width: 100%; margin-bottom: 20px; }
+                    .info-table td { border: none; padding: 4px 0; }
+                    .label { width: 150px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h2>${hospitalName}</h2>
+                <p>Prescription</p>
+                <table class="info-table">
+                    <tr><td class="label">Hospital No:</td><td>${prescription.patientSlug}</td></tr>
+                    <tr><td class="label">Patient Name:</td><td>${prescription.patientName ?? '—'}</td></tr>
+                    <tr><td class="label">Date:</td><td>${date}</td></tr>
+                    <tr><td class="label">Doctor:</td><td>${prescription.doctorName ?? '—'}</td></tr>
+                </table>
+                <h3>Prescribed Drugs</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Drug</th>
+                            <th>Frequency</th>
+                            <th>Duration</th>
+                            <th>Dosage</th>
+                            <th>Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+
+        printWindow.print();
+
+        setTimeout(() => {
+            printWindow.close();
+        }, 1000);
+    }, [prescription, hospitalName]);
 
     const refundTotal = prescription.lines
         .filter((line) => refundSelection[line.id])
@@ -169,7 +250,7 @@ export default function PrescriptionShow({
                             </Button>
                             <Button
                                 variant="outline"
-                                onClick={() => window.print()}
+                                onClick={printPrescription}
                             >
                                 Print prescription
                             </Button>
@@ -183,6 +264,31 @@ export default function PrescriptionShow({
                                     >
                                         Edit
                                     </Link>
+                                </Button>
+                            ) : null}
+                            {prescription.canDispense ? (
+                                <Button
+                                    onClick={() => {
+                                        setProcessing(true);
+                                        setError(null);
+                                        router.post(
+                                            dispenseRoute.url({
+                                                current_team: teamSlug,
+                                                prescription: prescription.id,
+                                            }),
+                                            {},
+                                            {
+                                                preserveScroll: true,
+                                                onError: (errors) =>
+                                                    setError(Object.values(errors)[0] ?? 'Dispense failed.'),
+                                                onFinish: () => setProcessing(false),
+                                            },
+                                        );
+                                    }}
+                                    disabled={processing}
+                                >
+                                    <Pill className="mr-2 size-4" />
+                                    {processing ? 'Processing…' : 'Dispense'}
                                 </Button>
                             ) : null}
                             {prescription.canRefund ? (
@@ -350,8 +456,10 @@ export default function PrescriptionShow({
                                                     '0',
                                                 )}
                                             </TableCell>
-                                            <TableCell className="capitalize">
-                                                {billing.status}
+                                            <TableCell>
+                                                <Badge variant="secondary" className="capitalize">
+                                                    {billing.status}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 {currencySymbol}{' '}
@@ -369,7 +477,7 @@ export default function PrescriptionShow({
             </div>
 
             <Sheet open={refundOpen} onOpenChange={setRefundOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-2xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
                     <SheetHeader>
                         <SheetTitle>Refund prescription</SheetTitle>
                         <SheetDescription>
@@ -377,7 +485,7 @@ export default function PrescriptionShow({
                             prescription and negative billing will be recorded.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="mt-6 space-y-4">
+                    <div className="mt-6 space-y-4 px-4 pb-4">
                         {prescription.lines.map((line) => (
                             <label
                                 key={line.id}
@@ -450,6 +558,7 @@ export default function PrescriptionShow({
                 processing={processing}
                 onConfirm={deletePrescription}
             />
+
         </>
     );
 }

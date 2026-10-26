@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use Carbon\CarbonInterface;
-use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -20,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float $unitCost
  * @property float $totalPrice
  * @property float $totalCost
- * @property CarbonInterface $expires_at
+ * @property CarbonInterface|null $expires_at
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read PurchaseOrder|null $purchaseOrder
@@ -30,9 +28,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class OrderItem extends Model
 {
-    /** @use HasFactory<OrderItemFactory> */
-    use HasFactory;
-
     protected $guarded = [];
 
     /**
@@ -66,6 +61,10 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Team::class);
     }
+
+    protected $casts = [
+        'expires_at' => 'datetime',
+    ];
 
     protected static function booted(): void
     {

@@ -63,7 +63,7 @@ class LabIntakeController extends Controller
                         ->orWhereHas('parameter', fn (Builder $query) => $query->where('name', 'like', $like));
                 });
             })
-            ->with(['category', 'subCategory', 'parameter', 'inventory.drugForm', 'parameters'])
+            ->with(['category', 'subCategory', 'parameter', 'inventories.drugForm', 'parameters'])
             ->orderBy($filters['sort'], $filters['direction'])
             ->paginate($filters['perPage'])
             ->withQueryString()

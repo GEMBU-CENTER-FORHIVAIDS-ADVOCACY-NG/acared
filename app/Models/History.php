@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $team_id
  * @property string $patient_id
  * @property int|null $nurse_id
- * @property array<string, mixed>|null $family_history
+ * @property array|null $family_history
  * @property string|null $social_history
- * @property array<string, mixed>|null $surgical_history
+ * @property array|null $surgical_history
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read Patient|null $patient
@@ -25,13 +25,10 @@ class History extends Model
 {
     protected $guarded = [];
 
-    protected function casts(): array
-    {
-        return [
-            'family_history' => 'array',
-            'surgical_history' => 'array',
-        ];
-    }
+    protected $casts = [
+        'family_history' => 'array',
+        'surgical_history' => 'array',
+    ];
 
     /**
      * @return BelongsTo<Patient, $this>

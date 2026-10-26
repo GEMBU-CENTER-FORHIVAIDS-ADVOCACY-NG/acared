@@ -1,9 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -154,40 +162,43 @@ export default function MethodsIndex({
                     />
                     <Button onClick={openCreate}>Create method</Button>
                 </div>
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters();
-                    }}
-                >
-                    <Input
-                        className="w-full sm:max-w-sm"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search payment methods..."
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
-                {selected.length ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">
-                            {selected.length} selected
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setBulkDeleteOpen(true)}
-                        >
-                            Delete selected
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters();
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search payment methods..."
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
                         </Button>
-                    </div>
-                ) : null}
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                    </form>
+                    {selected.length ? (
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {selected.length} selected
+                            </span>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setBulkDeleteOpen(true)}
+                            >
+                                Delete selected
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead>
                                     <input
@@ -289,42 +300,50 @@ export default function MethodsIndex({
                                                 : '—'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setViewing(method)
-                                                    }
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openEdit(method)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setDeleting(method)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setViewing(method)
+                                                        }
+                                                    >
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openEdit(method)
+                                                        }
+                                                    >
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setDeleting(method)
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: methods.current_page,
@@ -337,7 +356,7 @@ export default function MethodsIndex({
                 />
             </div>
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>
                             {editing
@@ -392,7 +411,7 @@ export default function MethodsIndex({
                 open={viewing !== null}
                 onOpenChange={(open) => !open && setViewing(null)}
             >
-                <SheetContent className="sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>{viewing?.name}</SheetTitle>
                         <SheetDescription>
@@ -422,7 +441,6 @@ export default function MethodsIndex({
                 title="Delete payment method?"
                 description={`Delete ${deleting?.name ?? 'this payment method'}?`}
                 confirmLabel="Delete"
-                destructive
                 processing={processing}
                 onConfirm={deleteOne}
             />
@@ -432,7 +450,6 @@ export default function MethodsIndex({
                 title="Delete selected payment methods?"
                 description="This removes the selected methods from settings."
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={deleteSelected}
             />

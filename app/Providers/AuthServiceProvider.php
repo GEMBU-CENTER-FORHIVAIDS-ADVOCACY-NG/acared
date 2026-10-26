@@ -25,16 +25,15 @@ use App\Models\Line;
 use App\Models\Markup;
 use App\Models\Method;
 use App\Models\Nursing;
-use App\Models\OrderItem;
 use App\Models\Patient;
 use App\Models\Payment;
 use App\Models\Prescription;
 use App\Models\PriceList;
-use App\Models\PurchaseOrder;
 use App\Models\State;
 use App\Models\Stock;
 use App\Models\TestResult;
 use App\Models\Treatment;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Vital;
 use App\Models\WalletHistory;
@@ -62,16 +61,17 @@ use App\Policies\LinePolicy;
 use App\Policies\MarkupPolicy;
 use App\Policies\MethodPolicy;
 use App\Policies\NursingPolicy;
-use App\Policies\OrderItemPolicy;
 use App\Policies\PatientPolicy;
 use App\Policies\PaymentPolicy;
+use App\Policies\PermissionPolicy;
 use App\Policies\PrescriptionPolicy;
 use App\Policies\PriceListPolicy;
-use App\Policies\PurchaseOrderPolicy;
+use App\Policies\RolePolicy;
 use App\Policies\StatePolicy;
 use App\Policies\StockPolicy;
 use App\Policies\TestResultPolicy;
 use App\Policies\TreatmentPolicy;
+use App\Policies\UserPolicy;
 use App\Policies\VendorPolicy;
 use App\Policies\VitalPolicy;
 use App\Policies\WalletHistoryPolicy;
@@ -80,6 +80,8 @@ use App\Support\PermissionRegistrar;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -112,12 +114,10 @@ class AuthServiceProvider extends ServiceProvider
         Markup::class => MarkupPolicy::class,
         Method::class => MethodPolicy::class,
         Nursing::class => NursingPolicy::class,
-        OrderItem::class => OrderItemPolicy::class,
         Patient::class => PatientPolicy::class,
         Payment::class => PaymentPolicy::class,
         Prescription::class => PrescriptionPolicy::class,
         PriceList::class => PriceListPolicy::class,
-        PurchaseOrder::class => PurchaseOrderPolicy::class,
         State::class => StatePolicy::class,
         Stock::class => StockPolicy::class,
         TestResult::class => TestResultPolicy::class,
@@ -126,6 +126,9 @@ class AuthServiceProvider extends ServiceProvider
         Vital::class => VitalPolicy::class,
         WalletHistory::class => WalletHistoryPolicy::class,
         Ward::class => WardPolicy::class,
+        User::class => UserPolicy::class,
+        Role::class => RolePolicy::class,
+        Permission::class => PermissionPolicy::class,
     ];
 
     /**

@@ -30,6 +30,7 @@ export type TeamMember = {
     avatar?: string | null;
     role: TeamRole;
     role_label: string;
+    spatieRoles?: string[];
 };
 
 export type TeamInvitation = {

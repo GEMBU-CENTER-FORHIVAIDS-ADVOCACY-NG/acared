@@ -1,9 +1,15 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    ArrowRightLeft,
+    Eye,
+    MoreHorizontal,
     PackageCheck,
     PackageMinus,
     PackageSearch,
+    Pencil,
     TriangleAlert,
+    TrendingUp,
+    Trash2,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
@@ -11,6 +17,13 @@ import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Card,
     CardContent,
@@ -335,32 +348,18 @@ export default function PharmacyIndex({
                             title="Medication inventory"
                             description="Manage pharmacy stock, monitor expiry dates, and review stock activity."
                         />
-                        <div className="flex flex-wrap gap-2">
-                            <input
-                                ref={importInput}
-                                type="file"
-                                accept=".csv,.txt"
-                                className="hidden"
-                                aria-label="Import drug catalog CSV"
-                                onChange={(event) =>
-                                    importDrugCatalog(event.target.files?.[0])
-                                }
-                            />
-                            <Button
-                                variant="outline"
-                                disabled={processing}
-                                onClick={() => importInput.current?.click()}
-                            >
-                                Import Drugs
-                            </Button>
-                            <Button variant="outline" asChild>
-                                <a href={exportDrugs.url(teamSlug)}>
-                                    Export Drugs
-                                </a>
-                            </Button>
-                            <Button onClick={openCreate}>Add medication</Button>
-                        </div>
+                        <Button onClick={openCreate}>Add medication</Button>
                     </div>
+                    <input
+                        ref={importInput}
+                        type="file"
+                        accept=".csv,.txt"
+                        className="hidden"
+                        aria-label="Import drug catalog CSV"
+                        onChange={(event) =>
+                            importDrugCatalog(event.target.files?.[0])
+                        }
+                    />
                     {importError ? (
                         <p className="text-sm text-destructive" role="alert">
                             {importError}
@@ -414,51 +413,62 @@ export default function PharmacyIndex({
                     ))}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters({ q: search });
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={search}
+                            placeholder="Search medication or SKU"
+                            onChange={(event) => setSearch(event.target.value)}
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
+                        </Button>
+                    </form>
+                    <SelectNative
+                        className="w-44"
+                        value={status}
+                        onChange={(event) => {
+                            setStatus(event.target.value);
+                            applyFilters({
+                                status: event.target.value,
+                            });
+                        }}
+                    >
+                        <option value="all">All stock</option>
+                        <option value="low">Low stock</option>
+                        <option value="stocked">Stocked</option>
+                        <option value="available">Available</option>
+                        <option value="expired">Expired</option>
+                        <option value="expiring">Expiring soon</option>
+                    </SelectNative>
+                    <Button
+                        variant="outline"
+                        disabled={processing}
+                        onClick={() => importInput.current?.click()}
+                    >
+                        Import Drugs
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <a href={exportDrugs.url(teamSlug)}>
+                            Export Drugs
+                        </a>
+                    </Button>
+                </div>
                 <Card>
-                    <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <CardHeader>
                         <div className="space-y-1">
                             <CardTitle>Medication stock</CardTitle>
                             <CardDescription>
                                 Inventory levels and medicine details for this
                                 facility.
                             </CardDescription>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Input
-                                className="w-full sm:w-64"
-                                value={search}
-                                placeholder="Search medication or SKU"
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter')
-                                        applyFilters({ q: search });
-                                }}
-                            />
-                            <SelectNative
-                                className="w-full sm:w-44"
-                                value={status}
-                                onChange={(event) => {
-                                    setStatus(event.target.value);
-                                    applyFilters({
-                                        status: event.target.value,
-                                    });
-                                }}
-                            >
-                                <option value="all">All stock</option>
-                                <option value="low">Low stock</option>
-                                <option value="stocked">Stocked</option>
-                                <option value="available">Available</option>
-                                <option value="expired">Expired</option>
-                                <option value="expiring">Expiring soon</option>
-                            </SelectNative>
-                            <Button
-                                variant="secondary"
-                                onClick={() => applyFilters({ q: search })}
-                            >
-                                Search
-                            </Button>
                         </div>
                     </CardHeader>
                     {selected.length > 0 && (
@@ -618,54 +628,66 @@ export default function PharmacyIndex({
                                                 <TableCell>
                                                     {item.expiresAt ?? '—'}
                                                 </TableCell>
-                                                <TableCell className="space-x-1 text-right">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={showRoute({
-                                                                current_team:
-                                                                    teamSlug,
-                                                                drug_inventory:
-                                                                    item.id,
-                                                            })}
-                                                        >
-                                                            View
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        onClick={() =>
-                                                            openEdit(item)
-                                                        }
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => {
-                                                            setSelected([
-                                                                item.id,
-                                                            ]);
-                                                            setError(null);
-                                                            setAdjustOpen(true);
-                                                        }}
-                                                    >
-                                                        Adjust
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() =>
-                                                            setDeleting(item)
-                                                        }
-                                                    >
-                                                        Delete
-                                                    </Button>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link
+                                                                    href={showRoute({
+                                                                        current_team:
+                                                                            teamSlug,
+                                                                        drug_inventory:
+                                                                            item.id,
+                                                                    })}
+                                                                >
+                                                                    <Eye className="mr-2 h-4 w-4" />
+                                                                    View
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openEdit(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setSelected([
+                                                                        item.id,
+                                                                    ]);
+                                                                    setError(null);
+                                                                    setAdjustOpen(true);
+                                                                }}
+                                                            >
+                                                                <TrendingUp className="mr-2 h-4 w-4" />
+                                                                Adjust
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                variant="destructive"
+                                                                onClick={() =>
+                                                                    setDeleting(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -761,7 +783,7 @@ export default function PharmacyIndex({
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>
                             {editing
@@ -772,7 +794,7 @@ export default function PharmacyIndex({
                             Link a medication catalog item to pharmacy stock.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="mt-6 grid gap-4">
+                    <div className="mt-6 grid gap-4 px-4 pb-4">
                         <div className="space-y-2">
                             <Label>Medication</Label>
                             <SelectNative
@@ -876,14 +898,14 @@ export default function PharmacyIndex({
             </Sheet>
 
             <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>Adjust pharmacy stock</SheetTitle>
                         <SheetDescription>
                             Record a received, dispensed, or corrected quantity.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="mt-6 space-y-4">
+                    <div className="mt-6 space-y-4 px-4 pb-4">
                         <div className="space-y-2">
                             <Label>Adjustment</Label>
                             <SelectNative
@@ -978,7 +1000,6 @@ export default function PharmacyIndex({
                 title="Delete selected medication stock?"
                 description="Medication records with stock movement history will be skipped."
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={deleteSelectedMedications}
             />

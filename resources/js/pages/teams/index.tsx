@@ -1,5 +1,13 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, LogOut, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import {
+    Eye,
+    LogOut,
+    MoreHorizontal,
+    Pencil,
+    Plus,
+    Trash2,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -7,6 +15,7 @@ import LeaveTeamModal from '@/components/leave-team-modal';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -15,6 +24,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -26,12 +42,6 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
     destroy as teamsDestroy,
     index as teamsIndex,
@@ -203,7 +213,7 @@ export default function TeamsIndex({
 
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex gap-2"
+                        className="flex flex-1 items-center gap-2"
                         onSubmit={(e) => {
                             e.preventDefault();
                             visit({ q: search, page: 1 });
@@ -213,7 +223,7 @@ export default function TeamsIndex({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search teams"
-                            className="w-72"
+                            className="max-w-sm"
                         />
                         <Button type="submit" variant="secondary">
                             Search
@@ -229,9 +239,10 @@ export default function TeamsIndex({
                     )}
                 </div>
 
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
                             <TableRow>
                                 <TableHead className="w-12">
                                     <input
@@ -335,77 +346,76 @@ export default function TeamsIndex({
                                         <TableCell className="max-w-56 truncate">
                                             {team.address ?? '—'}
                                         </TableCell>
-                                        <TableCell className="space-x-1 text-right">
-                                            <TooltipProvider>
-                                                {!team.isCurrent && (
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {!team.isCurrent && (
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                switchTeam(team)
+                                                            }
+                                                        >
+                                                            Switch
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuItem
                                                         onClick={() =>
-                                                            switchTeam(team)
+                                                            setViewing(team)
                                                         }
                                                     >
-                                                        Switch
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setViewing(team)
-                                                    }
-                                                >
-                                                    <Eye className="mr-1 h-3.5 w-3.5" />
-                                                    View
-                                                </Button>
-                                                {team.canUpdate !== false && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            startEdit(team)
-                                                        }
-                                                        data-test="team-edit-button"
-                                                    >
-                                                        <Pencil className="mr-1 h-3.5 w-3.5" />
-                                                        Edit
-                                                    </Button>
-                                                )}
-                                                {team.canLeave && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    {team.canUpdate !== false && (
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                startEdit(team)
+                                                            }
+                                                            data-test="team-edit-button"
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {team.canLeave && (
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openLeaveTeamDialog(
+                                                                    team,
+                                                                )
+                                                            }
+                                                            data-test="team-leave-button"
+                                                        >
+                                                            <LogOut className="mr-2 h-4 w-4" />
+                                                            Leave
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {team.canDelete && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
                                                                 onClick={() =>
-                                                                    openLeaveTeamDialog(
+                                                                    setDeleting(
                                                                         team,
                                                                     )
                                                                 }
-                                                                data-test="team-leave-button"
+                                                                data-test="team-delete-button"
                                                             >
-                                                                <LogOut className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Leave team</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                )}
-                                                {team.canDelete && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setDeleting(team)
-                                                        }
-                                                        data-test="team-delete-button"
-                                                    >
-                                                        <Trash2 className="mr-1 h-3.5 w-3.5 text-destructive" />
-                                                        Delete
-                                                    </Button>
-                                                )}
-                                            </TooltipProvider>
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -421,7 +431,8 @@ export default function TeamsIndex({
                             )}
                         </TableBody>
                     </Table>
-                </div>
+                    </CardContent>
+                </Card>
 
                 <Pagination
                     meta={{
@@ -606,7 +617,6 @@ export default function TeamsIndex({
                 title="Delete team"
                 description={`Are you sure you want to delete "${deleting?.name}"? This action cannot be undone.`}
                 confirmLabel="Delete"
-                destructive
                 onConfirm={remove}
             />
 
@@ -617,7 +627,6 @@ export default function TeamsIndex({
                 title="Delete selected teams"
                 description={`Are you sure you want to delete ${selected.length} selected team(s)? This action cannot be undone.`}
                 confirmLabel="Delete"
-                destructive
                 onConfirm={bulkRemove}
             />
 

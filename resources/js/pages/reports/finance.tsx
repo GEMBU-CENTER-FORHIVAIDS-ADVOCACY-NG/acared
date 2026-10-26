@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { FinancialReportSwitcher } from '@/components/financial-report-switcher';
+import { FinancialReportLayout } from '@/components/financial-report-layout';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,11 +35,11 @@ type StatCard = {
 };
 
 const TONE_CLASSES: Record<StatCard['tone'], string> = {
-    success: 'text-emerald-600',
-    primary: 'text-indigo-600',
-    info: 'text-sky-600',
-    warning: 'text-amber-600',
-    danger: 'text-red-600',
+    success: 'text-emerald-600 dark:text-emerald-400',
+    primary: 'text-indigo-600 dark:text-indigo-400',
+    info: 'text-sky-600 dark:text-sky-400',
+    warning: 'text-amber-600 dark:text-amber-400',
+    danger: 'text-red-600 dark:text-red-400',
 };
 
 function formatMoney(symbol: string, value: number): string {
@@ -86,6 +86,12 @@ function buildStatCards(
             title: 'Discounts given',
             value: formatMoney(symbol, stats.discounts_in_period),
             description: `Discounts applied to collections from ${rangeLabel}`,
+            tone: 'warning',
+        },
+        {
+            title: 'Wallet charges',
+            value: formatMoney(symbol, stats.wallet_used_in_period),
+            description: `Wallet deductions from ${rangeLabel}`,
             tone: 'warning',
         },
         {
@@ -262,14 +268,12 @@ export default function FinanceReport({
         const next = { ...filters, ...patch };
 
         router.get(
-            finance.url(teamSlug, {
-                query: {
-                    period: next.period,
-                    from: next.from || undefined,
-                    to: next.to || undefined,
-                },
-            }),
-            {},
+            finance.url(),
+            {
+                period: next.period,
+                from: next.from || undefined,
+                to: next.to || undefined,
+            },
             { preserveState: true, preserveScroll: true, replace: true },
         );
     }
@@ -278,16 +282,15 @@ export default function FinanceReport({
         <>
             <Head title="Finance summary" />
 
-            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <Heading
-                    variant="small"
-                    title="Finance summary"
-                    description="Collections and current financial position."
-                />
+            <FinancialReportLayout active="finance">
+                <div className="flex w-full flex-col space-y-6">
+                    <Heading
+                        variant="small"
+                        title="Finance summary"
+                        description="Collections and current financial position."
+                    />
 
-                <FinancialReportSwitcher active="finance" />
-
-                <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex flex-wrap items-end gap-2">
                     <div className="space-y-2">
                         <Label htmlFor="finance-period">Period</Label>
                         <SelectNative
@@ -388,7 +391,8 @@ export default function FinanceReport({
                         </CardContent>
                     </Card>
                 </div>
-            </div>
+                </div>
+            </FinancialReportLayout>
         </>
     );
 }

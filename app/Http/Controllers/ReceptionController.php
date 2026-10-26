@@ -6,6 +6,7 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\TransferAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\Billing;
+use App\Models\Nursing;
 use App\Models\PriceList;
 use App\Models\Team;
 use App\Models\User;
@@ -57,8 +58,9 @@ class ReceptionController extends Controller
                 ->all(),
             'billingOptions' => $this->billingOptions(),
             'doctorOptions' => $this->doctorOptions($request->user()->currentTeam),
+            'nurseOptions' => $this->nurseOptions($request->user()->currentTeam),
             'vitalSigns' => PriceList::query()
-                ->whereHas('subCategory', fn (Builder $query) => $query->where('name', 'Vital sign'))
+                ->whereHas('category', fn (Builder $query) => $query->whereRaw('LOWER(name) = ?', ['vital sign']))
                 ->orderBy('name')
                 ->get(['id', 'name', 'uom'])
                 ->map(fn (PriceList $priceList): array => [
@@ -75,11 +77,43 @@ class ReceptionController extends Controller
      */
     public function storeAppointment(StoreAppointmentRequest $request, ScheduleAppointment $scheduleAppointment): RedirectResponse
     {
-        $scheduleAppointment->handle($request->validated());
+        $record = $scheduleAppointment->handle($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Appointment scheduled.']);
 
-        return to_route('reception.index', $request->user()->currentTeam->slug);
+        return to_route('reception.patient.card', [
+            'current_team' => $request->user()->currentTeam->slug,
+            'appointment' => $record->getKey(),
+            'type' => $record instanceof Appointment ? 'doctor' : 'nurse',
+        ]);
+    }
+
+    /**
+     * Show the patient card for printing after scheduling an appointment.
+     */
+    public function patientCard(string $current_team, string $appointment, string $type): Response
+    {
+        $team = auth()->user()->currentTeam;
+
+        if ($type === 'doctor') {
+            $record = Appointment::withoutGlobalScope('team')->with(['patient', 'patient.team'])->findOrFail($appointment);
+        } else {
+            $record = Nursing::withoutGlobalScope('team')->with(['patient', 'patient.team'])->findOrFail($appointment);
+        }
+
+        return Inertia::render('reception/patient-card', [
+            'team' => [
+                'name' => $team->name,
+                'address' => $team->address,
+                'email' => $team->email,
+                'phone' => $team->phone,
+            ],
+            'patient' => [
+                'hospitalNo' => $record->patient->slug,
+                'fullName' => $record->patient->fullName,
+                'gender' => $record->patient->gender,
+            ],
+        ]);
     }
 
     /**
@@ -144,7 +178,7 @@ class ReceptionController extends Controller
     {
         return Appointment::query()
             ->whereBetween('starts_at', [$start, $end])
-            ->with(['patient', 'doctor'])
+            ->with(['patient', 'doctor', 'nurse'])
             ->orderBy('starts_at')
             ->get()
             ->map(fn (Appointment $appointment) => $this->appointmentItem($appointment))
@@ -171,7 +205,7 @@ class ReceptionController extends Controller
     }
 
     /**
-     * Get the doctors assigned to the current team.
+     * Get the consultants assigned to the current team.
      *
      * @return array<int, array{id: int, name: string}>
      */
@@ -179,6 +213,24 @@ class ReceptionController extends Controller
     {
         return User::query()
             ->whereHas('teams', fn (Builder $query) => $query->whereKey($team->getKey()))
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Consultant'))
+            ->whereKeyNot(auth()->id())
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => ['id' => $user->getKey(), 'name' => $user->name])
+            ->all();
+    }
+
+    /**
+     * Get the nurses assigned to the current team.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function nurseOptions(Team $team): array
+    {
+        return User::query()
+            ->whereHas('teams', fn (Builder $query) => $query->whereKey($team->getKey()))
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Nurse'))
             ->whereKeyNot(auth()->id())
             ->orderBy('name')
             ->get()
@@ -201,6 +253,8 @@ class ReceptionController extends Controller
             'age' => $appointment->patient?->age,
             'doctorId' => $appointment->doctor_id,
             'doctorName' => $appointment->doctor?->name,
+            'nurseId' => $appointment->nurse_id,
+            'nurseName' => $appointment->nurse?->name,
             'purpose' => $appointment->purpose,
             'status' => $appointment->status,
             'startsAt' => $appointment->starts_at?->toIso8601String(),

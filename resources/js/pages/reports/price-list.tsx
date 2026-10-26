@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { FinancialReportSwitcher } from '@/components/financial-report-switcher';
+import { FinancialReportLayout } from '@/components/financial-report-layout';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
@@ -49,44 +49,48 @@ export default function PriceListReport({
     const team = usePage().props.currentTeam?.slug ?? '';
     const { printRef, handlePrint } = useReportPrint();
     const [search, setSearch] = useState(filters.q);
-    const visit = (patch: Partial<Filters>) =>
+    const visit = (patch: Partial<Filters>) => {
+        const next = { ...filters, ...patch };
         router.get(
-            priceList.url(team, { query: { ...filters, ...patch } }),
-            {},
+            priceList.url(),
+            {
+                q: next.q || undefined,
+                perPage: next.perPage,
+                page: next.page || undefined,
+            },
             { preserveState: true, preserveScroll: true, replace: true },
         );
+    }
 
     return (
         <>
             <Head title="Price list report" />
-            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-3 no-print">
-                    <Heading
-                        variant="small"
-                        title="Price list report"
-                        description="Printable and exportable catalog of categories, services, and products."
-                    />
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={handlePrint}
-                        >
-                            Print
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <a
-                                href={exportReport.url(team, {
-                                    query: filters,
-                                })}
+            <FinancialReportLayout active="price-list">
+                <div className="flex w-full flex-col space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                        <Heading
+                            variant="small"
+                            title="Price list report"
+                            description="Printable and exportable catalog of categories, services, and products."
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={handlePrint}
                             >
-                                Export CSV
-                            </a>
-                        </Button>
+                                Print
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={exportReport.url(team, {
+                                        query: filters,
+                                    })}
+                                >
+                                    Export CSV
+                                </a>
+                            </Button>
+                        </div>
                     </div>
-                </div>
-                <div className="no-print">
-                    <FinancialReportSwitcher active="price-list" />
-                </div>
                 <div className="flex flex-wrap items-end gap-2 no-print">
                     <form
                         className="flex items-end gap-2"
@@ -115,7 +119,7 @@ export default function PriceListReport({
                 </div>
                 <div ref={printRef} className="report-print-container">
                     <h2 className="mb-3 text-lg font-semibold">Price List Report</h2>
-                    <div className="rounded-lg border">
+                    <div className="rounded-lg border bg-card">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -181,7 +185,8 @@ export default function PriceListReport({
                         onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
                     />
                 </div>
-            </div>
+                </div>
+            </FinancialReportLayout>
         </>
     );
 }

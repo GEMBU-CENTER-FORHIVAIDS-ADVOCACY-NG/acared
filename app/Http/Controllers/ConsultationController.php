@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Appointment;
+use App\Models\Consultation;
 use App\Models\User;
 use App\Service\ClinicalRecordData;
 use App\Service\ConsultationSlotGrid;
@@ -56,17 +56,7 @@ class ConsultationController extends Controller
         $status = $this->statusFilter($request);
         $doctorId = $request->integer('doctor_id');
 
-        $consultations = Appointment::query()
-            ->with(['patient', 'doctor'])
-            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
-            ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
-            ->orderByDesc('starts_at')
-            ->get()
-            ->map(fn (Appointment $appointment) => $this->consultationItem($appointment))
-            ->values();
-
         return Inertia::render('consultations/index', [
-            'consultations' => $consultations,
             'filters' => [
                 'status' => $status,
                 'doctor_id' => $doctorId > 0 ? $doctorId : null,
@@ -82,17 +72,85 @@ class ConsultationController extends Controller
     }
 
     /**
+     * List the consultation history for the current team.
+     */
+    public function history(Request $request): Response
+    {
+        $status = $this->statusFilter($request);
+        $doctorId = $request->integer('doctor_id');
+        $perPage = (int) $request->query('perPage', 25);
+
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 25;
+        }
+
+        $consultations = Consultation::query()
+            ->with(['patient', 'doctor'])
+            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
+            ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
+            ->orderByDesc('starts_at')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Consultation $consultation) => $this->consultationItem($consultation));
+
+        return Inertia::render('consultations/appointment-history/index', [
+            'consultations' => $consultations,
+            'filters' => [
+                'status' => $status,
+                'doctor_id' => $doctorId > 0 ? $doctorId : null,
+            ],
+            'statusOptions' => collect(self::STATUS_FILTERS)
+                ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+                ->values()
+                ->all(),
+            'doctorOptions' => $this->doctorOptions($request),
+        ]);
+    }
+
+    /**
      * Show a consultation and its clinical record set.
      */
-    public function view(Request $request, string $current_team, Appointment $appointment, string $section = 'overview'): Response
+    public function view(Request $request, string $current_team, Consultation $consultation, string $section = 'overview'): Response
     {
-        $appointment->load(['patient', 'doctor']);
+        $consultation->load(['patient', 'doctor']);
+
+        $section = $this->normaliseSection($section);
+        $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
+            ? (int) $request->query('perPage', 25)
+            : 25;
+        $page = max(1, (int) $request->query('page', 1));
+
+        $records = $section !== 'overview'
+            ? [$section => $this->clinicalRecords->recordsPaginated($consultation->patient_id, $section, $page, $perPage)]
+            : $this->clinicalRecords->records($consultation->patient_id);
 
         return Inertia::render('consultations/view', [
-            'section' => $this->normaliseSection($section),
-            'consultation' => $this->consultationItem($appointment),
-            'detail' => $this->consultationDetail($appointment),
-            'records' => $this->clinicalRecords->records($appointment->patient_id),
+            'section' => $section,
+            'consultation' => $this->consultationItem($consultation),
+            'detail' => $this->consultationDetail($consultation),
+            'records' => $records,
+            'options' => $this->clinicalRecords->options(),
+            'currencySymbol' => DashboardCurrency::symbol(),
+            'pagination' => $section !== 'overview'
+                ? [
+                    'currentPage' => $page,
+                    'perPage' => $perPage,
+                ]
+                : null,
+        ]);
+    }
+
+    /**
+     * Show a consultation with all clinical records on a single page.
+     */
+    public function viewAll(string $current_team, Consultation $consultation): Response
+    {
+        $consultation->load(['patient', 'doctor']);
+
+        return Inertia::render('consultations/view-all', [
+            'consultation' => $this->consultationItem($consultation),
+            'detail' => $this->consultationDetail($consultation),
+            'records' => $this->clinicalRecords->records($consultation->patient_id),
             'options' => $this->clinicalRecords->options(),
             'currencySymbol' => DashboardCurrency::symbol(),
         ]);
@@ -101,28 +159,28 @@ class ConsultationController extends Controller
     /**
      * Mark the consultation as started.
      */
-    public function start(Request $request, string $current_team, Appointment $appointment): RedirectResponse
+    public function start(Request $request, string $current_team, Consultation $consultation): RedirectResponse
     {
-        if ($appointment->status !== 'started') {
-            $appointment->update(['status' => 'started']);
-            $appointment->billing?->update(['status' => 'started']);
+        if ($consultation->status !== 'started') {
+            $consultation->update(['status' => 'started']);
+            $consultation->billing?->update(['status' => 'started']);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Consultation started.']);
 
         return to_route('consultations.view', [
             'current_team' => $request->user()->currentTeam->slug,
-            'appointment' => $appointment->getKey(),
+            'consultation' => $consultation->getKey(),
         ]);
     }
 
     /**
      * Complete the consultation.
      */
-    public function end(Request $request, string $current_team, Appointment $appointment): RedirectResponse
+    public function end(Request $request, string $current_team, Consultation $consultation): RedirectResponse
     {
-        $appointment->update(['status' => 'completed']);
-        $appointment->billing?->update(['status' => 'completed']);
+        $consultation->update(['status' => 'completed']);
+        $consultation->billing?->update(['status' => 'completed']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Consultation completed.']);
 
@@ -144,24 +202,24 @@ class ConsultationController extends Controller
      */
     private function events(): array
     {
-        return Appointment::query()
+        return Consultation::query()
             ->whereIn('status', ['scheduled', 'started'])
             ->with('patient')
             ->orderBy('starts_at')
             ->get()
-            ->map(fn (Appointment $appointment) => [
-                'id' => $appointment->getKey(),
-                'title' => $appointment->patient_id.' - '.($appointment->patient->fullName ?? 'Unknown patient'),
-                'start' => $appointment->starts_at?->toIso8601String(),
-                'end' => $appointment->ends_at?->toIso8601String(),
-                'color' => $appointment->calendarColor(),
+            ->map(fn (Consultation $consultation) => [
+                'id' => $consultation->getKey(),
+                'title' => $consultation->patient_id.' - '.($consultation->patient->fullName ?? 'Unknown patient'),
+                'start' => $consultation->starts_at?->toIso8601String(),
+                'end' => $consultation->ends_at?->toIso8601String(),
+                'color' => $consultation->calendarColor(),
                 'url' => route('consultations.view', [
                     'current_team' => request()->user()->currentTeam->slug,
-                    'appointment' => $appointment->getKey(),
+                    'consultation' => $consultation->getKey(),
                 ]),
                 'meta' => trim(implode(' | ', array_filter([
-                    $appointment->patient?->gender,
-                    $appointment->patient?->age,
+                    $consultation->patient?->gender,
+                    $consultation->patient?->age,
                 ]))),
             ])
             ->values()
@@ -179,11 +237,11 @@ class ConsultationController extends Controller
         $monthStart = $now->startOfMonth();
         $monthEnd = $now->endOfMonth();
 
-        $monthAppointments = Appointment::query()
+        $monthConsultations = Consultation::query()
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->get(['id', 'starts_at', 'status']);
 
-        $byDay = $monthAppointments->groupBy(fn (Appointment $appointment) => $appointment->starts_at?->format('Y-m-d') ?: 'unknown');
+        $byDay = $monthConsultations->groupBy(fn (Consultation $consultation) => $consultation->starts_at?->format('Y-m-d') ?: 'unknown');
 
         $days = [];
         for ($date = $monthStart; $date->lessThanOrEqualTo($monthEnd); $date = $date->addDay()) {
@@ -209,22 +267,22 @@ class ConsultationController extends Controller
             ], $slotGrid),
             'availableCount' => collect($slotGrid)->where('status', 'available')->count(),
             'monthStats' => [
-                'scheduled' => $monthAppointments->where('status', 'scheduled')->count(),
-                'started' => $monthAppointments->where('status', 'started')->count(),
-                'completed' => $monthAppointments->where('status', 'completed')->count(),
+                'scheduled' => $monthConsultations->where('status', 'scheduled')->count(),
+                'started' => $monthConsultations->where('status', 'started')->count(),
+                'completed' => $monthConsultations->where('status', 'completed')->count(),
             ],
-            'upcoming' => Appointment::query()
+            'upcoming' => Consultation::query()
                 ->whereIn('status', ['scheduled', 'started'])
                 ->with(['patient', 'doctor'])
                 ->where('starts_at', '>=', $now->startOfDay())
                 ->orderBy('starts_at')
                 ->limit(5)
                 ->get()
-                ->map(fn (Appointment $appointment) => [
-                    'id' => $appointment->getKey(),
-                    'name' => $appointment->patient_id.' - '.($appointment->patient->fullName ?? 'Unknown patient'),
-                    'meta' => ($appointment->starts_at?->format('D M j, g:i A') ?? '').' — '.($appointment->doctor->name ?? 'Unassigned'),
-                    'status' => $appointment->status,
+                ->map(fn (Consultation $consultation) => [
+                    'id' => $consultation->getKey(),
+                    'name' => $consultation->patient_id.' - '.($consultation->patient->fullName ?? 'Unknown patient'),
+                    'meta' => ($consultation->starts_at?->format('D M j, g:i A') ?? '').' — '.($consultation->doctor->name ?? 'Unassigned'),
+                    'status' => $consultation->status,
                 ])
                 ->values()
                 ->all(),
@@ -238,12 +296,12 @@ class ConsultationController extends Controller
      */
     private function busyPeriods(CarbonImmutable $date): array
     {
-        return Appointment::query()
+        return Consultation::query()
             ->whereDate('starts_at', $date->toDateString())
             ->get(['starts_at', 'ends_at'])
-            ->map(fn (Appointment $appointment) => [
-                'start' => $appointment->starts_at,
-                'end' => $appointment->ends_at,
+            ->map(fn (Consultation $consultation) => [
+                'start' => $consultation->starts_at,
+                'end' => $consultation->ends_at,
             ])
             ->all();
     }
@@ -259,6 +317,7 @@ class ConsultationController extends Controller
 
         return User::query()
             ->whereHas('teams', fn (Builder $query) => $query->whereKey($teamId))
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Consultant'))
             ->orderBy('name')
             ->get()
             ->map(fn (User $user) => ['id' => $user->getKey(), 'name' => $user->name])
@@ -270,19 +329,19 @@ class ConsultationController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function consultationItem(Appointment $appointment): array
+    private function consultationItem(Consultation $consultation): array
     {
         return [
-            'id' => $appointment->getKey(),
-            'patientId' => $appointment->patient_id,
-            'patientName' => $appointment->patient?->fullName,
-            'doctorId' => $appointment->doctor_id,
-            'doctorName' => $appointment->doctor?->name,
-            'purpose' => $appointment->purpose,
-            'status' => $appointment->status,
-            'startsAt' => $appointment->starts_at?->toIso8601String(),
-            'endsAt' => $appointment->ends_at?->toIso8601String(),
-            'statusColor' => $appointment->statusColor(),
+            'id' => $consultation->getKey(),
+            'patientId' => $consultation->patient_id,
+            'patientName' => $consultation->patient?->fullName,
+            'doctorId' => $consultation->doctor_id,
+            'doctorName' => $consultation->doctor?->name,
+            'purpose' => $consultation->purpose,
+            'status' => $consultation->status,
+            'startsAt' => $consultation->starts_at?->toIso8601String(),
+            'endsAt' => $consultation->ends_at?->toIso8601String(),
+            'statusColor' => $consultation->statusColor(),
         ];
     }
 
@@ -291,17 +350,17 @@ class ConsultationController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function consultationDetail(Appointment $appointment): array
+    private function consultationDetail(Consultation $consultation): array
     {
         return [
-            'birthDate' => $appointment->patient?->birthDate,
-            'gender' => $appointment->patient?->gender,
-            'age' => $appointment->patient?->age,
-            'startsAt' => $appointment->starts_at?->toIso8601String(),
-            'endsAt' => $appointment->ends_at?->toIso8601String(),
-            'doctorName' => $appointment->doctor?->name,
-            'purpose' => $appointment->purpose,
-            'status' => $appointment->status,
+            'birthDate' => $consultation->patient?->birthDate,
+            'gender' => $consultation->patient?->gender,
+            'age' => $consultation->patient?->age,
+            'startsAt' => $consultation->starts_at?->toIso8601String(),
+            'endsAt' => $consultation->ends_at?->toIso8601String(),
+            'doctorName' => $consultation->doctor?->name,
+            'purpose' => $consultation->purpose,
+            'status' => $consultation->status,
         ];
     }
 

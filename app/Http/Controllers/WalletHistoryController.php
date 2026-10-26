@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Coupon;
 use App\Models\Method;
 use App\Models\Patient;
 use App\Models\Payment;
 use App\Models\WalletHistory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,43 +42,116 @@ class WalletHistoryController extends Controller
 
         return Inertia::render('finance/wallet-history/index', [
             'histories' => $rows,
-            'patients' => Patient::query()
-                ->where('team_id', $teamId)
-                ->orderBy('fullName')
-                ->limit(200)
-                ->get(['slug', 'fullName', 'wallet']),
             'methods' => Method::query()->orderBy('name')->limit(100)->get(['id', 'name']),
+            'coupons' => Coupon::query()
+                ->where('team_id', $teamId)
+                ->where('is_active', true)
+                ->get(['id', 'code', 'type', 'value', 'balance', 'fund_type', 'patient_id'])
+                ->map(fn (Coupon $coupon) => [
+                    'id' => $coupon->id,
+                    'code' => $coupon->code,
+                    'type' => $coupon->type,
+                    'value' => (float) $coupon->value,
+                    'balance' => (float) $coupon->balance,
+                    'fundType' => $coupon->fund_type,
+                    'patientId' => $coupon->patient_id,
+                ]),
             'filters' => $filters,
         ]);
+    }
+
+    /**
+     * Search patients by name or slug for the current team.
+     */
+    public function searchPatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $patients = Patient::query()
+            ->where('team_id', $request->user()->currentTeam->getKey())
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('slug')
+            ->limit(50)
+            ->get(['slug', 'fullName', 'wallet'])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+                'wallet' => (float) ($patient->wallet ?? 0),
+            ])->values();
+
+        return response()->json($patients);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
-        DB::transaction(function () use ($data, $request): void {
+        $teamId = $request->user()->currentTeam->getKey();
+        $userId = $request->user()->getKey();
+
+        DB::transaction(function () use ($data, $teamId, $userId): void {
             $method = Method::query()->whereKey($data['method_id'])->firstOrFail();
+            $patientId = $data['patient_id'];
+            $credit = (float) ($data['credit'] ?? 0);
+            $debit = (float) ($data['debit'] ?? 0);
             $payment = null;
 
-            if ($method->name !== 'Wallet') {
-                $payment = Payment::create([
-                    'team_id' => $request->user()->currentTeam->getKey(),
-                    'patient_id' => $data['patient_id'],
-                    'user_id' => $request->user()->getKey(),
-                    'method_id' => $method->getKey(),
-                    'amount' => $data['credit'],
-                ]);
-                Patient::query()->where('slug', $data['patient_id'])->increment('wallet', $data['credit']);
-            }
+            // For Wallet method: only debit is allowed
+            if ($method->name === 'Wallet') {
+                $walletPatientId = $data['wallet_patient_id'] ?? $patientId;
+                Patient::query()->where('slug', $walletPatientId)->decrement('wallet', $debit);
 
-            WalletHistory::create([
-                'team_id' => $request->user()->currentTeam->getKey(),
-                'patient_id' => $data['patient_id'],
-                'user_id' => $request->user()->getKey(),
-                'method_id' => $method->getKey(),
-                'payment_id' => $payment?->getKey(),
-                'credit' => $data['credit'],
-                'debit' => $data['debit'],
-            ]);
+                WalletHistory::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $walletPatientId,
+                    'user_id' => $userId,
+                    'method_id' => $method->getKey(),
+                    'debit' => $debit,
+                ]);
+            } else {
+                // For non-Wallet methods: credit (deposit) to patient wallet
+                $payment = Payment::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientId,
+                    'user_id' => $userId,
+                    'method_id' => $method->getKey(),
+                    'amount' => $credit,
+                ]);
+
+                if ($method->name === 'Discount') {
+                    $payment->amount = (float) ($data['discount_amount'] ?? 0);
+                    $payment->save();
+                }
+
+                if (($data['coupon_id'] ?? null) && ($data['coupon_discount_amount'] ?? 0) > 0
+                    && in_array($method->name, ['Mercy Fund', 'Infant Formula'], true)) {
+                    $payment->couponUsage()->create([
+                        'coupon_id' => $data['coupon_id'],
+                        'user_id' => $userId,
+                        'discount_amount' => $data['coupon_discount_amount'],
+                    ]);
+                }
+
+                Patient::query()->where('slug', $patientId)->increment('wallet', $credit);
+
+                WalletHistory::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientId,
+                    'user_id' => $userId,
+                    'method_id' => $method->getKey(),
+                    'payment_id' => $payment->getKey(),
+                    'credit' => $credit,
+                ]);
+            }
         });
 
         return to_route('finance.wallet-history.index', $request->user()->currentTeam->slug);
@@ -123,13 +198,33 @@ class WalletHistoryController extends Controller
             'method_id' => ['required', 'integer', Rule::exists('methods', 'id')->where('team_id', $teamId)],
             'credit' => ['nullable', 'numeric', 'min:0'],
             'debit' => ['nullable', 'numeric', 'min:0'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'coupon_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(Coupon::class, 'id')->where(fn ($query) => $query->where('team_id', $teamId)),
+            ],
+            'coupon_discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'wallet_patient_id' => [
+                'nullable',
+                'string',
+                Rule::exists('patients', 'slug')->where('team_id', $teamId),
+            ],
         ]);
         $method = Method::query()->whereKey($data['method_id'])->firstOrFail();
         $credit = (float) ($data['credit'] ?? 0);
         $debit = (float) ($data['debit'] ?? 0);
 
-        if (($method->name === 'Wallet' && ($debit <= 0 || $credit > 0)) || ($method->name !== 'Wallet' && ($credit <= 0 || $debit > 0))) {
-            abort(422, $method->name === 'Wallet' ? 'Choose a positive withdrawal amount.' : 'Choose a positive deposit amount.');
+        // Wallet method: only debit (withdrawal) allowed, must have positive debit
+        if ($method->name === 'Wallet') {
+            if ($debit <= 0) {
+                abort(422, 'Choose a positive withdrawal amount.');
+            }
+        } else {
+            // Non-Wallet methods: only credit (deposit) allowed, must have positive credit
+            if ($credit <= 0) {
+                abort(422, 'Choose a positive deposit amount.');
+            }
         }
 
         return [...$data, 'credit' => $credit, 'debit' => $debit];

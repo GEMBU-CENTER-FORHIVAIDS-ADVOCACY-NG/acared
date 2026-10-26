@@ -6,6 +6,7 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\User;
 use Closure;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -20,9 +21,25 @@ class EnsureTeamMembership
     {
         [$user, $team] = [$request->user(), $this->team($request)];
 
-        abort_if(! $user || ! $team || ! $user->belongsToTeam($team), 403);
+        // If the user is authenticated but has no team resolved from the route,
+        // try to switch to their first available team.
+        if ($user && $team === null) {
+            $firstTeam = $user->teams->first();
 
-        $this->ensureTeamMemberHasRequiredRole($user, $team, $minimumRole);
+            if ($firstTeam) {
+                $user->switchTeam($firstTeam);
+                $team = $firstTeam;
+            }
+        }
+
+        if (! $user || ! $team || ! $user->belongsToTeam($team)) {
+            return redirect()->route('forbidden')->with('error', 'You do not have access to this resource.');
+        }
+
+        $forbiddenRedirect = $this->ensureTeamMemberHasRequiredRole($user, $team, $minimumRole);
+        if ($forbiddenRedirect !== null) {
+            return $forbiddenRedirect;
+        }
 
         if ($request->route('current_team') && ! $user->isCurrentTeam($team)) {
             $user->switchTeam($team);
@@ -34,22 +51,21 @@ class EnsureTeamMembership
     /**
      * Ensure the given user has at least the given role, if applicable.
      */
-    protected function ensureTeamMemberHasRequiredRole(User $user, Team $team, ?string $minimumRole): void
+    protected function ensureTeamMemberHasRequiredRole(User $user, Team $team, ?string $minimumRole): ?RedirectResponse
     {
         if ($minimumRole === null) {
-            return;
+            return null;
         }
 
         $role = $user->teamRole($team);
 
         $requiredRole = TeamRole::tryFrom($minimumRole);
 
-        abort_if(
-            $requiredRole === null ||
-            $role === null ||
-            ! $role->isAtLeast($requiredRole),
-            403,
-        );
+        if ($requiredRole === null || $role === null || ! $role->isAtLeast($requiredRole)) {
+            return redirect()->route('forbidden')->with('error', 'You do not have access to this resource.');
+        }
+
+        return null;
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Teams\TeamController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\Teams\TeamMemberController;
+use App\Http\Controllers\Teams\TeamUserController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
@@ -19,18 +20,23 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Roles & Permissions
-    Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
-    Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
-    Route::patch('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
-    Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
-    Route::delete('roles/bulk', [RoleController::class, 'bulkDestroy'])->name('roles.bulk.destroy');
+    // Roles
+    Route::middleware('permission:view roles')->group(function () {
+        Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::patch('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+        Route::delete('roles/bulk', [RoleController::class, 'bulkDestroy'])->name('roles.bulk.destroy');
+    });
 
-    Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
-    Route::post('permissions', [PermissionController::class, 'store'])->name('permissions.store');
-    Route::patch('permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
-    Route::delete('permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
-    Route::delete('permissions/bulk', [PermissionController::class, 'bulkDestroy'])->name('permissions.bulk.destroy');
+    // Permissions
+    Route::middleware('permission:view permissions')->group(function () {
+        Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
+        Route::post('permissions', [PermissionController::class, 'store'])->name('permissions.store');
+        Route::patch('permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
+        Route::delete('permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
+        Route::delete('permissions/bulk', [PermissionController::class, 'bulkDestroy'])->name('permissions.bulk.destroy');
+    });
 
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
@@ -60,6 +66,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('settings/teams/{team}/invitations', [TeamInvitationController::class, 'store'])->name('teams.invitations.store');
         Route::delete('settings/teams/{team}/invitations/{invitation}', [TeamInvitationController::class, 'destroy'])->name('teams.invitations.destroy');
+
+        Route::middleware('permission:view users')->group(function () {
+            Route::get('settings/teams/{team}/users', [TeamUserController::class, 'index'])->name('teams.users.index');
+            Route::post('settings/teams/{team}/users', [TeamUserController::class, 'store'])->name('teams.users.store');
+        });
     });
 });
 

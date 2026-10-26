@@ -118,8 +118,18 @@ class WardRoundController extends Controller
 
         abort_unless($admission->patient !== null, 404);
 
+        $section = in_array($section, self::SECTIONS, true) ? $section : 'overview';
+        $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
+            ? (int) $request->query('perPage', 25)
+            : 25;
+        $page = max(1, (int) $request->query('page', 1));
+
+        $records = $section !== 'overview'
+            ? [$section => $this->clinicalRecords->recordsPaginated($admission->patient_id, $section, $page, $perPage)]
+            : $this->clinicalRecords->records($admission->patient_id);
+
         return Inertia::render('nursing/ward-rounds/view', [
-            'section' => in_array($section, self::SECTIONS, true) ? $section : 'overview',
+            'section' => $section,
             'admission' => [
                 'id' => $admission->getKey(),
                 'patientId' => $admission->patient_id,
@@ -144,9 +154,15 @@ class WardRoundController extends Controller
                 'duration' => (int) $admission->duration,
                 'notes' => $admission->notes,
             ],
-            'records' => $this->clinicalRecords->records($admission->patient_id),
+            'records' => $records,
             'options' => $this->clinicalRecords->options(),
             'currencySymbol' => DashboardCurrency::symbol(),
+            'pagination' => $section !== 'overview'
+                ? [
+                    'currentPage' => $page,
+                    'perPage' => $perPage,
+                ]
+                : null,
         ]);
     }
 

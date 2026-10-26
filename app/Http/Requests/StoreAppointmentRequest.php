@@ -21,7 +21,7 @@ class StoreAppointmentRequest extends FormRequest
     {
         $teamId = $this->user()?->currentTeam?->getKey();
 
-        $doctorIds = User::query()
+        $allUserIds = User::query()
             ->whereHas('teams', fn ($query) => $query->whereKey($teamId))
             ->pluck('id')
             ->all();
@@ -44,9 +44,14 @@ class StoreAppointmentRequest extends FormRequest
                 ),
             ],
             'doctor_id' => [
-                'required',
+                'nullable',
                 'integer',
-                Rule::in($doctorIds),
+                Rule::in($allUserIds),
+            ],
+            'nurse_id' => [
+                'nullable',
+                'integer',
+                Rule::in($allUserIds),
             ],
             'starts_at' => ['required', 'date', 'after:now'],
             'purpose' => ['nullable', 'string'],

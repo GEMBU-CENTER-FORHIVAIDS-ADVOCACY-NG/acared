@@ -308,17 +308,201 @@ export function ConsultationRecordForm({
                         </div>
                     ) : null}
 
-                    {hasLines ? (
+                    {type === 'laboratories' ? (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label>Tests</Label>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() =>
+                                        setValues((current) => ({
+                                            ...current,
+                                            lines: [
+                                                ...current.lines,
+                                                { ...EMPTY_LINE },
+                                            ],
+                                        }))
+                                    }
+                                >
+                                    Add test
+                                </Button>
+                            </div>
+
+                            {values.lines.length > 0 ? (
+                                <div className="rounded-lg border">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                    Test
+                                                </th>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '30%' }}>
+                                                    Price
+                                                </th>
+                                                <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {values.lines.map((line, index) => (
+                                                <tr key={index}>
+                                                    <td className="px-4 py-2">
+                                                        <Select
+                                                            value={line.price_list_id}
+                                                            onValueChange={(value) =>
+                                                                setLine(
+                                                                    index,
+                                                                    'price_list_id',
+                                                                    value,
+                                                                )
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select test…" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {linePriceLists.map((item) => (
+                                                                    <SelectItem
+                                                                        key={item.id}
+                                                                        value={String(item.id)}
+                                                                    >
+                                                                        {item.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <Input
+                                                            value={line.unitPrice}
+                                                            readOnly
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <button
+                                                            type="button"
+                                                            className="text-muted-foreground hover:text-red-600"
+                                                            onClick={() =>
+                                                                setValues((current) => ({
+                                                                    ...current,
+                                                                    lines: current.lines.filter(
+                                                                        (_, i) => i !== index,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : type === 'treatments' ? (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label>Services</Label>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() =>
+                                        setValues((current) => ({
+                                            ...current,
+                                            lines: [
+                                                ...current.lines,
+                                                { ...EMPTY_LINE },
+                                            ],
+                                        }))
+                                    }
+                                >
+                                    Add service
+                                </Button>
+                            </div>
+
+                            {values.lines.length > 0 ? (
+                                <div className="rounded-lg border">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                    Service
+                                                </th>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '30%' }}>
+                                                    Price
+                                                </th>
+                                                <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {values.lines.map((line, index) => (
+                                                <tr key={index}>
+                                                    <td className="px-4 py-2">
+                                                        <Select
+                                                            value={line.price_list_id}
+                                                            onValueChange={(value) =>
+                                                                setLine(
+                                                                    index,
+                                                                    'price_list_id',
+                                                                    value,
+                                                                )
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select service…" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {linePriceLists.map((item) => (
+                                                                    <SelectItem
+                                                                        key={item.id}
+                                                                        value={String(item.id)}
+                                                                    >
+                                                                        {item.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <Input
+                                                            value={line.unitPrice}
+                                                            readOnly
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <button
+                                                            type="button"
+                                                            className="text-muted-foreground hover:text-red-600"
+                                                            onClick={() =>
+                                                                setValues((current) => ({
+                                                                    ...current,
+                                                                    lines: current.lines.filter(
+                                                                        (_, i) => i !== index,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : hasLines ? (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <Label>
                                     {pharmacy
                                         ? 'Drugs'
-                                        : type === 'laboratories'
-                                          ? 'Tests'
-                                          : type === 'treatments'
-                                            ? 'Services'
-                                            : 'Vitals'}
+                                        : 'Vitals'}
                                 </Label>
                                 <Button
                                     type="button"
@@ -483,7 +667,7 @@ export function ConsultationRecordForm({
                                         <Button
                                             type="button"
                                             size="sm"
-                                            variant="ghost"
+                                            variant="outline"
                                             onClick={() =>
                                                 setValues((current) => ({
                                                     ...current,

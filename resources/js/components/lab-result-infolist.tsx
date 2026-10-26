@@ -93,6 +93,9 @@ function TestGroup({ test }: { test: LabResultTest }) {
 function StepSection({ step }: { step: { name: string; tests: LabResultTest[] } }) {
     const [isOpen, setIsOpen] = useState(true);
 
+    const simpleTests = step.tests.filter((t) => t.kind === 'simple');
+    const paramTests = step.tests.filter((t) => t.kind === 'parameters');
+
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Card>
@@ -112,7 +115,14 @@ function StepSection({ step }: { step: { name: string; tests: LabResultTest[] } 
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                     <CardContent className="space-y-3 pt-0">
-                        {step.tests.map((test) => (
+                        {simpleTests.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {simpleTests.map((test) => (
+                                    <SimpleResultDisplay key={test.id} test={test} />
+                                ))}
+                            </div>
+                        ) : null}
+                        {paramTests.map((test) => (
                             <TestGroup key={test.id} test={test} />
                         ))}
                     </CardContent>

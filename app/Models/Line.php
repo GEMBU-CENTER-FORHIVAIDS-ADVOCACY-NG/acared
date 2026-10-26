@@ -21,24 +21,23 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int|null $lineable_id
  * @property int $price_list_id
  * @property int|null $quantity
- * @property string $unitPrice
- * @property string|null $frequency
- * @property string|null $duration
- * @property string|null $dosage
+ * @property float $unitPrice
+ * @property float|null $frequency
+ * @property float|null $duration
+ * @property float|null $dosage
  * @property string|null $results
  * @property float|null $unitCost
  * @property float|null $totalPrice
  * @property float|null $totalCost
+ * @property bool $paid
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read Patient|null $patient
  * @property-read User|null $user
- * @property-read Billing|Laboratory|Prescription|null $lineable
+ * @property-read Model|null $lineable
  * @property-read PriceList|null $priceList
- * @property-read Laboratory|null $laboratory
- * @property-read Collection<int, TestResult> $testResults
- * @property-read Markup|null $markup
  * @property-read Team|null $team
+ * @property-read Collection<int, TestResult> $testResults
  */
 class Line extends Model
 {
@@ -46,6 +45,10 @@ class Line extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    protected $casts = [
+        'paid' => 'boolean',
+    ];
 
     /**
      * @return BelongsTo<Patient, $this>
@@ -80,30 +83,6 @@ class Line extends Model
     }
 
     /**
-     * @return BelongsTo<Laboratory, $this>
-     */
-    public function laboratory(): BelongsTo
-    {
-        return $this->belongsTo(Laboratory::class, 'lineable_id')->where('lineable_type', Laboratory::class);
-    }
-
-    /**
-     * @return HasMany<TestResult, $this>
-     */
-    public function testResults(): HasMany
-    {
-        return $this->hasMany(TestResult::class);
-    }
-
-    /**
-     * @return BelongsTo<Markup, $this>
-     */
-    public function markup(): BelongsTo
-    {
-        return $this->belongsTo(Markup::class);
-    }
-
-    /**
      * @return BelongsTo<Team, $this>
      */
     public function team(): BelongsTo
@@ -111,12 +90,13 @@ class Line extends Model
         return $this->belongsTo(Team::class);
     }
 
-    protected $casts = [
-        'unitPrice' => 'decimal:2',
-        'frequency' => 'decimal:2',
-        'duration' => 'decimal:2',
-        'dosage' => 'decimal:2',
-    ];
+    /**
+     * @return HasMany<TestResult>
+     */
+    public function testResults(): HasMany
+    {
+        return $this->hasMany(TestResult::class);
+    }
 
     protected static function booted(): void
     {

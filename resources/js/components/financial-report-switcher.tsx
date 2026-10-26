@@ -1,8 +1,9 @@
 import { router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { finance, priceList, wallet } from '@/routes/reports';
+import { priceList, wallet } from '@/routes/reports';
 import { index as couponUsagesIndex } from '@/routes/reports/coupon-usages';
 import { index as discountsIndex } from '@/routes/reports/discounts';
+import { index as financialReportsIndex } from '@/routes/reports/financial';
 import { index as salesIndex } from '@/routes/reports/sales';
 
 export type FinancialReportKey =
@@ -23,7 +24,7 @@ const ITEMS: SwitcherItem[] = [
     {
         key: 'finance',
         label: 'Finance summary',
-        getUrl: (team) => finance.url({ current_team: team }),
+        getUrl: (team) => financialReportsIndex.url({ current_team: team }),
     },
     {
         key: 'sales',

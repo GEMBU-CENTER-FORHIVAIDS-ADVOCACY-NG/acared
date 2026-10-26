@@ -114,7 +114,6 @@ export type NewBillingOptions = {
     countries: PatientLocationOption[];
     states: PatientLocationOption[];
     lgas: PatientLgaOption[];
-    patients: BillingPatientOption[];
     priceLists: BillingPriceListOption[];
 };
 

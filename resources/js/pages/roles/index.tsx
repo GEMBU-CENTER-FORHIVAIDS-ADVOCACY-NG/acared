@@ -1,12 +1,26 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import {
+    ChevronDown,
+    ChevronRight,
+    Eye,
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -236,45 +250,48 @@ export default function RolesIndex({
                     />
                     <Button onClick={openCreate}>Create role</Button>
                 </div>
-                <form
-                    className="flex flex-wrap gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        applyFilters();
-                    }}
-                >
-                    <Input
-                        className="w-full sm:max-w-sm"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Search roles..."
-                    />
-                    <Button type="submit" variant="secondary">
-                        Search
-                    </Button>
-                </form>
-                {selected.length ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">
-                            {selected.length} selected
-                        </span>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setBulkDeleteOpen(true)}
-                        >
-                            Delete selected
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters();
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search roles..."
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
                         </Button>
-                    </div>
-                ) : null}
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        type="checkbox"
-                                        aria-label="Select all roles"
+                    </form>
+                    {selected.length ? (
+                        <>
+                            <span className="text-sm text-muted-foreground">
+                                {selected.length} selected
+                            </span>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setBulkDeleteOpen(true)}
+                            >
+                                Delete selected
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Select all roles"
                                         checked={
                                             roles.data.length > 0 &&
                                             roles.data.every((role) =>
@@ -305,104 +322,112 @@ export default function RolesIndex({
                                         }
                                     />
                                 </TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Guard</TableHead>
-                                <TableHead>Permissions</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {roles.data.length === 0 ? (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={6}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No roles found.
-                                    </TableCell>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Guard</TableHead>
+                                    <TableHead>Permissions</TableHead>
+                                    <TableHead>Created</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
-                            ) : (
-                                roles.data.map((role) => (
-                                    <TableRow key={role.id}>
-                                        <TableCell>
-                                            <input
-                                                type="checkbox"
-                                                aria-label={`Select ${role.name}`}
-                                                checked={selected.includes(
-                                                    role.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelected(
-                                                        event.target.checked
-                                                            ? [
-                                                                  ...selected,
-                                                                  role.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      role.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {role.name}
-                                        </TableCell>
-                                        <TableCell>
-                                            {role.guardName}
-                                        </TableCell>
-                                        <TableCell>
-                                            {role.permissions.length} assigned
-                                        </TableCell>
-                                        <TableCell>
-                                            {role.createdAt
-                                                ? new Date(
-                                                      role.createdAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setViewing(role)
-                                                    }
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        openEdit(role)
-                                                    }
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        setDeleting(role)
-                                                    }
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
+                            </TableHeader>
+                            <TableBody>
+                                {roles.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No roles found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                ) : (
+                                    roles.data.map((role) => (
+                                        <TableRow key={role.id}>
+                                            <TableCell>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Select ${role.name}`}
+                                                    checked={selected.includes(
+                                                        role.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelected(
+                                                            event.target.checked
+                                                                ? [
+                                                                      ...selected,
+                                                                      role.id,
+                                                                  ]
+                                                                : selected.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          role.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                {role.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {role.guardName}
+                                            </TableCell>
+                                            <TableCell>
+                                                {role.permissions.length} assigned
+                                            </TableCell>
+                                            <TableCell>
+                                                {role.createdAt
+                                                    ? new Date(
+                                                          role.createdAt,
+                                                      ).toLocaleString()
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            setViewing(role)
+                                                        }
+                                                    >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(role)
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setDeleting(role)
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
                 <Pagination
                     meta={{
                         currentPage: roles.current_page,
@@ -417,7 +442,7 @@ export default function RolesIndex({
 
             {/* Create/Edit Role Sheet */}
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="sm:max-w-lg overflow-y-auto">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit role' : 'Create role'}
@@ -583,7 +608,7 @@ export default function RolesIndex({
                 open={viewing !== null}
                 onOpenChange={(open) => !open && setViewing(null)}
             >
-                <SheetContent className="sm:max-w-lg overflow-y-auto">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>Role details</SheetTitle>
                     </SheetHeader>
@@ -641,7 +666,6 @@ export default function RolesIndex({
                 title="Delete role?"
                 description={`Delete "${deleting?.name}"? Users with this role will lose those permissions.`}
                 confirmLabel="Delete"
-                destructive
                 processing={processing}
                 onConfirm={deleteOne}
             />
@@ -651,7 +675,6 @@ export default function RolesIndex({
                 title="Delete selected roles?"
                 description="Users with these roles will lose those permissions."
                 confirmLabel="Delete selected"
-                destructive
                 processing={processing}
                 onConfirm={deleteSelected}
             />

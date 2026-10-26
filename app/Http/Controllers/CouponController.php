@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Coupon;
 use App\Models\Patient;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,7 +19,6 @@ class CouponController extends Controller
         $query = trim((string) $request->query('q', ''));
         $status = in_array($request->query('status'), ['pending', 'approved', 'rejected'], true) ? $request->query('status') : 'all';
         $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true) ? (int) $request->query('perPage', 25) : 25;
-        $teamId = $request->user()->currentTeam->getKey();
         $coupons = Coupon::query()
             ->with(['patient', 'usages'])
             ->when($query !== '', fn (Builder $builder) => $builder->where(fn (Builder $builder) => $builder
@@ -33,11 +33,6 @@ class CouponController extends Controller
 
         return Inertia::render('coupons/index', [
             'coupons' => $coupons,
-            'patients' => Patient::query()
-                ->where('team_id', $teamId)
-                ->orderBy('fullName')
-                ->limit(200)
-                ->get(['slug', 'fullName']),
             'filters' => ['q' => $query, 'status' => $status, 'perPage' => $perPage],
             'summary' => [
                 'pending' => Coupon::query()->where('status', 'pending')->count(),
@@ -47,6 +42,38 @@ class CouponController extends Controller
                 'totalDiscounts' => Coupon::query()->with('usages')->get()->sum(fn (Coupon $c) => $c->usages->sum('discount_amount')),
             ],
         ]);
+    }
+
+    /**
+     * Search patients by name or slug for the current team.
+     */
+    public function searchPatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+        $teamId = $request->user()->currentTeam->getKey();
+
+        $patients = Patient::query()
+            ->where('team_id', $teamId)
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('fullName')
+            ->limit(50)
+            ->get(['slug', 'fullName'])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+            ])->values();
+
+        return response()->json($patients);
     }
 
     public function store(Request $request): RedirectResponse

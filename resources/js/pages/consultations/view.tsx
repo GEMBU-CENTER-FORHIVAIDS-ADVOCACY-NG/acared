@@ -2,30 +2,36 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import ConsultationRecordController from '@/actions/App/Http/Controllers/ConsultationRecordController';
 import Heading from '@/components/heading';
+import Pagination from '@/components/pagination';
+import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
+import { TreatmentViewModal } from '@/components/treatment-view-modal';
 import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { index, end, start, view } from '@/routes/consultations';
+import { index, end, start, view, viewAll } from '@/routes/consultations';
 import { ConsultationRecordForm } from './record-form';
 import type {
     ConsultationDetail,
     ConsultationFormValues,
     ConsultationItem,
+    ConsultationPagination,
     ConsultationRecord,
     ConsultationRecordOptions,
     ConsultationRecordType,
-    ConsultationRecords,
+    ConsultationRecordsWithPagination,
     ConsultationSection,
+    PaginatedConsultationRecords,
 } from '@/types';
 
 type Props = {
     section: ConsultationSection;
     consultation: ConsultationItem;
     detail: ConsultationDetail;
-    records: ConsultationRecords;
+    records: ConsultationRecordsWithPagination;
     options: ConsultationRecordOptions;
     currencySymbol: string;
+    pagination: ConsultationPagination | null;
 };
 
 const SECTIONS: { key: ConsultationSection; label: string }[] = [
@@ -55,6 +61,7 @@ export default function ConsultationsView({
     records,
     options,
     currencySymbol,
+    pagination,
 }: Props) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
@@ -65,17 +72,60 @@ export default function ConsultationsView({
     );
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
+    const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
 
     const recordType = section === 'overview' ? null : section;
-    const currentRecords: ConsultationRecord[] = recordType
-        ? records[recordType]
-        : [];
 
-    function switchSection(next: ConsultationSection) {
+    // Determine if records are paginated
+    const isPaginated = recordType
+        ? typeof records[recordType] !== 'undefined'
+            && 'data' in records[recordType]
+            && 'currentPage' in records[recordType]
+        : false;
+
+    const paginatedRecords: PaginatedConsultationRecords | null = isPaginated
+        ? records[recordType as keyof typeof records] as PaginatedConsultationRecords
+        : null;
+
+    const currentRecords: ConsultationRecord[] = isPaginated
+        ? paginatedRecords.data
+        : recordType
+            ? (records[recordType] as ConsultationRecord[])
+            : [];
+
+    function applyPagination(page: number, perPage?: number) {
+        if (!recordType) {
+            return;
+        }
+
+        const currentPerPage = perPage ?? pagination?.perPage ?? 25;
+
         router.get(
             view.url({
                 current_team: teamSlug,
-                appointment: consultation.id,
+                consultation: consultation.id,
+                section: recordType,
+            }, {
+                query: {
+                    page,
+                    perPage: currentPerPage,
+                },
+            }),
+            {},
+            { preserveState: false, preserveScroll: true, replace: true },
+        );
+    }
+
+    function switchSection(next: ConsultationSection) {
+        if (consultation.status === 'scheduled' && next !== 'overview') {
+            return;
+        }
+
+        router.get(
+            view.url({
+                current_team: teamSlug,
+                consultation: consultation.id,
                 section: next,
             }),
             {},
@@ -137,7 +187,7 @@ export default function ConsultationsView({
             router.patch(
                 ConsultationRecordController.update.url({
                     current_team: teamSlug,
-                    appointment: consultation.id,
+                    consultation: consultation.id,
                     type: recordType,
                     record: activeRecord.id,
                 }),
@@ -148,7 +198,7 @@ export default function ConsultationsView({
             router.post(
                 ConsultationRecordController.store.url({
                     current_team: teamSlug,
-                    appointment: consultation.id,
+                    consultation: consultation.id,
                     type: recordType,
                 }),
                 payload,
@@ -165,7 +215,7 @@ export default function ConsultationsView({
         router.delete(
             ConsultationRecordController.destroy.url({
                 current_team: teamSlug,
-                appointment: consultation.id,
+                consultation: consultation.id,
                 type: recordType,
                 record: record.id,
             }),
@@ -177,7 +227,7 @@ export default function ConsultationsView({
         router.patch(
             start.url({
                 current_team: teamSlug,
-                appointment: consultation.id,
+                consultation: consultation.id,
             }),
             {},
             { preserveScroll: true },
@@ -188,7 +238,7 @@ export default function ConsultationsView({
         router.patch(
             end.url({
                 current_team: teamSlug,
-                appointment: consultation.id,
+                consultation: consultation.id,
             }),
             {},
             { preserveScroll: true },
@@ -213,6 +263,20 @@ export default function ConsultationsView({
                         />
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                        >
+                            <Link
+                                href={viewAll.url({
+                                    current_team: teamSlug,
+                                    consultation: consultation.id,
+                                })}
+                            >
+                                All records
+                            </Link>
+                        </Button>
                         {consultation.status !== 'started' &&
                         consultation.status !== 'completed' ? (
                             <Button onClick={startConsultation}>
@@ -231,18 +295,27 @@ export default function ConsultationsView({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {SECTIONS.map((item) => (
-                        <Button
-                            key={item.key}
-                            size="sm"
-                            variant={
-                                item.key === section ? 'default' : 'secondary'
-                            }
-                            onClick={() => switchSection(item.key)}
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
+                    {SECTIONS.map((item) => {
+                        const isDisabled =
+                            consultation.status === 'scheduled' &&
+                            item.key !== 'overview';
+
+                        return (
+                            <Button
+                                key={item.key}
+                                size="sm"
+                                variant={
+                                    item.key === section
+                                        ? 'default'
+                                        : 'secondary'
+                                }
+                                disabled={isDisabled}
+                                onClick={() => switchSection(item.key)}
+                            >
+                                {item.label}
+                            </Button>
+                        );
+                    })}
                 </div>
 
                 {section === 'overview' ? (
@@ -299,42 +372,60 @@ export default function ConsultationsView({
                         </CardContent>
                     </Card>
                 ) : (
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>
-                                {
-                                    SECTIONS.find(
-                                        (item) => item.key === section,
-                                    )?.label
+                    <>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle>
+                                    {
+                                        SECTIONS.find(
+                                            (item) => item.key === section,
+                                        )?.label
+                                    }
+                                </CardTitle>
+                                <Button size="sm" onClick={openCreate}>
+                                    New
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                {currentRecords.length === 0 ? (
+                                    <p className="py-8 text-center text-muted-foreground">
+                                        No records yet.
+                                    </p>
+                                ) : (
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {currentRecords.map((record) => (
+                                            <RecordCard
+                                                key={record.id}
+                                                type={
+                                                    recordType as ConsultationRecordType
+                                                }
+                                                record={record}
+                                                currencySymbol={currencySymbol}
+                                                onEdit={() => openEdit(record)}
+                                                onDelete={() => destroy(record)}
+                                                onViewVitalSigns={(r) => setViewVitalSigns(r)}
+                                                onViewTreatment={(r) => setViewTreatment(r)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                        {isPaginated && paginatedRecords ? (
+                            <Pagination
+                                meta={{
+                                    currentPage: paginatedRecords.currentPage,
+                                    lastPage: paginatedRecords.lastPage,
+                                    perPage: paginatedRecords.perPage,
+                                    total: paginatedRecords.total,
+                                }}
+                                onPageChange={(page) => applyPagination(page)}
+                                onPerPageChange={(perPage) =>
+                                    applyPagination(1, perPage)
                                 }
-                            </CardTitle>
-                            <Button size="sm" onClick={openCreate}>
-                                New
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            {currentRecords.length === 0 ? (
-                                <p className="py-8 text-center text-muted-foreground">
-                                    No records yet.
-                                </p>
-                            ) : (
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                    {currentRecords.map((record) => (
-                                        <RecordCard
-                                            key={record.id}
-                                            type={
-                                                recordType as ConsultationRecordType
-                                            }
-                                            record={record}
-                                            currencySymbol={currencySymbol}
-                                            onEdit={() => openEdit(record)}
-                                            onDelete={() => destroy(record)}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            />
+                        ) : null}
+                    </>
                 )}
             </div>
 
@@ -351,6 +442,26 @@ export default function ConsultationsView({
                     onSubmit={submit}
                 />
             ) : null}
+
+            <VitalSignsViewModal
+                record={viewVitalSigns}
+                open={viewVitalSigns !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewVitalSigns(null);
+                    }
+                }}
+            />
+
+            <TreatmentViewModal
+                record={viewTreatment}
+                open={viewTreatment !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewTreatment(null);
+                    }
+                }}
+            />
         </>
     );
 }
@@ -370,12 +481,16 @@ function RecordCard({
     currencySymbol,
     onEdit,
     onDelete,
+    onViewVitalSigns,
+    onViewTreatment,
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
     currencySymbol: string;
     onEdit: () => void;
     onDelete: () => void;
+    onViewVitalSigns: (record: ConsultationRecord) => void;
+    onViewTreatment: (record: ConsultationRecord) => void;
 }) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
@@ -415,22 +530,52 @@ function RecordCard({
                     </div>
                 ) : null}
 
-                {type !== 'complaints' &&
-                type !== 'examinations' &&
-                type !== 'diagnoses' &&
-                type !== 'admissions' ? (
-                    <div className="space-y-1">
+                {type === 'vital-signs' ? (
+                    <div className="space-y-2">
                         {(record.lines ?? []).map((line) => (
                             <div
                                 key={line.id}
-                                className="flex items-center justify-between text-sm"
+                                className="rounded-md border p-2"
                             >
-                                <span>{line.priceList?.name ?? '—'}</span>
-                                <span className="text-muted-foreground">
-                                    {type === 'vital-signs'
-                                        ? (line.results ?? '—')
-                                        : `×${line.quantity}`}
-                                </span>
+                                <p className="text-sm font-medium">
+                                    {line.price_list?.name ?? '—'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Result: {line.results ?? '—'}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+
+                {type !== 'vital-signs' &&
+                type !== 'complaints' &&
+                type !== 'examinations' &&
+                type !== 'diagnoses' &&
+                type !== 'admissions' ? (
+                    <div className="space-y-2">
+                        {(record.lines ?? []).map((line) => (
+                            <div
+                                key={line.id}
+                                className="rounded-md border p-2"
+                            >
+                                <p className="text-sm font-medium">
+                                    {line.price_list?.name ?? '—'}
+                                </p>
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    {line.quantity ? (
+                                        <span>Qty: {line.quantity}</span>
+                                    ) : null}
+                                    {line.frequency ? (
+                                        <span>Frequency: {line.frequency}</span>
+                                    ) : null}
+                                    {line.duration ? (
+                                        <span>Duration: {line.duration}</span>
+                                    ) : null}
+                                    {line.dosage ? (
+                                        <span>Dosage: {line.dosage}</span>
+                                    ) : null}
+                                </div>
                             </div>
                         ))}
                         {record.total !== undefined && record.total !== null ? (
@@ -450,6 +595,24 @@ function RecordCard({
             </div>
 
             <div className="mt-3 flex items-center gap-2">
+                {type === 'vital-signs' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewVitalSigns(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'treatments' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewTreatment(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
                 {type === 'laboratories' && teamSlug ? (
                     <Button
                         size="sm"
@@ -463,10 +626,20 @@ function RecordCard({
                         </Link>
                     </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" onClick={onEdit}>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={record.status === 'paid'}
+                    onClick={onEdit}
+                >
                     Edit
                 </Button>
-                <Button size="sm" variant="ghost" onClick={onDelete}>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={record.status === 'paid'}
+                    onClick={onDelete}
+                >
                     Delete
                 </Button>
             </div>

@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Patient;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 
 function receptionTeamUrl(User $user, string $path = '', array $query = []): string
 {
@@ -23,6 +24,8 @@ function addTeamDoctor(User $user): User
 {
     $doctor = User::factory()->create();
     $user->currentTeam->members()->attach($doctor, ['role' => TeamRole::Member->value]);
+    Role::firstOrCreate(['name' => 'Consultant']);
+    $doctor->assignRole('Consultant');
 
     return $doctor;
 }
@@ -154,14 +157,19 @@ test('an appointment can be scheduled for a paid billing', function () {
         'status' => 'paid',
     ]);
 
-    $this->actingAs($user)
+    $response = $this->actingAs($user)
         ->post(receptionTeamUrl($user, '/appointments'), [
             'billing_id' => $billing->getKey(),
             'doctor_id' => $doctor->getKey(),
             'starts_at' => now()->addDay()->format('Y-m-d H:i:s'),
             'purpose' => 'Consultation',
-        ])
-        ->assertRedirect(receptionTeamUrl($user));
+        ]);
+
+    $response->assertRedirectContains('/reception/appointments/');
+
+    // Follow the redirect to the patient card page
+    $location = $response->headers->get('Location');
+    $this->actingAs($user)->get($location)->assertOk();
 
     $appointment = Appointment::withoutGlobalScope('team')->first();
 
@@ -249,7 +257,7 @@ test('scheduling only allows billings with billable_type Patient or Billing and 
             'starts_at' => now()->addDay()->format('Y-m-d H:i:s'),
             'purpose' => 'Consultation',
         ])
-        ->assertRedirect(receptionTeamUrl($user));
+        ->assertRedirectContains('/reception/appointments/');
 
     expect($patientBilling->fresh()->status)->toBe('scheduled');
 });

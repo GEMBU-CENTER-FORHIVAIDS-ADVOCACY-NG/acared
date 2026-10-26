@@ -15,6 +15,7 @@ use App\Service\DashboardCurrency;
 use App\Service\DashboardDateRange;
 use App\Service\InventoryUsageService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -94,6 +95,7 @@ class PrescriptionController extends Controller
         return Inertia::render('pharmacy/prescriptions/show', [
             'currencySymbol' => DashboardCurrency::symbol(),
             'prescription' => $this->detail($prescription),
+            'hospitalName' => $request->user()->currentTeam->name,
         ]);
     }
 
@@ -441,7 +443,14 @@ class PrescriptionController extends Controller
      */
     public function dispense(Request $request, string $current_team, Prescription $prescription): RedirectResponse
     {
-        abort_unless($prescription->status === 'paid', 409, 'Only paid prescriptions can be dispensed.');
+        if ($prescription->status !== 'paid') {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Only paid prescriptions can be dispensed.']);
+
+            return to_route('pharmacy.prescriptions.show', [
+                'current_team' => $request->user()->currentTeam->slug,
+                'prescription' => $prescription->getKey(),
+            ]);
+        }
 
         $prescription->load(['lines.priceList.drugInventory', 'patient']);
 
@@ -450,7 +459,14 @@ class PrescriptionController extends Controller
             ->map(fn (Line $line): string => $line->priceList->name ?? "Price list #{$line->price_list_id}")
             ->values();
 
-        abort_if($missingStock->isNotEmpty(), 409, 'No pharmacy stock has been transferred for: '.$missingStock->implode(', '));
+        if ($missingStock->isNotEmpty()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Cannot dispense — no pharmacy stock available for: '.$missingStock->implode(', ')]);
+
+            return to_route('pharmacy.prescriptions.show', [
+                'current_team' => $request->user()->currentTeam->slug,
+                'prescription' => $prescription->getKey(),
+            ]);
+        }
 
         DB::transaction(function () use ($prescription): void {
             $patient = Patient::query()->where('slug', $prescription->patient_id)->firstOrFail();
@@ -570,8 +586,9 @@ class PrescriptionController extends Controller
                 'total' => (float) $billing->total,
                 'status' => $billing->status,
             ])->values(),
-            'canEdit' => ! in_array($prescription->status, ['dispensed', 'refunded'], true),
+            'canEdit' => ! in_array($prescription->status, ['paid', 'dispensed', 'refunded'], true),
             'canRefund' => $prescription->status === 'dispensed',
+            'canDispense' => $prescription->status === 'paid',
             'canDelete' => ! in_array($prescription->status, ['paid', 'dispensed', 'refunded'], true),
         ];
     }
@@ -586,14 +603,14 @@ class PrescriptionController extends Controller
         return PriceList::query()
             ->where('is_inventory', true)
             ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Pharmacy'))
-            ->with('drugInventory.drugForm')
+            ->with('drugInventories.drugForm')
             ->orderBy('name')
             ->get()
             ->map(fn (PriceList $priceList) => [
                 'id' => $priceList->getKey(),
                 'name' => $priceList->name,
                 'price' => (float) $priceList->price,
-                'drugForm' => $priceList->drugInventory?->drugForm?->name,
+                'drugForm' => $priceList->drugInventories->first()?->drugForm?->name,
             ]);
     }
 
@@ -654,5 +671,35 @@ class PrescriptionController extends Controller
                 'name' => trim($patient->slug.' '.$patient->fullName),
             ])
             ->values();
+    }
+
+    /**
+     * Search all patients by name or slug.
+     */
+    public function searchPatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $patients = Patient::query()
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('slug')
+            ->limit(50)
+            ->get(['slug', 'fullName'])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+            ])->values();
+
+        return response()->json($patients);
     }
 }

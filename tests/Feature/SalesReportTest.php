@@ -125,7 +125,6 @@ test('the sales by method report lists every payment detail and honours the date
             ->where('rows.data.0.patientId', $patient->slug)
             ->where('rows.data.0.patientName', 'John Doe')
             ->where('rows.data.0.receivedBy', $user->name)
-            ->where('rows.data.0.department', 'Admission')
             ->where('rows.data.0.method', 'Cash')
             ->where('rows.data.0.amount', 1500)
             ->where('rows.data.0.discountAmount', 100)
@@ -160,22 +159,54 @@ test('the sales by department report merges subtotals per department', function 
         'name' => 'Cash',
     ]);
 
-    $admissionBilling = Billing::factory()->create([
+    $category = PriceList::factory()->create([
+        'team_id' => $team->getKey(),
+        'name' => 'Laboratory',
+        'is_category' => true,
+    ]);
+
+    $priceList = PriceList::factory()->create([
+        'team_id' => $team->getKey(),
+        'name' => 'Blood Test',
+        'category_id' => $category->getKey(),
+    ]);
+
+    $billing = Billing::factory()->create([
         'team_id' => $team->getKey(),
         'patient_id' => $patient->slug,
         'user_id' => $user->getKey(),
         'billable_type' => Admission::class,
     ]);
-    $otherAdmissionBilling = Billing::factory()->create([
+    $otherBilling = Billing::factory()->create([
         'team_id' => $team->getKey(),
         'patient_id' => $patient->slug,
         'user_id' => $user->getKey(),
         'billable_type' => Admission::class,
     ]);
 
+    Line::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => $patient->slug,
+        'lineable_type' => Admission::class,
+        'lineable_id' => $billing->billable_id,
+        'price_list_id' => $priceList->getKey(),
+        'quantity' => 1,
+        'unitPrice' => 100,
+    ]);
+
+    Line::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => $patient->slug,
+        'lineable_type' => Admission::class,
+        'lineable_id' => $otherBilling->billable_id,
+        'price_list_id' => $priceList->getKey(),
+        'quantity' => 1,
+        'unitPrice' => 100,
+    ]);
+
     foreach ([
-        [$admissionBilling->getKey(), 300],
-        [$otherAdmissionBilling->getKey(), 200],
+        [$billing->getKey(), 300],
+        [$otherBilling->getKey(), 200],
         [null, 100],
     ] as [$billingId, $amount]) {
         Payment::factory()->create([
@@ -195,7 +226,7 @@ test('the sales by department report merges subtotals per department', function 
         ->assertInertia(fn (Assert $page) => $page
             ->component('reports/sales/index')
             ->has('rows.data', 3)
-            ->where('groupTotals.Admission.amount', 500)
+            ->where('groupTotals.Laboratory.amount', 500)
             ->where('groupTotals.Wallet Deposit.amount', 100)
         );
 });

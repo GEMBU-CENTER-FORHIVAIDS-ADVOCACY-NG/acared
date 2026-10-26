@@ -95,7 +95,7 @@ class DiscountReportController extends Controller
         ]);
 
         return [
-            'from' => $validated['from'] ?? today()->startOfMonth()->toDateString(),
+            'from' => $validated['from'] ?? today()->toDateString(),
             'to' => $validated['to'] ?? today()->toDateString(),
             'perPage' => (int) ($validated['perPage'] ?? 25),
             'discountType' => $validated['discountType'] ?? 'all',

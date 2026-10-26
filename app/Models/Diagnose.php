@@ -21,7 +21,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Patient|null $patient
  * @property-read User|null $doctor
  * @property-read Appointment|null $appointment
- * @property-read Admission|null $admission
  * @property-read Team|null $team
  */
 class Diagnose extends Model
@@ -52,15 +51,7 @@ class Diagnose extends Model
      */
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(Appointment::class);
-    }
-
-    /**
-     * @return BelongsTo<Admission, $this>
-     */
-    public function admission(): BelongsTo
-    {
-        return $this->belongsTo(Admission::class, 'appointment_id');
+        return $this->belongsTo(Appointment::class, 'appointment_id');
     }
 
     /**

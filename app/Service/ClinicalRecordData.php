@@ -54,6 +54,64 @@ class ClinicalRecordData
     }
 
     /**
+     * Build a single paginated clinical record type for a patient.
+     *
+     * @return array{data: array<int, array<string, mixed>>, currentPage: int, lastPage: int, perPage: int, total: int}
+     */
+    public function recordsPaginated(string $patientId, string $type, int $page, int $perPage): array
+    {
+        $query = match ($type) {
+            'vital-signs' => Vital::query()
+                ->where('patient_id', $patientId)
+                ->with(['user', 'lines.priceList']),
+            'complaints' => Complaint::query()
+                ->where('patient_id', $patientId)
+                ->with('doctor'),
+            'examinations' => Examination::query()
+                ->where('patient_id', $patientId)
+                ->with('doctor'),
+            'diagnoses' => Diagnose::query()
+                ->where('patient_id', $patientId)
+                ->with('doctor'),
+            'admissions' => Admission::query()
+                ->where('patient_id', $patientId)
+                ->with(['doctor', 'ward', 'bed']),
+            'treatments' => Treatment::query()
+                ->where('patient_id', $patientId)
+                ->with(['user', 'lines.priceList']),
+            'laboratories' => Laboratory::query()
+                ->where('patient_id', $patientId)
+                ->with(['doctor', 'lines.priceList']),
+            'prescriptions' => Prescription::query()
+                ->where('patient_id', $patientId)
+                ->with(['doctor', 'lines.priceList']),
+            default => null,
+        };
+
+        if ($query === null) {
+            return [
+                'data' => [],
+                'currentPage' => 1,
+                'lastPage' => 1,
+                'perPage' => $perPage,
+                'total' => 0,
+            ];
+        }
+
+        $total = $query->count();
+        $collection = $query->latest()->forPage($page, $perPage)->get()->values();
+        $lastPage = (int) ceil($total / $perPage);
+
+        return [
+            'data' => $this->mapRecords($collection),
+            'currentPage' => $page,
+            'lastPage' => $lastPage,
+            'perPage' => $perPage,
+            'total' => $total,
+        ];
+    }
+
+    /**
      * Serialize a record collection.
      *
      * @template TModel of Admission|Complaint|Diagnose|Examination|Laboratory|Prescription|Treatment|Vital
@@ -104,7 +162,15 @@ class ClinicalRecordData
                 ->get(['id', 'name', 'price'])
                 ->all(),
             'services' => PriceList::query()
-                ->inServiceCategories()
+                ->whereHas('subCategory', fn (Builder $query) => $query->whereIn('name', [
+                    'Treatment',
+                    'Nursing Services',
+                    'Maternity Services',
+                    'Mortuary Services',
+                    'Surgery',
+                    'Ophthalmic Services',
+                    'Dental Services',
+                ]))
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])
                 ->all(),

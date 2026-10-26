@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { Fragment, useState } from 'react';
-import { FinancialReportSwitcher } from '@/components/financial-report-switcher';
+import { FinancialReportLayout } from '@/components/financial-report-layout';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
@@ -23,7 +23,7 @@ type ItemRow = {
     group: string;
     patientId: string;
     patientName: string | null;
-    item: string;
+    item?: string;
     quantity: number;
     unitCost: number;
     unitPrice: number;
@@ -37,7 +37,7 @@ type PaymentRow = {
     patientId: string;
     patientName: string | null;
     receivedBy: string | null;
-    department: string;
+    department?: string;
     method: string | null;
     amount: number;
     discountAmount: number;
@@ -95,7 +95,6 @@ export default function SalesReport({
     summary,
     groupTotals,
     filters,
-    dimensions,
     currencySymbol,
 }: {
     report: { key: string; title: string };
@@ -103,7 +102,6 @@ export default function SalesReport({
     summary: Summary;
     groupTotals: GroupTotals;
     filters: Filters;
-    dimensions: Record<string, string>;
     currencySymbol: string;
 }) {
     const team = usePage().props.currentTeam?.slug ?? '';
@@ -111,7 +109,9 @@ export default function SalesReport({
     const [search, setSearch] = useState(filters.q);
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
-    const isItemReport = report.key === 'item';
+    const isItemReport = report.key === 'item' || report.key === 'category';
+    const isItemDetailReport = report.key === 'item';
+    const isDepartmentReport = report.key === 'department';
 
     const money = (value: number) =>
         `${currencySymbol}${value.toLocaleString(undefined, {
@@ -122,15 +122,20 @@ export default function SalesReport({
         value ? new Date(value).toLocaleString() : '-';
     const groupTotal = (label: string) => groupTotals[label] ?? {};
 
-    const visit = (patch: Partial<Filters>) =>
+    const visit = (patch: Partial<Filters>) => {
+        const next = { ...filters, ...patch };
         router.get(
-            index.url(
-                { current_team: team, dimension: report.key },
-                { query: { ...filters, ...patch } },
-            ),
-            {},
+            index.url({ current_team: team, dimension: report.key }),
+            {
+                q: next.q || undefined,
+                from: next.from || undefined,
+                to: next.to || undefined,
+                perPage: next.perPage,
+                page: next.page || undefined,
+            },
             { preserveState: true, preserveScroll: true, replace: true },
         );
+    }
 
     const cards: [string, string | number][] = isItemReport
         ? [
@@ -150,81 +155,51 @@ export default function SalesReport({
               ['Infant formula', money(summary.infantFormula ?? 0)],
           ];
 
-    const columnCount = isItemReport ? 7 : 10;
+    const columnCount = isItemReport ? (isItemDetailReport ? 7 : 6) : (isDepartmentReport ? 10 : 9);
 
     return (
         <>
             <Head title={report.title} />
-            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-3 no-print">
-                    <Heading
-                        variant="small"
-                        title={report.title}
-                        description="Detailed sales transactions grouped by the selected dimension."
-                    />
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={handlePrint}
-                        >
-                            Print
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <a
-                                href={exportReport.url(
-                                    {
-                                        current_team: team,
-                                        dimension: report.key,
-                                    },
-                                    {
-                                        query: {
-                                            q: search,
-                                            from,
-                                            to,
-                                            perPage: filters.perPage,
-                                        },
-                                    },
-                                )}
+            <FinancialReportLayout active={`sales:${report.key}`}>
+                <div className="flex w-full flex-col space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                        <Heading
+                            variant="small"
+                            title={report.title}
+                            description="Detailed sales transactions grouped by the selected dimension."
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={handlePrint}
                             >
-                                Export CSV
-                            </a>
-                        </Button>
-                    </div>
-                </div>
-                <div className="no-print">
-                    <FinancialReportSwitcher active="sales" />
-                </div>
-                <div className="flex flex-wrap gap-2 no-print">
-                    {Object.entries(dimensions).map(([key, title]) => (
-                        <Button
-                            key={key}
-                            size="sm"
-                            variant={key === report.key ? 'default' : 'outline'}
-                            onClick={() =>
-                                router.get(
-                                    index.url({
-                                        current_team: team,
-                                        dimension: key,
-                                    }),
-                                    {
-                                        query: {
-                                            q: search,
-                                            from,
-                                            to,
-                                            perPage: filters.perPage,
+                                Print
+                            </Button>
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={exportReport.url(
+                                        {
+                                            current_team: team,
+                                            dimension: report.key,
                                         },
-                                    },
-                                    { preserveState: false },
-                                )
-                            }
-                        >
-                            {title}
-                        </Button>
-                    ))}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6 no-print">
+                                        {
+                                            query: {
+                                                q: search,
+                                                from,
+                                                to,
+                                                perPage: filters.perPage,
+                                            },
+                                        },
+                                    )}
+                                >
+                                    Export CSV
+                                </a>
+                            </Button>
+                        </div>
+                    </div>
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-3 no-print">
                     {cards.map(([label, value]) => (
-                        <div key={label} className="rounded-lg border p-4">
+                        <div key={label} className="rounded-lg border bg-card p-4">
                             <p className="text-sm text-muted-foreground">
                                 {label}
                             </p>
@@ -290,7 +265,7 @@ export default function SalesReport({
                     <h2 className="mb-3 text-lg font-semibold">
                         {report.title} from {formatReportDate(from)} to {formatReportDate(to)}
                     </h2>
-                    <div className="overflow-x-auto rounded-lg border">
+                    <div className="overflow-x-auto rounded-lg border bg-card">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -298,7 +273,7 @@ export default function SalesReport({
                                     <>
                                         <TableHead>Hospital No.</TableHead>
                                         <TableHead>Patient</TableHead>
-                                        <TableHead>Item</TableHead>
+                                        {isItemDetailReport && <TableHead>Item</TableHead>}
                                         <TableHead className="text-right">
                                             Quantity
                                         </TableHead>
@@ -317,7 +292,7 @@ export default function SalesReport({
                                         <TableHead>Hospital No.</TableHead>
                                         <TableHead>Patient name</TableHead>
                                         <TableHead>Received by</TableHead>
-                                        <TableHead>Department</TableHead>
+                                        {isDepartmentReport && <TableHead>Department</TableHead>}
                                         <TableHead>Method</TableHead>
                                         <TableHead className="text-right">
                                             Amount
@@ -348,7 +323,7 @@ export default function SalesReport({
                                             <TableRow className="bg-muted/50 font-semibold hover:bg-muted/50">
                                                 {isItemReport ? (
                                                     <>
-                                                        <TableCell colSpan={3}>
+                                                        <TableCell colSpan={isItemDetailReport ? 3 : 2}>
                                                             {row.group}
                                                         </TableCell>
                                                         <TableCell className="text-right">
@@ -382,7 +357,7 @@ export default function SalesReport({
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <TableCell colSpan={5}>
+                                                        <TableCell colSpan={isDepartmentReport ? 5 : 4}>
                                                             {row.group}
                                                         </TableCell>
                                                         <TableCell className="text-right">
@@ -436,9 +411,11 @@ export default function SalesReport({
                                                     {(row as ItemRow)
                                                         .patientName ?? '-'}
                                                 </TableCell>
-                                                <TableCell className="font-medium">
-                                                    {(row as ItemRow).item}
-                                                </TableCell>
+                                                {isItemDetailReport && (
+                                                    <TableCell className="font-medium">
+                                                        {(row as ItemRow).item}
+                                                    </TableCell>
+                                                )}
                                                 <TableCell className="text-right">
                                                     {(
                                                         row as ItemRow
@@ -479,10 +456,12 @@ export default function SalesReport({
                                                     {(row as PaymentRow)
                                                         .receivedBy ?? '-'}
                                                 </TableCell>
-                                                <TableCell>
-                                                    {(row as PaymentRow)
-                                                        .department ?? '-'}
-                                                </TableCell>
+                                                {isDepartmentReport && (
+                                                    <TableCell>
+                                                        {(row as PaymentRow)
+                                                            .department ?? '-'}
+                                                    </TableCell>
+                                                )}
                                                 <TableCell>
                                                     {(row as PaymentRow)
                                                         .method ?? '-'}
@@ -536,7 +515,7 @@ export default function SalesReport({
                             <TableRow className="hover:bg-muted/50">
                                 {isItemReport ? (
                                     <>
-                                        <TableCell colSpan={3}>
+                                        <TableCell colSpan={isItemDetailReport ? 3 : 2}>
                                             Totals
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -556,7 +535,7 @@ export default function SalesReport({
                                     </>
                                 ) : (
                                     <>
-                                        <TableCell colSpan={5}>
+                                        <TableCell colSpan={isDepartmentReport ? 5 : 4}>
                                             Totals
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -593,7 +572,8 @@ export default function SalesReport({
                         onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
                     />
                 </div>
-            </div>
+                </div>
+            </FinancialReportLayout>
         </>
     );
 }

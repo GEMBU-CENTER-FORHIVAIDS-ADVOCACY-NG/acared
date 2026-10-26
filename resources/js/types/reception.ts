@@ -13,6 +13,8 @@ export type ReceptionAppointment = {
     age: string | null;
     doctorId: number | null;
     doctorName: string | null;
+    nurseId: number | null;
+    nurseName: string | null;
     purpose: string | null;
     status: string;
     startsAt: string | null;
@@ -41,9 +43,15 @@ export type DoctorOption = {
     name: string;
 };
 
+export type NurseOption = {
+    id: number;
+    name: string;
+};
+
 export type ScheduleAppointmentValues = {
     billing_id: string;
     doctor_id: string;
+    nurse_id: string;
     starts_at: string;
     purpose: string;
 };

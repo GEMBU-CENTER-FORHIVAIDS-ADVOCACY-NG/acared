@@ -39,6 +39,16 @@ class ReportCatalogController extends Controller
             'description' => 'Amount collected grouped by payment method.',
         ],
         [
+            'key' => 'category-sales-summary',
+            'title' => 'Sales by category summary',
+            'description' => 'Total sales grouped by category name.',
+        ],
+        [
+            'key' => 'payment-method-sales-summary',
+            'title' => 'Sales by payment method summary',
+            'description' => 'Total sales grouped by payment method name.',
+        ],
+        [
             'key' => 'coupon-usages',
             'title' => 'Coupon usage report',
             'description' => 'Discounts redeemed from coupons and who redeemed them.',
@@ -103,16 +113,6 @@ class ReportCatalogController extends Controller
                     'reports' => self::CLINICAL_REPORTS,
                 ],
             ],
-        ]);
-    }
-
-    /**
-     * Show the catalog of financial reports.
-     */
-    public function financial(): Response
-    {
-        return Inertia::render('reports/financial/catalog', [
-            'reports' => self::FINANCIAL_REPORTS,
         ]);
     }
 }

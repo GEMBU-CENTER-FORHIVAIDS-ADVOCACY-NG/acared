@@ -1,11 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Card,
     CardContent,
@@ -179,8 +185,27 @@ export default function DrugFormsIndex({
                     </div>
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2">
+                    <form
+                        className="flex flex-1 items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters({ q: search });
+                        }}
+                    >
+                        <Input
+                            className="max-w-sm"
+                            value={search}
+                            placeholder="Search drug forms"
+                            onChange={(event) => setSearch(event.target.value)}
+                        />
+                        <Button type="submit" variant="secondary">
+                            Search
+                        </Button>
+                    </form>
+                </div>
                 <Card>
-                    <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <CardHeader>
                         <div className="space-y-1">
                             <CardTitle>Dosage forms</CardTitle>
                             <CardDescription>
@@ -188,17 +213,6 @@ export default function DrugFormsIndex({
                                 records.
                             </CardDescription>
                         </div>
-                        <Input
-                            className="w-full sm:w-64"
-                            value={search}
-                            placeholder="Search drug forms"
-                            onChange={(event) => setSearch(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                    applyFilters({ q: search });
-                                }
-                            }}
-                        />
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
@@ -247,32 +261,45 @@ export default function DrugFormsIndex({
                                                           ).toLocaleDateString()
                                                         : '—'}
                                                 </TableCell>
-                                                <TableCell className="space-x-2 text-right">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        onClick={() =>
-                                                            openEdit(drugForm)
-                                                        }
-                                                    >
-                                                        <Pencil className="size-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        disabled={
-                                                            drugForm.inventoriesCount >
-                                                            0
-                                                        }
-                                                        onClick={() => {
-                                                            setError(null);
-                                                            setDeleting(
-                                                                drugForm,
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openEdit(
+                                                                        drugForm,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                variant="destructive"
+                                                                disabled={
+                                                                    drugForm.inventoriesCount >
+                                                                    0
+                                                                }
+                                                                onClick={() => {
+                                                                    setError(null);
+                                                                    setDeleting(
+                                                                        drugForm,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -301,7 +328,7 @@ export default function DrugFormsIndex({
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="overflow-y-auto sm:max-w-lg">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit drug form' : 'Add drug form'}
@@ -310,7 +337,7 @@ export default function DrugFormsIndex({
                             Dosage forms group medication stock records.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="mt-6 space-y-2">
+                    <div className="mt-6 space-y-2 px-4 pb-4">
                         <Label htmlFor="name">Name</Label>
                         <Input
                             id="name"

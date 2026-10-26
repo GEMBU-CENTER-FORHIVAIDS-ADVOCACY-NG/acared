@@ -1,11 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { usePage } from '@inertiajs/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
+import type { Team } from '@/types';
 
 export type PatientOption = {
     id: string;
     name: string;
+};
+
+type PatientSearchResult = {
+    slug: string;
+    label: string;
 };
 
 type PatientSelectProps = {
@@ -14,16 +21,20 @@ type PatientSelectProps = {
     value: string;
     options: PatientOption[];
     onChange: (value: string) => void;
-    onSearch: (term: string) => Promise<unknown> | void;
     disabled?: boolean;
     placeholder?: string;
+    /**
+     * URL resolver for the patient search endpoint. Receives the team slug
+     * and search query, should return the full search URL.
+     */
+    searchUrl?: (teamSlug: string, query: string) => string;
 };
 
 /**
- * Patient picker backed by a server side search.
+ * Patient picker backed by server-side search via a JSON endpoint.
  *
  * The roster can hold tens of thousands of patients, so only a bounded list
- * is sent to the browser and the parent refreshes it as the user searches.
+ * is sent to the browser and the component searches as the user types.
  */
 export default function PatientSelect({
     id,
@@ -31,38 +42,61 @@ export default function PatientSelect({
     value,
     options,
     onChange,
-    onSearch,
     disabled = false,
     placeholder = 'Select patient',
+    searchUrl,
 }: PatientSelectProps) {
+    const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
+    const teamSlug = currentTeam?.slug ?? '';
+
     const [term, setTerm] = useState('');
     const [searching, setSearching] = useState(false);
-    const searchRef = useRef(onSearch);
-    const mountedRef = useRef(false);
+    const [searchResults, setSearchResults] = useState<PatientSearchResult[]>([]);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    useEffect(() => {
-        searchRef.current = onSearch;
-    }, [onSearch]);
+    // Debounced search for patients using fetch to avoid Inertia JSON response error
+    const searchPatients = useCallback((query: string) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
 
-    useEffect(() => {
-        if (!mountedRef.current) {
-            mountedRef.current = true;
-
+        if (!query.trim() || !searchUrl) {
+            setSearchResults([]);
             return;
         }
 
         setSearching(true);
-
-        const timer = window.setTimeout(async () => {
-            try {
-                await searchRef.current(term);
-            } finally {
-                setSearching(false);
-            }
+        debounceTimerRef.current = setTimeout(() => {
+            const url = searchUrl(teamSlug, query);
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setSearchResults(results);
+                    setSearching(false);
+                })
+                .catch(() => {
+                    setSearching(false);
+                });
         }, 300);
+    }, [teamSlug, searchUrl]);
 
-        return () => window.clearTimeout(timer);
-    }, [term]);
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
+    // Display results from search when term is active, otherwise fall back to parent-provided options
+    const displayOptions = term.trim()
+        ? searchResults.map((r) => ({ id: r.slug, name: r.label }))
+        : options;
 
     return (
         <div className="space-y-2">
@@ -72,7 +106,11 @@ export default function PatientSelect({
                 value={term}
                 placeholder="Search by name or hospital number"
                 disabled={disabled}
-                onChange={(event) => setTerm(event.target.value)}
+                onChange={(event) => {
+                    const val = event.target.value;
+                    setTerm(val);
+                    searchPatients(val);
+                }}
             />
             <SelectNative
                 id={id}
@@ -81,7 +119,7 @@ export default function PatientSelect({
                 onChange={(event) => onChange(event.target.value)}
             >
                 <option value="">{placeholder}</option>
-                {options.map((option) => (
+                {displayOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                         {option.name}
                     </option>
