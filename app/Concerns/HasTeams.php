@@ -175,8 +175,8 @@ trait HasTeams
             canUpdateTeam: $role?->hasPermission(TeamPermission::UpdateTeam) ?? false,
             canDeleteTeam: $role?->hasPermission(TeamPermission::DeleteTeam) ?? false,
             canAddMember: $role?->hasPermission(TeamPermission::AddMember) ?? false,
-            canUpdateMember: $role?->hasPermission(TeamPermission::UpdateMember) ?? false,
-            canRemoveMember: $role?->hasPermission(TeamPermission::RemoveMember) ?? false,
+            canUpdateMember: ($role?->hasPermission(TeamPermission::UpdateMember) ?? false) || $this->ownsTeam($team) || $this->hasRole('administrator'),
+            canRemoveMember: ($role?->hasPermission(TeamPermission::RemoveMember) ?? false) || $this->ownsTeam($team) || $this->hasRole('administrator'),
             canCreateInvitation: $role?->hasPermission(TeamPermission::CreateInvitation) ?? false,
             canCancelInvitation: $role?->hasPermission(TeamPermission::CancelInvitation) ?? false,
         );

@@ -20,7 +20,7 @@ class StoreTeamUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', Rules\Password::defaults()],
+            'password' => ['required', 'string', 'min:7', Rules\Password::defaults()],
             'team_role' => ['required', 'string', Rule::in(array_column(TeamRole::assignable(), 'value'))],
             'spatie_roles' => ['sometimes', 'array'],
             'spatie_roles.*' => ['integer', 'exists:roles,id'],

@@ -292,7 +292,8 @@ export default function ConsultationsAllView({
                                     {section.label} (
                                     {sectionRecords.length})
                                 </CardTitle>
-                                {consultation.status !== 'scheduled' ? (
+                                {consultation.status !== 'scheduled' &&
+                                consultation.status !== 'completed' ? (
                                     <Button
                                         size="sm"
                                         onClick={() =>

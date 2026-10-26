@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, EyeOff, UserPlus, X } from 'lucide-react';
+import { Eye, EyeOff, MoreHorizontal, Pencil, Trash2, UserPlus, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +15,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,7 +39,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useInitials } from '@/hooks/use-initials';
-import { index, store } from '@/routes/teams/users';
+import { destroy, index, store, update } from '@/routes/teams/users';
 import type { RoleOption, Team, TeamMember, TeamPermissions } from '@/types';
 
 type SpatieRole = {
@@ -78,6 +85,16 @@ export default function TeamUsersIndex({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
 
+    const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editForm, setEditForm] = useState<UserForm>(blankForm);
+    const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+    const [editProcessing, setEditProcessing] = useState(false);
+    const [editShowPassword, setEditShowPassword] = useState(false);
+
+    const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+
     const pageTitle = useMemo(
         () => `Users — ${team.name}`,
         [team.name],
@@ -120,6 +137,82 @@ export default function TeamUsersIndex({
         }));
     };
 
+    const handleEditMember = (member: TeamMember) => {
+        setEditingMember(member);
+        setEditForm({
+            name: member.name,
+            email: member.email,
+            password: '',
+            team_role: member.role,
+            spatie_roles: [],
+        });
+        setEditErrors({});
+        setEditShowPassword(false);
+        setEditDialogOpen(true);
+    };
+
+    const handleUpdateUser = (e: React.FormEvent) => {
+        e.preventDefault();
+        setEditProcessing(true);
+
+        if (!editingMember) {
+            return;
+        }
+
+        router.patch(
+            update({ team: team.slug, user: editingMember.id }),
+            {
+                name: editForm.name,
+                email: editForm.email,
+                password: editForm.password || undefined,
+                team_role: editForm.team_role,
+                spatie_roles: editForm.spatie_roles,
+            },
+            {
+                preserveScroll: true,
+                onError: (errs) => {
+                    setEditErrors(errs);
+                    setEditProcessing(false);
+                },
+                onSuccess: () => {
+                    setEditForm(blankForm);
+                    setEditDialogOpen(false);
+                    setEditErrors({});
+                    setEditProcessing(false);
+                    setEditingMember(null);
+                },
+            },
+        );
+    };
+
+    const handleEditSpatieRoleToggle = (roleId: number) => {
+        setEditForm((prev) => ({
+            ...prev,
+            spatie_roles: prev.spatie_roles.includes(roleId)
+                ? prev.spatie_roles.filter((id) => id !== roleId)
+                : [...prev.spatie_roles, roleId],
+        }));
+    };
+
+    const handleDeleteMember = () => {
+        if (!deletingMember) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+
+        router.delete(
+            destroy({ team: team.slug, user: deletingMember.id }),
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setDeleteProcessing(false);
+                    setDeletingMember(null);
+                },
+            },
+        );
+    };
+
     return (
         <>
             <Head title={pageTitle} />
@@ -152,12 +245,15 @@ export default function TeamUsersIndex({
                                     <TableHead>Team role</TableHead>
                                     <TableHead>Department</TableHead>
                                     <TableHead>Joined</TableHead>
+                                    <TableHead className="w-12 text-right">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {members.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                                             No users found in this team.
                                         </TableCell>
                                     </TableRow>
@@ -210,6 +306,42 @@ export default function TeamUsersIndex({
                                                 {member.created_at
                                                     ? new Date(member.created_at).toLocaleDateString()
                                                     : '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {(permissions.canUpdateMember || permissions.canRemoveMember) && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            {permissions.canUpdateMember && (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        handleEditMember(member)
+                                                                    }
+                                                                >
+                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {permissions.canRemoveMember && (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        setDeletingMember(member)
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -271,7 +403,7 @@ export default function TeamUsersIndex({
                                             password: e.target.value,
                                         })
                                     }
-                                    placeholder="Minimum 8 characters"
+                                    placeholder="Minimum 7 characters"
                                 />
                                 <Button
                                     type="button"
@@ -365,6 +497,169 @@ export default function TeamUsersIndex({
                     </form>
                 </DialogContent>
             </Dialog>
+
+            {/* Edit User Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit user</DialogTitle>
+                        <DialogDescription>
+                            Update details for {editingMember?.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleUpdateUser} className="space-y-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-name">Name</Label>
+                            <Input
+                                id="edit-name"
+                                value={editForm.name}
+                                onChange={(e) =>
+                                    setEditForm({ ...editForm, name: e.target.value })
+                                }
+                                placeholder="Full name"
+                            />
+                            <InputError message={editErrors.name} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-email">Email</Label>
+                            <Input
+                                id="edit-email"
+                                type="email"
+                                value={editForm.email}
+                                onChange={(e) =>
+                                    setEditForm({ ...editForm, email: e.target.value })
+                                }
+                                placeholder="email@example.com"
+                            />
+                            <InputError message={editErrors.email} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-password">Password (leave blank to keep current)</Label>
+                            <div className="relative">
+                                <Input
+                                    id="edit-password"
+                                    type={editShowPassword ? 'text' : 'password'}
+                                    value={editForm.password}
+                                    onChange={(e) =>
+                                        setEditForm({
+                                            ...editForm,
+                                            password: e.target.value,
+                                        })
+                                    }
+                                    placeholder="Minimum 7 characters"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                    onClick={() => setEditShowPassword(!editShowPassword)}
+                                >
+                                    {editShowPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                            <InputError message={editErrors.password} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-team_role">Team role</Label>
+                            <Select
+                                value={editForm.team_role}
+                                onValueChange={(value) =>
+                                    setEditForm({ ...editForm, team_role: value })
+                                }
+                            >
+                                <SelectTrigger id="edit-team_role">
+                                    <SelectValue placeholder="Select a team role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableTeamRoles.map((role) => (
+                                        <SelectItem
+                                            key={role.value}
+                                            value={role.value}
+                                        >
+                                            {role.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={editErrors.team_role} />
+                        </div>
+
+                        {spatieRoles.length > 0 && (
+                            <div className="grid gap-2">
+                                <Label>Department</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {spatieRoles.map((role) => {
+                                        const isSelected =
+                                            editForm.spatie_roles.includes(role.id);
+                                        return (
+                                            <Button
+                                                key={role.id}
+                                                type="button"
+                                                variant={isSelected ? 'default' : 'outline'}
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleEditSpatieRoleToggle(
+                                                        role.id,
+                                                    )
+                                                }
+                                            >
+                                                {role.name}
+                                                {isSelected && (
+                                                    <X className="ml-1 h-3 w-3" />
+                                                )}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                                <InputError message={editErrors.spatie_roles} />
+                            </div>
+                        )}
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setEditDialogOpen(false);
+                                    setEditErrors({});
+                                    setEditForm(blankForm);
+                                    setEditingMember(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={editProcessing}>
+                                {editProcessing ? 'Saving...' : 'Save changes'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                open={deletingMember !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDeletingMember(null);
+                    }
+                }}
+                processing={deleteProcessing}
+                title={`Delete "${deletingMember?.name ?? ''}"?`}
+                description="This will permanently remove the user from the team and delete their account. This cannot be undone."
+                confirmLabel="Delete"
+                destructive
+                onConfirm={handleDeleteMember}
+            />
         </>
     );
 }

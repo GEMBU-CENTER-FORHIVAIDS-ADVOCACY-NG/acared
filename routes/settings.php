@@ -70,6 +70,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::middleware('permission:view users')->group(function () {
             Route::get('settings/teams/{team}/users', [TeamUserController::class, 'index'])->name('teams.users.index');
             Route::post('settings/teams/{team}/users', [TeamUserController::class, 'store'])->name('teams.users.store');
+            Route::patch('settings/teams/{team}/users/{user}', [TeamUserController::class, 'update'])->name('teams.users.update');
+            Route::delete('settings/teams/{team}/users/{user}', [TeamUserController::class, 'destroy'])->name('teams.users.destroy');
         });
     });
 });

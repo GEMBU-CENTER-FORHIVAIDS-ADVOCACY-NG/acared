@@ -48,6 +48,7 @@ class ReceptionController extends Controller
         return Inertia::render('reception/index', [
             'stats' => $this->stats($start, $end),
             'appointments' => $this->appointments($start, $end),
+            'nursingAppointments' => $this->nursingAppointments($start, $end),
             'filters' => [
                 'dateFilter' => $dateFilter,
                 'dateFilterLabel' => self::DATE_FILTERS[$dateFilter],
@@ -125,7 +126,7 @@ class ReceptionController extends Controller
 
         $appointment = Appointment::query()
             ->where('patient_id', $data['patient_id'])
-            ->whereIn('status', ['scheduled', 'started'])
+            ->whereIn('status', ['scheduled', 'started', 'completed'])
             ->latest('starts_at')
             ->first();
 
@@ -182,6 +183,22 @@ class ReceptionController extends Controller
             ->orderBy('starts_at')
             ->get()
             ->map(fn (Appointment $appointment) => $this->appointmentItem($appointment))
+            ->all();
+    }
+
+    /**
+     * Get the nursing appointments scheduled in the given range.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function nursingAppointments(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        return Nursing::query()
+            ->whereBetween('starts_at', [$start, $end])
+            ->with(['patient', 'nurse'])
+            ->orderBy('starts_at')
+            ->get()
+            ->map(fn (Nursing $nursing) => $this->nursingItem($nursing))
             ->all();
     }
 
@@ -261,6 +278,32 @@ class ReceptionController extends Controller
             'endsAt' => $appointment->ends_at?->toIso8601String(),
             'color' => $appointment->calendarColor(),
             'state' => $appointment->calendarState(),
+        ];
+    }
+
+    /**
+     * Serialize a nursing appointment for the dashboard.
+     *
+     * @return array<string, mixed>
+     */
+    private function nursingItem(Nursing $nursing): array
+    {
+        return [
+            'id' => $nursing->getKey(),
+            'patientId' => $nursing->patient_id,
+            'patientName' => $nursing->patient?->fullName,
+            'gender' => $nursing->patient?->gender,
+            'age' => $nursing->patient?->age,
+            'doctorId' => null,
+            'doctorName' => null,
+            'nurseId' => $nursing->nurse_id,
+            'nurseName' => $nursing->nurse?->name,
+            'purpose' => $nursing->purpose,
+            'status' => $nursing->status,
+            'startsAt' => $nursing->starts_at?->toIso8601String(),
+            'endsAt' => $nursing->ends_at?->toIso8601String(),
+            'color' => '',
+            'state' => $nursing->status,
         ];
     }
 

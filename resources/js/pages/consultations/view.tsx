@@ -382,9 +382,12 @@ export default function ConsultationsView({
                                         )?.label
                                     }
                                 </CardTitle>
-                                <Button size="sm" onClick={openCreate}>
-                                    New
-                                </Button>
+                                {consultation.status !== 'scheduled' &&
+                                consultation.status !== 'completed' ? (
+                                    <Button size="sm" onClick={openCreate}>
+                                        New
+                                    </Button>
+                                ) : null}
                             </CardHeader>
                             <CardContent>
                                 {currentRecords.length === 0 ? (

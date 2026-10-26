@@ -85,6 +85,7 @@ const EMPTY_TRANSFER = {
 export default function ReceptionIndex({
     stats,
     appointments,
+    nursingAppointments,
     filters,
     dateFilterOptions,
     doctorOptions,
@@ -94,6 +95,7 @@ export default function ReceptionIndex({
 }: {
     stats: ReceptionStats;
     appointments: ReceptionAppointment[];
+    nursingAppointments: ReceptionAppointment[];
     filters: ReceptionFilters;
     dateFilterOptions: ReceptionOption[];
     doctorOptions: DoctorOption[];
@@ -682,9 +684,9 @@ export default function ReceptionIndex({
                                 data-test="transfer-patient"
                             >
                                 <option value="">Select a patient</option>
-                                {appointments
+                                {[...appointments, ...nursingAppointments]
                                     .filter((appointment) =>
-                                        ['scheduled', 'started'].includes(
+                                        ['scheduled', 'started', 'completed'].includes(
                                             appointment.status,
                                         ),
                                     )

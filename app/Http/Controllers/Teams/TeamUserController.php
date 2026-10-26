@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teams;
 use App\Enums\TeamRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teams\StoreTeamUserRequest;
+use App\Http\Requests\Teams\UpdateTeamUserRequest;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -71,6 +72,7 @@ class TeamUserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'current_team_id' => 4,
         ]);
 
         $team->memberships()->create([
@@ -83,6 +85,65 @@ class TeamUserController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('User created and added to the team.')]);
+
+        return to_route('teams.users.index', ['team' => $team->slug]);
+    }
+
+    /**
+     * Update the specified user.
+     */
+    public function update(UpdateTeamUserRequest $request, Team $team, User $user): RedirectResponse
+    {
+        Gate::authorize('updateMember', $team);
+
+        $data = $request->validated();
+
+        $user->update([
+            'name' => $data['name'],
+            'email' => $data['email'],
+        ]);
+
+        if (! empty($data['password'])) {
+            $user->forceFill(['password' => Hash::make($data['password'])])->save();
+        }
+
+        $membership = $team->memberships()->where('user_id', $user->id)->firstOrFail();
+        $membership->update(['role' => TeamRole::from($data['team_role'])]);
+
+        if (array_key_exists('spatie_roles', $data)) {
+            $user->syncRoles($data['spatie_roles']);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('User updated successfully.')]);
+
+        return to_route('teams.users.index', ['team' => $team->slug]);
+    }
+
+    /**
+     * Remove the specified user from the team and delete the user.
+     */
+    public function destroy(Team $team, User $user): RedirectResponse
+    {
+        Gate::authorize('removeMember', $team);
+
+        abort_if($team->owner()?->is($user), 403, __('The team owner cannot be removed.'));
+
+        $team->memberships()
+            ->where('user_id', $user->id)
+            ->delete();
+
+        if ($user->isCurrentTeam($team)) {
+            $fallback = $user->teams()->orderByRaw('LOWER(teams.name)')->first();
+            if ($fallback) {
+                $user->switchTeam($fallback);
+            } else {
+                $user->switchTeam($user->personalTeam());
+            }
+        }
+
+        $user->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('User deleted.')]);
 
         return to_route('teams.users.index', ['team' => $team->slug]);
     }
