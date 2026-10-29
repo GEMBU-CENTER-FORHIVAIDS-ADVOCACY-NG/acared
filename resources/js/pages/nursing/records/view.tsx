@@ -626,23 +626,19 @@ function RecordCard({
                     </div>
                 ) : null}
 
-                {type === 'treatments' ? (
-                    <div className="space-y-1 text-sm">
-                        <p>{notesToString(record.notes) || '—'}</p>
-                    </div>
-                ) : null}
-
                 {type === 'vital-signs' ? (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         {(record.lines ?? []).map((line) => (
                             <div
                                 key={line.id}
-                                className="flex items-center justify-between text-sm"
+                                className="rounded-md border p-2"
                             >
-                                <span>{line.price_list?.name ?? '—'}</span>
-                                <span className="text-muted-foreground">
-                                    {line.results ?? '—'}
-                                </span>
+                                <p className="text-sm font-medium">
+                                    {line.price_list?.name ?? '—'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Result: {line.results ?? '—'}
+                                </p>
                             </div>
                         ))}
                     </div>
@@ -652,18 +648,30 @@ function RecordCard({
                 type !== 'complaints' &&
                 type !== 'examinations' &&
                 type !== 'diagnoses' &&
-                type !== 'admissions' &&
-                type !== 'treatments' ? (
-                    <div className="space-y-1">
+                type !== 'admissions' ? (
+                    <div className="space-y-2">
                         {(record.lines ?? []).map((line) => (
                             <div
                                 key={line.id}
-                                className="flex items-center justify-between text-sm"
+                                className="rounded-md border p-2"
                             >
-                                <span>{line.price_list?.name ?? '—'}</span>
-                                <span className="text-muted-foreground">
-                                    ×{line.quantity}
-                                </span>
+                                <p className="text-sm font-medium">
+                                    {line.price_list?.name ?? '—'}
+                                </p>
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    {line.quantity ? (
+                                        <span>Qty: {line.quantity}</span>
+                                    ) : null}
+                                    {line.frequency ? (
+                                        <span>Frequency: {line.frequency}</span>
+                                    ) : null}
+                                    {line.duration ? (
+                                        <span>Duration: {line.duration}</span>
+                                    ) : null}
+                                    {line.dosage ? (
+                                        <span>Dosage: {line.dosage}</span>
+                                    ) : null}
+                                </div>
                             </div>
                         ))}
                         {record.total !== undefined && record.total !== null ? (
@@ -714,10 +722,10 @@ function RecordCard({
                         </Link>
                     </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" onClick={onEdit}>
+                <Button size="sm" variant="secondary" disabled={record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false} onClick={onEdit}>
                     Edit
                 </Button>
-                <Button size="sm" variant="ghost" onClick={onDelete}>
+                <Button size="sm" variant="outline" disabled={record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false} onClick={onDelete}>
                     Delete
                 </Button>
             </div>

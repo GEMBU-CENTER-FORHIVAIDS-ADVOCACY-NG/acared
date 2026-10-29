@@ -36,9 +36,9 @@ trait BillingValidationRules
                     fn ($query) => $query->where('team_id', $teamId)
                 ),
             ],
-            'payments.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'payments.*.amount' => ['nullable', 'numeric'],
             'payments.*.discount_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'payments.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'payments.*.discount_amount' => ['nullable', 'numeric'],
             'payments.*.coupon_id' => [
                 'nullable',
                 'integer',
@@ -46,8 +46,8 @@ trait BillingValidationRules
                     fn ($query) => $query->where('team_id', $teamId)
                 ),
             ],
-            'payments.*.coupon_discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'payments.*.wallet_debit' => ['nullable', 'numeric', 'min:0'],
+            'payments.*.coupon_discount_amount' => ['nullable', 'numeric'],
+            'payments.*.wallet_debit' => ['nullable', 'numeric'],
             'payments.*.wallet_patient_id' => [
                 'nullable',
                 'string',

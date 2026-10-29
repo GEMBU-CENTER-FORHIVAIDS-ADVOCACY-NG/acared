@@ -90,11 +90,12 @@ class PrescriptionController extends Controller
      */
     public function show(Request $request, string $current_team, Prescription $prescription): Response
     {
-        $prescription->load(['patient', 'doctor', 'lines.priceList', 'billings']);
+        $prescription->load(['patient' => fn ($query) => $query->with('admissions'), 'doctor', 'lines.priceList', 'billings']);
 
         return Inertia::render('pharmacy/prescriptions/show', [
             'currencySymbol' => DashboardCurrency::symbol(),
             'prescription' => $this->detail($prescription),
+            'isAdmitted' => $prescription->patient?->isAdmitted() ?? false,
             'hospitalName' => $request->user()->currentTeam->name,
         ]);
     }
@@ -104,11 +105,12 @@ class PrescriptionController extends Controller
      */
     public function edit(Request $request, string $current_team, Prescription $prescription): Response
     {
-        $prescription->load(['patient', 'doctor', 'lines.priceList', 'billings']);
+        $prescription->load(['patient' => fn ($query) => $query->with('admissions'), 'doctor', 'lines.priceList', 'billings']);
 
         return Inertia::render('pharmacy/prescriptions/edit', [
             'currencySymbol' => DashboardCurrency::symbol(),
             'prescription' => $this->detail($prescription),
+            'isAdmitted' => $prescription->patient?->isAdmitted() ?? false,
             'formOptions' => $this->formOptions(
                 search: $request->query('q'),
                 selectedPatientSlug: $prescription->patient_id,

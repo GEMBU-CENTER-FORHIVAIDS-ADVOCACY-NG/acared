@@ -10,8 +10,9 @@ import {
     Trash2,
     TriangleAlert,
     TrendingUp,
+    Upload,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
@@ -51,6 +52,50 @@ import {
 } from '@/components/ui/table';
 import stockRoutes from '@/routes/inventory/stock';
 import type { Team } from '@/types';
+
+type InventoryTarget = 'stock' | 'lab' | 'drug';
+
+type ColumnMapping = {
+    sku: string;
+    name: string;
+    drug_form: string;
+    quantity: string;
+    price: string;
+    cost: string;
+    min_qty: string;
+    status: string;
+    expires_at: string;
+};
+
+const EMPTY_MAPPING: ColumnMapping = {
+    sku: '',
+    name: '',
+    drug_form: '',
+    quantity: '',
+    price: '',
+    cost: '',
+    min_qty: '',
+    status: '',
+    expires_at: '',
+};
+
+const MAPPABLE_FIELDS = [
+    { key: 'sku', label: 'SKU' },
+    { key: 'name', label: 'Product name' },
+    { key: 'drug_form', label: 'Product form' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'price', label: 'Price' },
+    { key: 'cost', label: 'Cost' },
+    { key: 'min_qty', label: 'Minimum quantity' },
+    { key: 'status', label: 'Status' },
+    { key: 'expires_at', label: 'Expiry date' },
+] as const;
+
+const TARGET_LABELS: Record<InventoryTarget, string> = {
+    stock: 'Stock (General inventory)',
+    lab: 'Lab inventory',
+    drug: 'Drug inventory (Pharmacy)',
+};
 
 type Inventory = {
     id: number;
@@ -137,6 +182,13 @@ export default function InventoryStockIndex({
     const [quantities, setQuantities] = useState<Record<number, string>>({});
     const [deleting, setDeleting] = useState<Inventory | null>(null);
     const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
+    const [importTarget, setImportTarget] = useState<InventoryTarget>('stock');
+    const [importHeaders, setImportHeaders] = useState<string[]>([]);
+    const [importMapping, setImportMapping] = useState<ColumnMapping>(EMPTY_MAPPING);
+    const [importError, setImportError] = useState<string | null>(null);
+    const [importProcessing, setImportProcessing] = useState(false);
+    const importFileInput = useRef<HTMLInputElement>(null);
 
     function applyFilters(page = 1, perPage = filters.perPage) {
         router.get(
@@ -303,6 +355,102 @@ export default function InventoryStockIndex({
         selected.includes(item.id),
     );
 
+    function handleImportFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        setImportError(null);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result;
+            if (typeof text !== 'string') {
+                return;
+            }
+            const lines = text.split(/\r?\n/).filter((line) => line.trim());
+            if (lines.length === 0) {
+                setImportError('The CSV file is empty.');
+                return;
+            }
+            const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+            setImportHeaders(headers);
+
+            // Auto-map headers
+            const autoMapping: ColumnMapping = { ...EMPTY_MAPPING };
+            const aliases: Record<string, string> = {
+                'sku': 'sku', 'item_code': 'sku', 'item code': 'sku', 'code': 'sku',
+                'product': 'name', 'name': 'name', 'description': 'name', 'item': 'name',
+                'product form': 'drug_form', 'form': 'drug_form', 'drug_form': 'drug_form',
+                'minimum quantity': 'min_qty', 'min_qty': 'min_qty', 'min quantity': 'min_qty', 'minimum': 'min_qty',
+                'quantity': 'quantity', 'qty': 'quantity', 'stock': 'quantity',
+                'price': 'price', 'selling price': 'price', 'sell price': 'price',
+                'cost': 'cost', 'cost price': 'cost', 'buy price': 'cost', 'unit cost': 'cost',
+                'status': 'status',
+                'expires_at': 'expires_at', 'expiry': 'expires_at', 'expiry_date': 'expires_at',
+                'expiration': 'expires_at', 'expiration_date': 'expires_at',
+            };
+            for (const header of headers) {
+                const lower = header.toLowerCase();
+                const mapped = aliases[lower];
+                if (mapped && !autoMapping[mapped as keyof ColumnMapping]) {
+                    autoMapping[mapped as keyof ColumnMapping] = header;
+                }
+            }
+            setImportMapping(autoMapping);
+        };
+        reader.readAsText(file);
+    }
+
+    function submitImport() {
+        const file = importFileInput.current?.files?.[0];
+        if (!file) {
+            setImportError('Please select a CSV file.');
+            return;
+        }
+
+        // Validate required mappings
+        const required = ['name', 'drug_form', 'quantity', 'price', 'cost'];
+        const missing = required.filter((field) => !importMapping[field as keyof ColumnMapping]);
+        if (missing.length > 0) {
+            setImportError('Please map all required fields: ' + missing.join(', '));
+            return;
+        }
+
+        setImportError(null);
+        setImportProcessing(true);
+
+        const payload = new FormData();
+        payload.append('file', file);
+        payload.append('target', importTarget);
+        payload.append('mapping', JSON.stringify(importMapping));
+
+        router.post(stockRoutes.import.url(teamSlug), payload, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setImportOpen(false);
+                setImportHeaders([]);
+                setImportMapping(EMPTY_MAPPING);
+                if (importFileInput.current) {
+                    importFileInput.current.value = '';
+                }
+            },
+            onError: (errors) =>
+                setImportError(errors.file ?? errors.mapping ?? 'Import failed.'),
+            onFinish: () => setImportProcessing(false),
+        });
+    }
+
+    function resetImport() {
+        setImportHeaders([]);
+        setImportMapping(EMPTY_MAPPING);
+        setImportError(null);
+        if (importFileInput.current) {
+            importFileInput.current.value = '';
+        }
+    }
+
     return (
         <>
             <Head title="Inventory" />
@@ -314,9 +462,13 @@ export default function InventoryStockIndex({
                     />
                     <div className="flex gap-2">
                         <Button variant="outline" asChild>
-                            <Link href={stockRoutes.export.url(teamSlug)}>
+                            <a href={stockRoutes.export.url(teamSlug)}>
                                 Export CSV
-                            </Link>
+                            </a>
+                        </Button>
+                        <Button variant="outline" onClick={() => setImportOpen(true)}>
+                            <Upload className="mr-2 size-4" />
+                            Import CSV
                         </Button>
                         <Button onClick={openCreate}>Add inventory item</Button>
                     </div>
@@ -974,6 +1126,129 @@ export default function InventoryStockIndex({
                 processing={processing}
                 onConfirm={deleteSelected}
             />
+
+            {/* Import CSV Sheet */}
+            <Sheet open={importOpen} onOpenChange={(open) => {
+                if (!open) {
+                    resetImport();
+                }
+                setImportOpen(open);
+            }}>
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+                    <SheetHeader>
+                        <SheetTitle>Import inventory from CSV</SheetTitle>
+                        <SheetDescription>
+                            Upload a CSV file and map its columns to inventory
+                            fields. Choose whether to import into stock, lab, or
+                            drug inventory.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="space-y-4 px-4 py-5">
+                        {/* Target selection */}
+                        <div className="space-y-2">
+                            <Label>Import into</Label>
+                            <SelectNative
+                                value={importTarget}
+                                onChange={(event) =>
+                                    setImportTarget(
+                                        event.target.value as InventoryTarget,
+                                    )
+                                }
+                            >
+                                <option value="stock">
+                                    {TARGET_LABELS.stock}
+                                </option>
+                                <option value="lab">
+                                    {TARGET_LABELS.lab}
+                                </option>
+                                <option value="drug">
+                                    {TARGET_LABELS.drug}
+                                </option>
+                            </SelectNative>
+                        </div>
+
+                        {/* File upload */}
+                        <div className="space-y-2">
+                            <Label>CSV file</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    type="file"
+                                    accept=".csv,.txt"
+                                    className="flex-1"
+                                    onChange={handleImportFileChange}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Column mapping */}
+                        {importHeaders.length > 0 && (
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">
+                                    Column mapping
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Map each CSV column header to the corresponding
+                                    inventory field. Required fields are marked
+                                    with *.
+                                </p>
+                                {MAPPABLE_FIELDS.map(({ key, label }) => {
+                                    const isRequired = ['name', 'drug_form', 'quantity', 'price', 'cost'].includes(key);
+                                    return (
+                                        <div key={key} className="grid grid-cols-[1fr_auto] items-center gap-3">
+                                            <Label className="text-sm">
+                                                {label}
+                                                {isRequired ? ' *' : ''}
+                                            </Label>
+                                            <SelectNative
+                                                value={importMapping[key]}
+                                                onChange={(event) =>
+                                                    setImportMapping({
+                                                        ...importMapping,
+                                                        [key]: event.target.value,
+                                                    })
+                                                }
+                                                className="w-full"
+                                            >
+                                                <option value="">
+                                                    — Skip —
+                                                </option>
+                                                {importHeaders.map((header) => (
+                                                    <option key={header} value={header}>
+                                                        {header}
+                                                    </option>
+                                                ))}
+                                            </SelectNative>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {importError ? (
+                            <p className="text-sm text-destructive" role="alert">
+                                {importError}
+                            </p>
+                        ) : null}
+                    </div>
+                    <SheetFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                resetImport();
+                                setImportOpen(false);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={importProcessing || importHeaders.length === 0}
+                            onClick={submitImport}
+                        >
+                            {importProcessing ? 'Importing...' : 'Import'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </>
     );
 }

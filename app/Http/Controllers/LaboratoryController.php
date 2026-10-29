@@ -80,7 +80,9 @@ class LaboratoryController extends Controller
             ->values();
 
         $selected = $selectedId > 0
-            ? Laboratory::query()->whereKey($selectedId)->where('status', 'paid')->with('patient')->first()
+            ? Laboratory::query()->whereKey($selectedId)->where('status', 'paid')
+                ->with(['patient' => fn ($query) => $query->with('admissions')])
+                ->first()
             : null;
 
         return Inertia::render('laboratories/index', [
@@ -102,6 +104,7 @@ class LaboratoryController extends Controller
                 'patientName' => $selected->patient?->fullName,
                 'gender' => $selected->patient?->gender,
                 'age' => $selected->patient?->age,
+                'isAdmitted' => $selected->patient?->isAdmitted() ?? false,
             ] : null,
             'resultForm' => $selected ? $this->resultForm($selected, pendingOnly: true) : null,
             'createOptions' => [
@@ -194,6 +197,31 @@ class LaboratoryController extends Controller
             ],
             'resultForm' => $this->resultForm($laboratory, pendingOnly: false),
             'canEdit' => in_array($laboratory->status, ['paid', 'submitted'], true),
+        ]);
+    }
+
+    /**
+     * Show a dedicated print-friendly page for a laboratory test result.
+     */
+    public function print(Request $request, string $current_team, Laboratory $laboratory): Response
+    {
+        $laboratory->load(['patient', 'doctor', 'team']);
+
+        return Inertia::render('laboratories/print', [
+            'laboratory' => [
+                'id' => $laboratory->getKey(),
+                'patientId' => $laboratory->patient_id,
+                'patientName' => $laboratory->patient?->fullName,
+                'gender' => $laboratory->patient?->gender,
+                'age' => $laboratory->patient?->age,
+                'doctorName' => $laboratory->doctor?->name,
+                'status' => $laboratory->status,
+                'total' => (float) $laboratory->total,
+                'createdAt' => $laboratory->created_at?->toIso8601String(),
+                'facilityName' => $laboratory->team?->name,
+                'facilityAddress' => $laboratory->team?->address,
+            ],
+            'resultForm' => $this->resultForm($laboratory, pendingOnly: false),
         ]);
     }
 

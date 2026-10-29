@@ -6,6 +6,7 @@ import LabResultFields, {
     emptyResultValues,
 } from '@/components/lab-result-fields';
 import Heading from '@/components/heading';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -356,11 +357,20 @@ export default function LaboratoryIndex({
 
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Laboratory result form</CardTitle>
-                        <CardDescription>
-                            Select a paid request to enter pending test results.
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle>Laboratory result form</CardTitle>
+                            <CardDescription>
+                                Select a paid request to enter pending test results.
+                            </CardDescription>
+                        </div>
+                        {selected ? (
+                            <Badge
+                                variant={selected.isAdmitted ? 'default' : 'secondary'}
+                            >
+                                {selected.isAdmitted ? 'On Admission' : 'OPD'}
+                            </Badge>
+                        ) : null}
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-3">

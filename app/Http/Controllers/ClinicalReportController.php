@@ -115,28 +115,30 @@ class ClinicalReportController extends Controller
         $totalRecords += $laboratoryTestsCount;
 
         $recentRecords = collect(self::REPORTS)
-            ->mapWithKeys(function (array $config, string $key) {
+            ->reduce(function (array $carry, array $config) {
                 /** @var class-string<Complaint|Diagnose|Examination> $model */
                 $model = $config['model'];
 
-                return [
-                    $key => $model::query()
-                        ->with(['patient', 'doctor'])
-                        ->latest()
-                        ->limit(3)
-                        ->get()
-                        ->map(fn (Complaint|Diagnose|Examination $record) => [
-                            'id' => $record->getKey(),
-                            'patientId' => $record->patient_id,
-                            'patientName' => $record->patient?->fullName,
-                            'doctor' => $record->doctor?->name,
-                            'notes' => $this->notes($record->notes),
-                            'createdAt' => $record->created_at?->toIso8601String(),
-                            'type' => $config['label'],
-                        ]),
-                ];
-            })
-            ->flatten()
+                $records = $model::query()
+                    ->with(['patient', 'doctor'])
+                    ->latest()
+                    ->limit(3)
+                    ->get()
+                    ->map(fn (Complaint|Diagnose|Examination $record) => [
+                        'id' => $record->getKey(),
+                        'patientId' => $record->patient_id,
+                        'patientName' => $record->patient?->fullName,
+                        'doctor' => $record->doctor?->name,
+                        'notes' => $this->notes($record->notes),
+                        'createdAt' => $record->created_at?->toIso8601String(),
+                        'type' => $config['label'],
+                    ])
+                    ->toArray();
+
+                return array_merge($carry, $records);
+            }, []);
+
+        $recentRecords = collect($recentRecords)
             ->sortByDesc('createdAt')
             ->take(10)
             ->values();

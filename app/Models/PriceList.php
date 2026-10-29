@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
@@ -36,6 +37,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
  * @property-read self|null $parameter
  * @property-read Collection<int, self> $parameters
  * @property-read Collection<int, Inventory> $inventories
+ * @property-read DrugInventory|null $drugInventory
  * @property-read Collection<int, DrugInventory> $drugInventories
  * @property-read Collection<int, LabInventory> $labInventories
  * @property-read Collection<int, TestResult> $testResults
@@ -88,6 +90,14 @@ class PriceList extends Model
     public function inventories(): HasMany
     {
         return $this->hasMany(Inventory::class, 'price_list_id');
+    }
+
+    /**
+     * @return HasOne<DrugInventory, $this>
+     */
+    public function drugInventory(): HasOne
+    {
+        return $this->hasOne(DrugInventory::class, 'price_list_id');
     }
 
     /**

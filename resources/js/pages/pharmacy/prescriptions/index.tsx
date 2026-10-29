@@ -206,26 +206,26 @@ export default function PrescriptionsIndex({
 
 
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                     <form
-                        className="flex flex-1 items-center gap-2"
+                        className="flex-1"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
                         }}
                     >
-                        <Input
-                            className="max-w-sm"
-                            value={search}
-                            placeholder="Search prescriptions"
-                            onChange={(event) => setSearch(event.target.value)}
-                        />
-                        <Button type="submit" variant="secondary">
-                            Search
-                        </Button>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                className="pl-10"
+                                value={search}
+                                placeholder="Search prescriptions..."
+                                onChange={(event) => setSearch(event.target.value)}
+                            />
+                        </div>
                     </form>
                     <SelectNative
-                        className="w-44"
+                        className="w-40 shrink-0"
                         value={status}
                         onChange={(event) => {
                             setStatus(event.target.value);
@@ -418,7 +418,6 @@ export default function PrescriptionsIndex({
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem
-                                                                variant="destructive"
                                                                 disabled={[
                                                                     'paid',
                                                                     'dispensed',

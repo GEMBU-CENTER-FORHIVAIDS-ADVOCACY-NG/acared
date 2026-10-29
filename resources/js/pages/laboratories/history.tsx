@@ -339,7 +339,7 @@ export default function LaboratoryHistory({
                                                         </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
-                                                        disabled={lab.status === 'paid'}
+                                                        disabled={lab.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(lab.status) : false}
                                                         onClick={() =>
                                                             setToDelete(lab)
                                                         }

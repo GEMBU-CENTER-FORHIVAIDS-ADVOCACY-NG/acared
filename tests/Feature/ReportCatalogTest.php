@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Complaint;
+use App\Models\Diagnose;
 use App\Models\User;
 
 test('guests are redirected to the login page', function () {
@@ -47,4 +49,32 @@ test('the clinical reports catalog renders all clinical reports', function () {
             ->component('reports/clinical/index')
             ->has('dashboard')
             ->where('reports.complaints', 'Complaints report'));
+});
+
+test('the clinical dashboard recent records have the correct structure', function () {
+    $user = User::factory()->create();
+
+    Complaint::factory()->create([
+        'team_id' => $user->currentTeam->id,
+        'doctor_id' => $user->id,
+    ]);
+    Diagnose::factory()->create([
+        'team_id' => $user->currentTeam->id,
+        'doctor_id' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/'.$user->currentTeam->slug.'/reports/clinical')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reports/clinical/index')
+            ->has('dashboard.recentRecords', 2)
+            ->has('dashboard.recentRecords.0.id')
+            ->has('dashboard.recentRecords.0.patientId')
+            ->has('dashboard.recentRecords.0.patientName')
+            ->has('dashboard.recentRecords.0.doctor')
+            ->has('dashboard.recentRecords.0.notes')
+            ->has('dashboard.recentRecords.0.createdAt')
+            ->has('dashboard.recentRecords.0.type')
+            ->where('dashboard.recentRecords.0.type', fn ($type) => in_array($type, ['Complaint', 'Diagnosis'])));
 });

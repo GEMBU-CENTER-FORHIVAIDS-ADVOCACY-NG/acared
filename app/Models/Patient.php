@@ -87,6 +87,14 @@ class Patient extends Model
         );
     }
 
+    protected function fullName(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => trim(($this->firstName ?? '').' '.($this->middleName ?? '').' '.($this->lastName ?? '')),
+            set: fn (string $value) => $value,
+        );
+    }
+
     /**
      * @return BelongsTo<State, $this>
      */

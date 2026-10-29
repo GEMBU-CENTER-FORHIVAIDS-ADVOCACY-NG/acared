@@ -427,27 +427,26 @@ export default function PharmacyIndex({
                             placeholder="Search medication or SKU"
                             onChange={(event) => setSearch(event.target.value)}
                         />
+                        <SelectNative
+                            value={status}
+                            onChange={(event) => {
+                                setStatus(event.target.value);
+                                applyFilters({
+                                    status: event.target.value,
+                                });
+                            }}
+                        >
+                            <option value="all">All stock</option>
+                            <option value="low">Low stock</option>
+                            <option value="stocked">Stocked</option>
+                            <option value="available">Available</option>
+                            <option value="expired">Expired</option>
+                            <option value="expiring">Expiring soon</option>
+                        </SelectNative>
                         <Button type="submit" variant="secondary">
                             Search
                         </Button>
                     </form>
-                    <SelectNative
-                        className="w-44"
-                        value={status}
-                        onChange={(event) => {
-                            setStatus(event.target.value);
-                            applyFilters({
-                                status: event.target.value,
-                            });
-                        }}
-                    >
-                        <option value="all">All stock</option>
-                        <option value="low">Low stock</option>
-                        <option value="stocked">Stocked</option>
-                        <option value="available">Available</option>
-                        <option value="expired">Expired</option>
-                        <option value="expiring">Expiring soon</option>
-                    </SelectNative>
                     <Button
                         variant="outline"
                         disabled={processing}
@@ -675,17 +674,21 @@ export default function PharmacyIndex({
                                                                 Adjust
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                variant="destructive"
-                                                                onClick={() =>
-                                                                    setDeleting(
-                                                                        item,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenuItem>
+                                                            <div className="px-1 py-0.5">
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    className="w-full justify-start"
+                                                                    onClick={() =>
+                                                                        setDeleting(
+                                                                            item,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </Button>
+                                                            </div>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>
@@ -712,74 +715,6 @@ export default function PharmacyIndex({
                     </div>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent stock activity</CardTitle>
-                        <CardDescription>
-                            Latest receipts, dispensing, and manual adjustments.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Medication</TableHead>
-                                        <TableHead>Change</TableHead>
-                                        <TableHead>Reason</TableHead>
-                                        <TableHead>Recorded by</TableHead>
-                                        <TableHead>Date</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {stockMovements.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={5}
-                                                className="py-6 text-center text-muted-foreground"
-                                            >
-                                                No stock movements yet.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        stockMovements.map((movement) => (
-                                            <TableRow key={movement.id}>
-                                                <TableCell>
-                                                    {movement.medication}
-                                                </TableCell>
-                                                <TableCell
-                                                    className={
-                                                        movement.quantity < 0
-                                                            ? 'text-red-600'
-                                                            : 'text-emerald-600'
-                                                    }
-                                                >
-                                                    {movement.quantity > 0
-                                                        ? '+'
-                                                        : ''}
-                                                    {movement.quantity}
-                                                </TableCell>
-                                                <TableCell className="capitalize">
-                                                    {movement.status}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {movement.user ?? '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {movement.createdAt
-                                                        ? new Date(
-                                                              movement.createdAt,
-                                                          ).toLocaleString()
-                                                        : '—'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
 
             <Sheet open={formOpen} onOpenChange={setFormOpen}>

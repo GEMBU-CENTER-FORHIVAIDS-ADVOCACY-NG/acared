@@ -497,7 +497,7 @@ function RecordCard({
                 <Button
                     size="sm"
                     variant="secondary"
-                    disabled={disabled || record.status === 'paid'}
+                    disabled={disabled || (record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false)}
                     onClick={onEdit}
                 >
                     Edit
@@ -505,7 +505,7 @@ function RecordCard({
                 <Button
                     size="sm"
                     variant="outline"
-                    disabled={disabled || record.status === 'paid'}
+                    disabled={disabled || (record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false)}
                     onClick={onDelete}
                 >
                     Delete

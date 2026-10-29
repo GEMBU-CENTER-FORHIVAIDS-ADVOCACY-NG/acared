@@ -73,10 +73,12 @@ type Prescription = {
 export default function PrescriptionShow({
     currencySymbol,
     prescription,
+    isAdmitted,
     hospitalName,
 }: {
     currencySymbol: string;
     prescription: Prescription;
+    isAdmitted: boolean;
     hospitalName: string;
 }) {
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
@@ -360,11 +362,16 @@ export default function PrescriptionShow({
                 </div>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Prescribed drugs</CardTitle>
-                        <CardDescription>
-                            Dosage schedule and pricing for each line item.
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle>Prescribed drugs</CardTitle>
+                            <CardDescription>
+                                Dosage schedule and pricing for each line item.
+                            </CardDescription>
+                        </div>
+                        <Badge variant={isAdmitted ? 'default' : 'secondary'}>
+                            {isAdmitted ? 'On Admission' : 'OPD'}
+                        </Badge>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">

@@ -321,126 +321,6 @@
         margin: 0;
     }
 
-    body.printing-lab-result {
-        page: lab-result;
-    }
-
-    /* Hide the print div on screen */
-    #lab-result-print-div {
-        display: none !important;
-    }
-
-    /* When printing lab result, hide everything then show only the print div */
-    body.printing-lab-result * {
-        visibility: hidden !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div,
-    body.printing-lab-result #lab-result-print-div * {
-        visibility: visible !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div {
-        display: block !important;
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        max-width: none !important;
-        height: auto !important;
-        min-height: auto !important;
-        z-index: 99999 !important;
-        background: white !important;
-        overflow: visible !important;
-        margin: 0 !important;
-        padding: 15mm !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Preserve inline-block for flex and grid children */
-    body.printing-lab-result #lab-result-print-div [style*="display: inline-block"] {
-        display: inline-block !important;
-    }
-
-    /* Preserve grid layout for simple tests grid — use 3 columns for better A4 width coverage */
-    body.printing-lab-result #lab-result-print-div [style*="display: grid"],
-    body.printing-lab-result #lab-result-print-div .lab-print-simple-grid {
-        display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 6px !important;
-    }
-
-    /* Preserve flex layout for flex children */
-    body.printing-lab-result #lab-result-print-div [style*="display: flex"],
-    body.printing-lab-result #lab-result-print-div .lab-print-flex {
-        display: flex !important;
-    }
-
-    /* Ensure header section spans full width */
-    body.printing-lab-result #lab-result-print-div > .lab-print-flex {
-        width: 100% !important;
-    }
-
-    /* Ensure results card spans full width */
-    body.printing-lab-result #lab-result-print-div > div[style*="border"] {
-        width: 100% !important;
-    }
-
-    /* Ensure step sections span full width */
-    body.printing-lab-result #lab-result-print-div .lab-print-step-section {
-        width: 100% !important;
-        margin-bottom: 12px !important;
-    }
-
-    /* Ensure simple test displays fill their grid cell */
-    body.printing-lab-result #lab-result-print-div .lab-print-simple-test {
-        width: 100% !important;
-        padding: 6px 8px !important;
-        margin-bottom: 0 !important;
-    }
-
-    /* Preserve table structure in print */
-    body.printing-lab-result #lab-result-print-div table {
-        border-collapse: collapse !important;
-        width: 100% !important;
-        display: table !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div thead {
-        display: table-header-group !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div tbody {
-        display: table-row-group !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div tr {
-        display: table-row !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div th,
-    body.printing-lab-result #lab-result-print-div td {
-        display: table-cell !important;
-    }
-
-    /* Page break rules for better print layout */
-    body.printing-lab-result #lab-result-print-div .lab-print-step-section {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div .lab-print-test-group {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-
-    body.printing-lab-result #lab-result-print-div .lab-print-simple-test {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-
     /* Report table print: hide everything except the print div */
     body.printing-report #report-print-div {
         display: block !important;
@@ -510,6 +390,140 @@
         margin-bottom: 12px !important;
         font-size: 16px !important;
         font-weight: 600 !important;
+    }
+
+    /* Dedicated lab result print page — hide everything except print div */
+    body.printing-lab-result {
+        page: lab-result;
+    }
+
+    @page lab-result {
+        size: A4;
+        margin: 10mm 10mm 15mm 10mm;
+
+        @bottom-center {
+            content: 'Page ' counter(page) ' of ' counter(pages);
+            font-size: 10px;
+            color: #666;
+        }
+    }
+
+    @page lab-result:first {
+        margin-top: 10mm;
+    }
+
+    /* Hide the screen-only wrapper (fixed overlay) during print */
+    body.printing-lab-result .lab-result-print-wrapper {
+        display: none !important;
+    }
+
+    /* Hide all normal page content */
+    body.printing-lab-result > *:not(#lab-result-print-div) {
+        display: none !important;
+    }
+
+    /* Show only the print content div */
+    body.printing-lab-result #lab-result-print-div {
+        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: auto !important;
+        z-index: 99999 !important;
+        background: white !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Preserve grid layout for simple tests — 2 columns for A4 */
+    body.printing-lab-result #lab-result-print-div .lab-print-simple-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    /* Preserve flex layout for flex children */
+    body.printing-lab-result #lab-result-print-div [style*="display: flex"] {
+        display: flex !important;
+    }
+
+    /* Ensure content wrapper spans full width */
+    body.printing-lab-result #lab-result-print-div .lab-print-content {
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    /* Ensure step sections span full width and don't break */
+    body.printing-lab-result #lab-result-print-div .lab-print-step-section {
+        width: 100% !important;
+        margin-bottom: 16px !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Ensure simple test displays fill their grid cell */
+    body.printing-lab-result #lab-result-print-div .lab-print-simple-test {
+        width: 100% !important;
+    }
+
+    /* Preserve table structure in print */
+    body.printing-lab-result #lab-result-print-div table {
+        border-collapse: collapse !important;
+        width: 100% !important;
+        display: table !important;
+    }
+
+    body.printing-lab-result #lab-result-print-div thead {
+        display: table-header-group !important;
+    }
+
+    body.printing-lab-result #lab-result-print-div tbody {
+        display: table-row-group !important;
+    }
+
+    body.printing-lab-result #lab-result-print-div tr {
+        display: table-row !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    body.printing-lab-result #lab-result-print-div th,
+    body.printing-lab-result #lab-result-print-div td {
+        display: table-cell !important;
+    }
+
+    /* Page break rules for test groups */
+    body.printing-lab-result #lab-result-print-div .lab-print-test-group {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Override color/black forcing for print content */
+    body.printing-lab-result #lab-result-print-div * {
+        color: black !important;
+        background: transparent !important;
+    }
+
+    /* Keep table headers visible */
+    body.printing-lab-result #lab-result-print-div thead th {
+        background-color: #f3f4f6 !important;
+        color: black !important;
+    }
+
+    /* Keep step section headers visible */
+    body.printing-lab-result #lab-result-print-div .lab-print-step-section > div:first-child {
+        background-color: #f3f4f6 !important;
+    }
+
+    /* Keep simple test cards visible */
+    body.printing-lab-result #lab-result-print-div .lab-print-simple-test {
+        background-color: #f9fafb !important;
+        border: 1px solid #e5e7eb !important;
     }
 
 }

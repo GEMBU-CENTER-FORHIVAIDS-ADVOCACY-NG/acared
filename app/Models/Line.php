@@ -6,6 +6,7 @@ use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Database\Factories\LineFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -52,6 +53,20 @@ class Line extends Model
     protected $casts = [
         'paid' => 'boolean',
     ];
+
+    protected function totalPrice(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->quantity && $this->unitPrice ? $this->quantity * $this->unitPrice : null,
+        );
+    }
+
+    protected function totalCost(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->quantity && $this->unitCost ? $this->quantity * $this->unitCost : null,
+        );
+    }
 
     /**
      * @return BelongsTo<Patient, $this>

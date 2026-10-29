@@ -5,7 +5,6 @@ import LabResultFields, {
     emptyResultValues,
 } from '@/components/lab-result-fields';
 import LabResultInfolist from '@/components/lab-result-infolist';
-import LabResultPrintDiv from '@/components/lab-result-print-div';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,6 @@ export default function LaboratoryShow({
     const [values, setValues] = useState(emptyResultValues());
     const [processing, setProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [printing, setPrinting] = useState(false);
 
     function baseUrl(path = '') {
         return `/${teamSlug}/laboratories${path}`;
@@ -64,25 +62,6 @@ export default function LaboratoryShow({
         );
     }
 
-    function printResult() {
-        setPrinting(true);
-        // Allow the print div to render before calling print
-        setTimeout(() => {
-            document.body.classList.add('printing-lab-result');
-            window.print();
-
-            // Cleanup after print dialog closes
-            const cleanup = () => {
-                document.body.classList.remove('printing-lab-result');
-                setPrinting(false);
-                window.removeEventListener('afterprint', cleanup);
-            };
-            window.addEventListener('afterprint', cleanup);
-            // Fallback cleanup in case afterprint doesn't fire
-            setTimeout(cleanup, 1000);
-        }, 100);
-    }
-
     return (
         <>
             <Head title={`Lab #${laboratory.id}`} />
@@ -94,8 +73,10 @@ export default function LaboratoryShow({
                         description={laboratory.facilityAddress ?? undefined}
                     />
                     <div className="flex flex-wrap gap-2">
-                        <Button type="button" onClick={printResult}>
-                            Print result
+                        <Button type="button" asChild>
+                            <Link href={baseUrl(`/${laboratory.id}/print`)}>
+                                Print result
+                            </Link>
                         </Button>
                         <Button asChild variant="secondary">
                             <Link href={baseUrl('/history')}>History</Link>
@@ -179,15 +160,6 @@ export default function LaboratoryShow({
                 </Card>
                 </div>
 
-                {/* Print div overlay */}
-                {printing && (
-                    <LabResultPrintDiv
-                        laboratory={laboratory}
-                        resultForm={resultForm}
-                        facilityName={laboratory.facilityName ?? 'Facility'}
-                        facilityAddress={laboratory.facilityAddress ?? ''}
-                    />
-                )}
             </div>
         </>
     );

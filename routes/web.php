@@ -16,6 +16,7 @@ use App\Http\Controllers\DiscountReportController;
 use App\Http\Controllers\ErrorController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\InventoryImportController;
 use App\Http\Controllers\LabIntakeController;
 use App\Http\Controllers\LabInventoryController;
 use App\Http\Controllers\LaboratoryController;
@@ -156,6 +157,7 @@ Route::prefix('{current_team}')
             Route::post('laboratories', [LaboratoryController::class, 'store'])->name('laboratories.store');
             Route::delete('laboratories/bulk', [LaboratoryController::class, 'bulkDestroy'])->name('laboratories.bulk.destroy');
             Route::get('laboratories/{laboratory}', [LaboratoryController::class, 'show'])->name('laboratories.show');
+            Route::get('laboratories/{laboratory}/print', [LaboratoryController::class, 'print'])->name('laboratories.print');
             Route::post('laboratories/{laboratory}/results', [LaboratoryController::class, 'storeResults'])->name('laboratories.results.store');
             Route::patch('laboratories/{laboratory}/results', [LaboratoryController::class, 'updateResults'])->name('laboratories.results.update');
             Route::delete('laboratories/{laboratory}', [LaboratoryController::class, 'destroy'])->name('laboratories.destroy');
@@ -233,6 +235,7 @@ Route::prefix('{current_team}')
 
             Route::get('inventory/stock', [InventoryController::class, 'index'])->name('inventory.stock.index');
             Route::get('inventory/stock/export', [InventoryController::class, 'export'])->name('inventory.stock.export');
+            Route::post('inventory/stock/import', [InventoryImportController::class, 'import'])->name('inventory.stock.import');
             Route::post('inventory/stock', [InventoryController::class, 'store'])->name('inventory.stock.store');
             Route::post('inventory/stock/adjust', [InventoryController::class, 'adjust'])->name('inventory.stock.adjust');
             Route::post('inventory/stock/transfer', [InventoryController::class, 'transfer'])->name('inventory.stock.transfer');

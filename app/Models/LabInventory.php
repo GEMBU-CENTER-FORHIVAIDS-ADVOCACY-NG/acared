@@ -6,6 +6,7 @@ use App\Concerns\LogsActivityWithInventory;
 use Carbon\CarbonInterface;
 use Database\Factories\LabInventoryFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -86,6 +87,20 @@ class LabInventory extends Model
     protected $casts = [
         'expires_at' => 'datetime',
     ];
+
+    protected function value(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => ($this->quantity ?? 0) * ($this->cost ?? 0),
+        );
+    }
+
+    protected function profit(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => (($this->quantity ?? 0) * ($this->price ?? 0)) - ($this->cost ?? 0),
+        );
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

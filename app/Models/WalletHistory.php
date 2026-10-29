@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,13 @@ class WalletHistory extends Model
     use LogsActivity, LogsActivityWithPatient;
 
     protected $guarded = [];
+
+    protected function balance(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => ($this->credit ?? 0) - ($this->debit ?? 0),
+        );
+    }
 
     /**
      * @return BelongsTo<Patient, $this>

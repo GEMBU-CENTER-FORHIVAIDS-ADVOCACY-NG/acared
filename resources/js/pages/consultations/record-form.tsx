@@ -429,7 +429,7 @@ export function ConsultationRecordForm({
                                                 <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
                                                     Service
                                                 </th>
-                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '30%' }}>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
                                                     Price
                                                 </th>
                                                 <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
@@ -439,30 +439,26 @@ export function ConsultationRecordForm({
                                             {values.lines.map((line, index) => (
                                                 <tr key={index}>
                                                     <td className="px-4 py-2">
-                                                        <Select
+                                                        <SelectNative
                                                             value={line.price_list_id}
-                                                            onValueChange={(value) =>
+                                                            placeholder="Select service…"
+                                                            onChange={(event) =>
                                                                 setLine(
                                                                     index,
                                                                     'price_list_id',
-                                                                    value,
+                                                                    event.target.value,
                                                                 )
                                                             }
                                                         >
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select service…" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {linePriceLists.map((item) => (
-                                                                    <SelectItem
-                                                                        key={item.id}
-                                                                        value={String(item.id)}
-                                                                    >
-                                                                        {item.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            {linePriceLists.map((item) => (
+                                                                <option
+                                                                    key={item.id}
+                                                                    value={String(item.id)}
+                                                                >
+                                                                    {item.name}
+                                                                </option>
+                                                            ))}
+                                                        </SelectNative>
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         <Input
@@ -471,20 +467,22 @@ export function ConsultationRecordForm({
                                                         />
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
-                                                        <button
-                                                            type="button"
-                                                            className="text-muted-foreground hover:text-red-600"
-                                                            onClick={() =>
-                                                                setValues((current) => ({
-                                                                    ...current,
-                                                                    lines: current.lines.filter(
-                                                                        (_, i) => i !== index,
-                                                                    ),
-                                                                }))
-                                                            }
-                                                        >
-                                                            ×
-                                                        </button>
+                                                        {values.lines.length > 1 ? (
+                                                            <button
+                                                                type="button"
+                                                                className="text-muted-foreground hover:text-red-600"
+                                                                onClick={() =>
+                                                                    setValues((current) => ({
+                                                                        ...current,
+                                                                        lines: current.lines.filter(
+                                                                            (_, i) => i !== index,
+                                                                        ),
+                                                                    }))
+                                                                }
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        ) : null}
                                                     </td>
                                                 </tr>
                                             ))}

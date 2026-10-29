@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import Heading from '@/components/heading';
 import PrescriptionController from '@/actions/App/Http/Controllers/Pharmacy/PrescriptionController';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -70,10 +71,12 @@ const FREQUENCIES = [
 export default function PrescriptionEdit({
     currencySymbol,
     prescription,
+    isAdmitted,
     formOptions,
 }: {
     currencySymbol: string;
     prescription: Prescription;
+    isAdmitted: boolean;
     formOptions: {
         patients: { id: string; name: string }[];
         priceLists: PriceListOption[];
@@ -264,12 +267,17 @@ export default function PrescriptionEdit({
                 </div>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Prescription details</CardTitle>
-                        <CardDescription>
-                            Quantity is prefilled from frequency × duration ×
-                            dosage.
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle>Prescription details</CardTitle>
+                            <CardDescription>
+                                Quantity is prefilled from frequency × duration ×
+                                dosage.
+                            </CardDescription>
+                        </div>
+                        <Badge variant={isAdmitted ? 'default' : 'secondary'}>
+                            {isAdmitted ? 'On Admission' : 'OPD'}
+                        </Badge>
                     </CardHeader>
                     <CardContent className="overflow-visible space-y-6">
                         <div className="max-w-md space-y-2" ref={patientSearchContainerRef}>

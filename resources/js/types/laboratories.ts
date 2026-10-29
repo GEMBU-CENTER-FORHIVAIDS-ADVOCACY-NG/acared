@@ -30,6 +30,7 @@ export type LabSelected = {
     patientName: string | null;
     gender: string | null;
     age: string | null;
+    isAdmitted: boolean;
 };
 
 export type LabResultParameterRow = {

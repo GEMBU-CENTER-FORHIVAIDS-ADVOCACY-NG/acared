@@ -263,9 +263,9 @@ export default function PatientIndex({
                     }
                 />
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-nowrap items-center gap-2">
                     <form
-                        className="flex flex-1 items-center gap-2"
+                        className="flex shrink-0 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
@@ -275,7 +275,7 @@ export default function PatientIndex({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search hospital no, name, email..."
-                            className="max-w-sm"
+                            className="w-64"
                             data-test="patient-search"
                         />
                         <Button type="submit" variant="secondary">
@@ -283,49 +283,51 @@ export default function PatientIndex({
                         </Button>
                     </form>
 
-                    <SelectNative
-                        value={filters.trashed}
-                        onChange={(event) =>
-                            applyFilters({ trashed: event.target.value })
-                        }
-                        className="w-40"
-                        data-test="trashed-filter"
-                    >
-                        <option value="without">Active</option>
-                        <option value="with">All (incl. trashed)</option>
-                        <option value="only">Only trashed</option>
-                    </SelectNative>
-
-                    <input
-                        ref={importInput}
-                        type="file"
-                        accept=".csv,.txt"
-                        className="hidden"
-                        aria-label="Import patient CSV"
-                        onChange={(event) => importCsv(event.target.files?.[0])}
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => importInput.current?.click()}
-                    >
-                        Import CSV
-                    </Button>
-                    <Button variant="outline" asChild>
-                        <a
-                            href={exportPatients.url(teamSlug ?? '', {
-                                query: {
-                                    ...filters,
-                                    q: filters.q || undefined,
-                                },
-                            })}
+                    <div className="flex shrink-0 items-center gap-2">
+                        <SelectNative
+                            value={filters.trashed}
+                            onChange={(event) =>
+                                applyFilters({ trashed: event.target.value })
+                            }
+                            className="w-40"
+                            data-test="trashed-filter"
                         >
-                            Export CSV
-                        </a>
-                    </Button>
+                            <option value="without">Active</option>
+                            <option value="with">All (incl. trashed)</option>
+                            <option value="only">Only trashed</option>
+                        </SelectNative>
+
+                        <input
+                            ref={importInput}
+                            type="file"
+                            accept=".csv,.txt"
+                            className="hidden"
+                            aria-label="Import patient CSV"
+                            onChange={(event) => importCsv(event.target.files?.[0])}
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => importInput.current?.click()}
+                        >
+                            Import CSV
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a
+                                href={exportPatients.url(teamSlug ?? '', {
+                                    query: {
+                                        ...filters,
+                                        q: filters.q || undefined,
+                                    },
+                                })}
+                            >
+                                Export CSV
+                            </a>
+                        </Button>
+                    </div>
 
                     {selected.length > 0 ? (
-                        <div className="ml-auto flex items-center gap-2">
+                        <div className="ml-auto flex shrink-0 items-center gap-2">
                             <span className="text-sm text-muted-foreground">
                                 {selected.length} selected
                             </span>

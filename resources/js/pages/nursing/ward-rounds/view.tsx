@@ -327,7 +327,7 @@ export default function WardRoundView({
                                     Notes
                                 </p>
                                 <p className="text-sm font-medium whitespace-pre-line">
-                                    {detail.notes ?? '-'}
+                                    {detail.notes ?? '—'}
                                 </p>
                             </div>
                         </CardContent>
@@ -431,7 +431,7 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
     return (
         <div>
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-sm font-medium">{value ?? '-'}</p>
+            <p className="text-sm font-medium">{value ?? '—'}</p>
         </div>
     );
 }
@@ -455,7 +455,7 @@ function RecordCard({
 }) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
-    const recordedBy = record.recordedByName ?? '-';
+    const recordedBy = record.recordedByName ?? '—';
 
     return (
         <div className="flex flex-col justify-between rounded-md border p-4">
@@ -471,43 +471,45 @@ function RecordCard({
 
                 {type === 'complaints' ? (
                     <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {record.notes_en ?? record.notes ?? '-'}
+                        {record.notes_en ?? record.notes ?? '—'}
                     </p>
                 ) : null}
 
                 {type === 'examinations' ? (
                     <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {record.notes ? String(record.notes) : '-'}
+                        {record.notes ? String(record.notes) : '—'}
                     </p>
                 ) : null}
 
                 {type === 'diagnoses' ? (
                     <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {record.notes ? String(record.notes) : '-'}
+                        {record.notes ? String(record.notes) : '—'}
                     </p>
                 ) : null}
 
                 {type === 'admissions' ? (
                     <div className="space-y-1 text-sm">
-                        <p>{notesToString(record.notes) || '-'}</p>
+                        <p>{notesToString(record.notes) || '—'}</p>
                         <p className="text-xs text-muted-foreground">
-                            Ward: {record.ward?.name ?? '-'} | Duration:{' '}
+                            Ward: {record.ward?.name ?? '—'} · Duration:{' '}
                             {record.duration ?? 0} day(s)
                         </p>
                     </div>
                 ) : null}
 
                 {type === 'vital-signs' ? (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         {(record.lines ?? []).map((line) => (
                             <div
                                 key={line.id}
-                                className="flex items-center justify-between text-sm"
+                                className="rounded-md border p-2"
                             >
-                                <span>{line.price_list?.name ?? '-'}</span>
-                                <span className="text-muted-foreground">
-                                    {line.results ?? '-'}
-                                </span>
+                                <p className="text-sm font-medium">
+                                    {line.price_list?.name ?? '—'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Result: {line.results ?? '—'}
+                                </p>
                             </div>
                         ))}
                     </div>
@@ -518,16 +520,29 @@ function RecordCard({
                 type !== 'examinations' &&
                 type !== 'diagnoses' &&
                 type !== 'admissions' ? (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         {(record.lines ?? []).map((line) => (
                             <div
                                 key={line.id}
-                                className="flex items-center justify-between text-sm"
+                                className="rounded-md border p-2"
                             >
-                                <span>{line.price_list?.name ?? '-'}</span>
-                                <span className="text-muted-foreground">
-                                    x{line.quantity}
-                                </span>
+                                <p className="text-sm font-medium">
+                                    {line.price_list?.name ?? '—'}
+                                </p>
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    {line.quantity ? (
+                                        <span>Qty: {line.quantity}</span>
+                                    ) : null}
+                                    {line.frequency ? (
+                                        <span>Frequency: {line.frequency}</span>
+                                    ) : null}
+                                    {line.duration ? (
+                                        <span>Duration: {line.duration}</span>
+                                    ) : null}
+                                    {line.dosage ? (
+                                        <span>Dosage: {line.dosage}</span>
+                                    ) : null}
+                                </div>
                             </div>
                         ))}
                         {record.total !== undefined && record.total !== null ? (
@@ -581,7 +596,7 @@ function RecordCard({
                 <Button
                     size="sm"
                     variant="secondary"
-                    disabled={record.status === 'paid'}
+                    disabled={record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false}
                     onClick={onEdit}
                 >
                     Edit
@@ -589,7 +604,7 @@ function RecordCard({
                 <Button
                     size="sm"
                     variant="outline"
-                    disabled={record.status === 'paid'}
+                    disabled={record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false}
                     onClick={onDelete}
                 >
                     Delete
