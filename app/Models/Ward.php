@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
@@ -38,7 +39,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Ward extends Model
 {
     /** @use HasFactory<WardFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     use SoftDeletes;
 

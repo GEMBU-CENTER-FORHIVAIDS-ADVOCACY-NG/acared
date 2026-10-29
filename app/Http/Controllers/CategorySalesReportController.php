@@ -61,11 +61,11 @@ class CategorySalesReportController extends Controller
             ->where('unitPrice', '<>', 0)
             ->whereBetween('lines.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
             ->join('price_lists as pl', 'pl.id', '=', 'lines.price_list_id')
-            ->selectRaw('COALESCE(pl.category_id, 0) as category_key, SUM(lines.quantity) as quantity, SUM(lines.totalCost) as cost, SUM(lines.unitPrice) as price, SUM(lines.totalPrice) as amount')
+            ->selectRaw('CASE WHEN pl.is_category = 1 THEN pl.id ELSE COALESCE(pl.category_id, 0) END as category_key, SUM(lines.quantity) as quantity, SUM(lines.totalCost) as cost, SUM(lines.unitPrice) as price, SUM(lines.totalPrice) as amount')
             ->groupBy('category_key')
             ->get();
 
-        $names = PriceList::query()
+        $names = PriceList::withoutGlobalScope('team')
             ->whereIn('id', $rows->pluck('category_key')->filter())
             ->pluck('name', 'id');
 

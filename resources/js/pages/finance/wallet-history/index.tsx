@@ -1,11 +1,11 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
+import { FileText, MoreHorizontal, WalletCards, TrendingUp, TrendingDown, Calculator, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,6 +19,7 @@ import {
     Sheet,
     SheetContent,
     SheetDescription,
+    SheetFooter,
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
@@ -30,8 +31,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import WalletHistory from '@/routes/finance/wallet-history';
-import { destroy as bulkDestroy } from '@/routes/finance/wallet-history/bulk';
+import WalletHistory, { show as showReceipt } from '@/routes/finance/wallet-history';
 
 type PatientOption = { slug: string; label: string; wallet: number };
 type Method = { id: number; name: string };
@@ -106,13 +106,22 @@ function emptyForm(): Form {
     };
 }
 
+type Stats = {
+    total_credit: number;
+    total_debit: number;
+    total_count: number;
+    net_balance: number;
+};
+
 export default function WalletHistoryIndex({
     histories,
+    stats,
     methods,
     coupons,
     filters,
 }: {
     histories: Paginator;
+    stats: Stats;
     methods: Method[];
     coupons: Coupon[];
     filters: Filters;
@@ -123,7 +132,6 @@ export default function WalletHistoryIndex({
     const [form, setForm] = useState<Form>(emptyForm());
     const [editing, setEditing] = useState<History | null>(null);
     const [deleting, setDeleting] = useState<History | null>(null);
-    const [selected, setSelected] = useState<number[]>([]);
     const [open, setOpen] = useState(false);
     const [viewing, setViewing] = useState<History | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -323,8 +331,8 @@ export default function WalletHistoryIndex({
         setOpen(true);
     };
 
-    const submit = (event: React.FormEvent) => {
-        event.preventDefault();
+    const submit = (event?: React.FormEvent) => {
+        event?.preventDefault();
         setError(null);
 
         const payload = {
@@ -340,7 +348,6 @@ export default function WalletHistoryIndex({
 
         const options = {
             preserveScroll: true,
-            onSuccess: () => setOpen(false),
             onError: (errors: Record<string, string>) => {
                 setError(Object.values(errors)[0] ?? 'Something went wrong.');
             },
@@ -374,20 +381,33 @@ export default function WalletHistoryIndex({
             );
     };
 
-    const removeSelected = () =>
-        router.delete(bulkDestroy.url(team), {
-            data: { ids: selected },
-            preserveScroll: true,
-            onSuccess: () => setSelected([]),
-        });
 
-    const printReceipt = () => {
-        const cleanup = () =>
-            document.body.classList.remove('printing-wallet-history');
-        document.body.classList.add('printing-wallet-history');
-        window.addEventListener('afterprint', cleanup, { once: true });
-        window.print();
-    };
+    const statCards = [
+        {
+            label: 'Total Deposits',
+            value: stats.total_credit,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+        },
+        {
+            label: 'Total Withdrawals',
+            value: stats.total_debit,
+            icon: TrendingDown,
+            color: 'text-rose-600',
+        },
+        {
+            label: 'Transactions',
+            value: stats.total_count,
+            icon: WalletCards,
+            color: 'text-blue-600',
+        },
+        {
+            label: 'Net Balance',
+            value: stats.net_balance,
+            icon: Calculator,
+            color: 'text-amber-600',
+        },
+    ];
 
     return (
         <>
@@ -457,38 +477,40 @@ export default function WalletHistoryIndex({
                             }
                         />
                     </div>
-                    {selected.length > 0 && (
-                        <Button variant="destructive" onClick={removeSelected}>
-                            Delete selected ({selected.length})
-                        </Button>
-                    )}
                 </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {statCards.map((card) => {
+                        const Icon = card.icon;
+                        return (
+                            <Card key={card.label}>
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`rounded-lg p-2 bg-muted`}>
+                                            <Icon className={`h-4 w-4 ${card.color}`} />
+                                        </div>
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            {card.label}
+                                        </CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold tabular-nums">
+                                        {card.label === 'Transactions'
+                                            ? card.value.toLocaleString()
+                                            : `₦${card.value.toLocaleString()}`}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </div>
+
                 <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>
-                                        <input
-                                            aria-label="Select all"
-                                            type="checkbox"
-                                            checked={
-                                                histories.data.length > 0 &&
-                                                histories.data.every((row) =>
-                                                    selected.includes(row.id),
-                                                )
-                                            }
-                                            onChange={(event) =>
-                                                setSelected(
-                                                    event.target.checked
-                                                        ? histories.data.map(
-                                                            (row) => row.id,
-                                                        )
-                                                        : [],
-                                                )
-                                            }
-                                        />
-                                    </TableHead>
                                     <TableHead>Hospital no.</TableHead>
                                     <TableHead>Patient</TableHead>
                                     <TableHead>User</TableHead>
@@ -507,29 +529,6 @@ export default function WalletHistoryIndex({
                                 {histories.data.length ? (
                                     histories.data.map((row) => (
                                         <TableRow key={row.id}>
-                                            <TableCell>
-                                                <input
-                                                    aria-label={`Select transaction ${row.id}`}
-                                                    type="checkbox"
-                                                    checked={selected.includes(
-                                                        row.id,
-                                                    )}
-                                                    onChange={(event) =>
-                                                        setSelected(
-                                                            event.target.checked
-                                                                ? [
-                                                                    ...selected,
-                                                                    row.id,
-                                                                ]
-                                                                : selected.filter(
-                                                                    (id) =>
-                                                                        id !==
-                                                                        row.id,
-                                                                ),
-                                                        )
-                                                    }
-                                                />
-                                            </TableCell>
                                             <TableCell>{row.patientId}</TableCell>
                                             <TableCell>
                                                 {row.patientName ?? '—'}
@@ -580,29 +579,12 @@ export default function WalletHistoryIndex({
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuItem
-                                                            onClick={() =>
-                                                                setViewing(row)
-                                                            }
+                                                            asChild
                                                         >
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            View
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                startEdit(row)
-                                                            }
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            variant="destructive"
-                                                            onClick={() =>
-                                                                setDeleting(row)
-                                                            }
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete
+                                                            <a href={showReceipt({ wallet_history: row.id }).url}>
+                                                                <FileText className="mr-2 h-4 w-4" />
+                                                                Receipt
+                                                            </a>
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -612,11 +594,31 @@ export default function WalletHistoryIndex({
                                 ) : (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={11}
+                                            colSpan={10}
                                             className="py-10 text-center text-muted-foreground"
                                         >
                                             No wallet transactions found.
                                         </TableCell>
+                                    </TableRow>
+                                )}
+                                {histories.data.length > 0 && (
+                                    <TableRow className="font-semibold">
+                                        <TableCell colSpan={5} className="text-right">
+                                            Totals
+                                        </TableCell>
+                                        <TableCell>
+                                            ₦
+                                            {histories.data
+                                                .reduce((sum, row) => sum + row.credit, 0)
+                                                .toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            ₦
+                                            {histories.data
+                                                .reduce((sum, row) => sum + row.debit, 0)
+                                                .toLocaleString()}
+                                        </TableCell>
+                                        <TableCell colSpan={3} />
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -639,7 +641,7 @@ export default function WalletHistoryIndex({
             <Sheet open={open} onOpenChange={(isOpen) => {
                 if (!isOpen) setOpen(false);
             }}>
-                <SheetContent className="overflow-y-auto sm:max-w-xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
                             {editing
@@ -651,7 +653,7 @@ export default function WalletHistoryIndex({
                             deposit credit.
                         </SheetDescription>
                     </SheetHeader>
-                    <form onSubmit={submit} className="mt-4 space-y-5">
+                    <form onSubmit={submit} className="space-y-4 px-4 py-5">
                         {/* Patient search */}
                         <div className="space-y-2" ref={(el) => {
                             patientSearchContainerRef.current = el;
@@ -698,7 +700,7 @@ export default function WalletHistoryIndex({
                                     />
                                 )}
                                 {patientSearchOpen && !form.patient_id && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-background shadow-lg">
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
                                         {patientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
@@ -853,7 +855,7 @@ export default function WalletHistoryIndex({
                                             />
                                         )}
                                         {walletPatientSearchOpen && !form.wallet_patient_id && (
-                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-background shadow-lg">
+                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
                                                 {walletPatientSearchLoading && (
                                                     <div className="px-3 py-2 text-xs text-muted-foreground">
                                                         Searching…
@@ -970,25 +972,23 @@ export default function WalletHistoryIndex({
                             </div>
                         )}
 
-                        {error && (
-                            <div className="rounded-md bg-destructive/10 p-3">
-                                <p className="text-sm text-destructive">{error}</p>
-                            </div>
-                        )}
+                        {error ? (
+                            <p className="text-sm text-destructive">{error}</p>
+                        ) : null}
 
-                        <div className="flex justify-end gap-2 pt-4 border-t">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setOpen(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit">
-                                {editing ? 'Update' : 'Save'} transaction
-                            </Button>
-                        </div>
                     </form>
+                    <SheetFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={submit}>
+                            {editing ? 'Update' : 'Save'} transaction
+                        </Button>
+                    </SheetFooter>
                 </SheetContent>
             </Sheet>
 
@@ -1077,14 +1077,6 @@ export default function WalletHistoryIndex({
                             </div>
                         )}
                         <div className="space-y-1 border-b pb-2 text-sm">
-                            {viewing.credit > 0 && (
-                                <p className="flex justify-between">
-                                    <span>Credit</span>
-                                    <strong>
-                                        ₦{viewing.credit.toLocaleString()}
-                                    </strong>
-                                </p>
-                            )}
                             {viewing.debit > 0 && (
                                 <p className="flex justify-between">
                                     <span>Debit</span>
@@ -1096,7 +1088,7 @@ export default function WalletHistoryIndex({
                             <p className="flex justify-between">
                                 <span>Balance after transaction</span>
                                 <strong>
-                                    ₦{viewing.balance.toLocaleString()}
+                                    ₦{viewing.patientWallet.toLocaleString()}
                                 </strong>
                             </p>
                         </div>
@@ -1104,11 +1096,6 @@ export default function WalletHistoryIndex({
                             <strong>Recorded by:</strong>{' '}
                             {viewing.userName ?? '—'}
                         </p>
-                        <div className="no-print flex justify-end">
-                            <Button onClick={printReceipt}>
-                                Print receipt
-                            </Button>
-                        </div>
                         <p className="text-center text-xs">** THANK YOU **</p>
                     </div>
                 </div>

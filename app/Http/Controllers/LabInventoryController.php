@@ -54,6 +54,12 @@ class LabInventoryController extends Controller
             'currencySymbol' => DashboardCurrency::symbol(),
             'inventories' => $inventories,
             'filters' => $filters,
+            'summary' => [
+                'products' => LabInventory::query()->count(),
+                'lowStock' => LabInventory::query()->whereColumn('quantity', '<=', 'min_qty')->count(),
+                'expired' => LabInventory::query()->whereNotNull('expires_at')->whereDate('expires_at', '<', today())->count(),
+                'expiring' => LabInventory::query()->whereBetween('expires_at', [today(), today()->addDays(30)])->count(),
+            ],
             'formOptions' => [
                 'priceLists' => PriceList::query()
                     ->where('is_category', false)

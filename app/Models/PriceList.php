@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
@@ -43,7 +44,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PriceList extends Model
 {
     /** @use HasFactory<PriceListFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     use SoftDeletes;
 

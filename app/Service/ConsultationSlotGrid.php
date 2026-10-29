@@ -37,7 +37,7 @@ final class ConsultationSlotGrid
 
             $slots[] = [
                 'start' => $start,
-                'label' => $start->format('H:i'),
+                'label' => $start->format('g:i A'),
                 'status' => self::status($start, $end, $busy, $now),
             ];
         }

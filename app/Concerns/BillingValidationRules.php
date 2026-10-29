@@ -25,7 +25,7 @@ trait BillingValidationRules
                 'required',
                 'integer',
                 Rule::exists(Billing::class, 'id')->where(
-                    fn ($query) => $query->where('team_id', $teamId)->where('status', 'billed')
+                    fn ($query) => $query->where('team_id', $teamId)->whereIn('status', ['billed', 'scheduled'])
                 ),
             ],
             'payments' => ['required', 'array', 'min:1'],

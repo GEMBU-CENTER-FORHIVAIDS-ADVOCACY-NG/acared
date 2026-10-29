@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -42,6 +45,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  */
 class Nursing extends Model
 {
+    use LogsActivity, LogsActivityWithPatient;
+
     protected $guarded = [];
 
     /**
@@ -178,6 +183,49 @@ class Nursing extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
         ];
+    }
+
+    public function calendarState(): string
+    {
+        $now = now();
+        $startsAt = $this->starts_at ?? $this->created_at ?? $now;
+        $endsAt = $this->ends_at ?? $startsAt->copy()->addMinutes(30);
+
+        if ($this->status === 'in_progress' || ($startsAt->lessThanOrEqualTo($now) && $endsAt->greaterThanOrEqualTo($now))) {
+            return 'active';
+        }
+
+        if (! $startsAt->isToday() && $startsAt->isPast()) {
+            return 'past';
+        }
+
+        return 'future';
+    }
+
+    public function calendarColor(): string
+    {
+        return match ($this->calendarState()) {
+            'active' => '#22c55e',
+            'past' => '#f59e0b',
+            default => '#ef4444',
+        };
+    }
+
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'scheduled' => 'warning',
+            'in_progress' => 'info',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+            default => 'gray',
+        };
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void

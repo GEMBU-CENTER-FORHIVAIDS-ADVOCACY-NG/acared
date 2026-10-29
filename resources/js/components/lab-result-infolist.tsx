@@ -21,6 +21,8 @@ function ParameterResultTable({ rows }: { rows: LabResultParameterRow[] }) {
         return <p className="text-sm text-muted-foreground">No parameters.</p>;
     }
 
+    const hasUom = rows.some((row) => row.result_type !== 'select' && row.result_type !== 'radio');
+
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -32,29 +34,36 @@ function ParameterResultTable({ rows }: { rows: LabResultParameterRow[] }) {
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">
                             Range
                         </th>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                            UOM
-                        </th>
                         <th className="px-3 py-2 text-left font-bold text-foreground">
                             Result
                         </th>
+                        {hasUom ? (
+                            <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                                UOM
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
-                        <tr key={row.price_list_id} className="border-b last:border-0">
-                            <td className="px-3 py-2">{row.name}</td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                                {row.range ?? '—'}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                                {row.uom ?? '—'}
-                            </td>
-                            <td className="px-3 py-2 font-bold">
-                                {row.result ?? '—'}
-                            </td>
-                        </tr>
-                    ))}
+                    {rows.map((row) => {
+                        const hideUom = row.result_type === 'select' || row.result_type === 'radio';
+                        return (
+                            <tr key={row.price_list_id} className="border-b last:border-0">
+                                <td className="px-3 py-2">{row.name}</td>
+                                <td className="px-3 py-2 text-muted-foreground">
+                                    {row.range ?? '—'}
+                                </td>
+                                <td className="px-3 py-2 font-bold">
+                                    {row.result ?? '—'}
+                                </td>
+                                {hasUom ? (
+                                    <td className="px-3 py-2 text-muted-foreground">
+                                        {!hideUom ? (row.uom ?? '—') : null}
+                                    </td>
+                                ) : null}
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -62,12 +71,13 @@ function ParameterResultTable({ rows }: { rows: LabResultParameterRow[] }) {
 }
 
 function SimpleResultDisplay({ test }: { test: LabResultTest }) {
+    const hideUom = test.result_type === 'select' || test.result_type === 'radio';
     return (
         <div className="flex items-center justify-between gap-4 rounded-lg px-3 py-2 bg-muted/50">
             <span className="text-sm text-muted-foreground">{test.name}</span>
             <div className="flex items-center gap-2">
                 <span className="text-sm font-bold">{test.result ?? '—'}</span>
-                {test.unit ? (
+                {!hideUom && test.unit ? (
                     <span className="text-xs text-muted-foreground">{test.unit}</span>
                 ) : null}
             </div>

@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Banknote, Coins, CreditCard, UserMinus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import Heading from '@/components/heading';
@@ -548,21 +549,25 @@ export default function BillingIndex({
             label: 'Total Billed',
             value: stats.total_billed,
             count: stats.total_billed_count,
+            icon: Banknote,
         },
         {
             label: 'Collected',
             value: stats.collected,
             count: stats.collected_count,
+            icon: Coins,
         },
         {
             label: 'Awaiting Payment',
             value: stats.awaiting_payment,
             count: stats.awaiting_payment_count,
+            icon: CreditCard,
         },
         {
             label: 'Wallet Debts',
             value: stats.wallet_debts,
             count: stats.wallet_debts_count,
+            icon: UserMinus,
         },
     ];
 
@@ -571,23 +576,25 @@ export default function BillingIndex({
             <Head title="Billings" />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Heading
-                        variant="small"
-                        title="Billings"
-                        description="Collect payment against billed invoices."
-                    />
-                    <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            data-test="new-billing"
-                            onClick={openNewBilling}
-                        >
-                            New Billing
-                        </Button>
-                        <Button asChild variant="secondary">
-                            <Link href={history(teamSlug).url}>History</Link>
-                        </Button>
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <Heading
+                            variant="small"
+                            title="Billings"
+                            description="Collect payment against billed invoices."
+                        />
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                data-test="new-billing"
+                                onClick={openNewBilling}
+                            >
+                                New Billing
+                            </Button>
+                            <Button asChild variant="secondary">
+                                <Link href={history(teamSlug).url}>History</Link>
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
@@ -623,21 +630,28 @@ export default function BillingIndex({
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {statCards.map((card) => (
-                        <div
-                            key={card.label}
-                            className="rounded-lg border p-4"
-                            data-test="billing-stat"
-                        >
-                            <p className="text-sm text-muted-foreground">
-                                {card.label} ({card.count})
-                            </p>
-                            <p className="text-2xl font-semibold">
-                                {currencySymbol} {card.value.toLocaleString()}
-                            </p>
-                        </div>
-                    ))}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {statCards.map((card) => {
+                        const Icon = card.icon;
+                        return (
+                            <Card key={card.label} data-test="billing-stat">
+                                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        {card.label}
+                                    </CardTitle>
+                                    <Icon className="size-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold tabular-nums">
+                                        {currencySymbol} {card.value.toLocaleString()}
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {card.count} bill{card.count !== 1 ? 's' : ''}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
 
                 <Card>

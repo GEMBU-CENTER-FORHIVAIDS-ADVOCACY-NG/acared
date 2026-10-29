@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
@@ -44,7 +45,7 @@ use Illuminate\Support\Facades\Storage;
 class Team extends Model
 {
     /** @use HasFactory<TeamFactory> */
-    use GeneratesUniqueTeamSlugs, HasFactory, SoftDeletes;
+    use GeneratesUniqueTeamSlugs, HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * Bootstrap the model and its traits.

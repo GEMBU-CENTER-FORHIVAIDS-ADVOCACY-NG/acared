@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\ActivityLogReportController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategorySalesReportController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClinicalReportController;
+use App\Http\Controllers\ConnectionBadgePingController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationRecordController;
 use App\Http\Controllers\CouponController;
@@ -16,6 +19,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LabIntakeController;
 use App\Http\Controllers\LabInventoryController;
 use App\Http\Controllers\LaboratoryController;
+use App\Http\Controllers\LaboratoryTestsReportController;
 use App\Http\Controllers\NursingController;
 use App\Http\Controllers\OperationalReportController;
 use App\Http\Controllers\PatientController;
@@ -43,6 +47,8 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 
 Route::get('/forbidden', [ErrorController::class, 'forbidden'])->name('forbidden');
+
+Route::get('_connection-badge/ping', ConnectionBadgePingController::class)->name('connection-badge.ping');
 
 Route::prefix('{current_team}')
     ->middleware(['auth', 'verified', EnsureTeamMembership::class])
@@ -135,8 +141,11 @@ Route::prefix('{current_team}')
             Route::get('reports/price-list/export', [OperationalReportController::class, 'exportPriceList'])->name('reports.price-list.export');
             Route::get('reports/laboratory', [FinanceController::class, 'laboratory'])->name('reports.laboratory');
             Route::get('reports/laboratory/export', [FinanceController::class, 'exportLaboratory'])->name('reports.laboratory.export');
+            Route::get('reports/laboratory-tests', [LaboratoryTestsReportController::class, 'index'])->name('reports.laboratory-tests.index');
+            Route::get('reports/laboratory-tests/export', [LaboratoryTestsReportController::class, 'export'])->name('reports.laboratory-tests.export');
             Route::get('reports/stock/{report}/export', [StockReportController::class, 'export'])->name('reports.stock.export');
             Route::get('reports/stock/{report?}', [StockReportController::class, 'index'])->name('reports.stock.index');
+            Route::get('reports/activity-logs', [ActivityLogReportController::class, 'index'])->name('reports.activity-logs.index');
         });
 
         // Laboratories
@@ -243,6 +252,7 @@ Route::prefix('{current_team}')
 
         // Nursing
         Route::middleware('permission:view nursing')->group(function () {
+            Route::get('nursing/admissions', [WardRoundController::class, 'admissionsIndex'])->name('nursing.admissions.index');
             Route::get('nursing/wards', [WardController::class, 'index'])->name('nursing.wards.index');
             Route::get('nursing/ward-rounds', [WardRoundController::class, 'index'])->name('nursing.ward-rounds.index');
             Route::get('nursing/ward-rounds/{ward}', [WardRoundController::class, 'show'])->name('nursing.ward-rounds.show');
@@ -253,7 +263,12 @@ Route::prefix('{current_team}')
             Route::post('nursing/ward-rounds/{ward}/admit', [WardRoundController::class, 'admit'])->name('nursing.ward-rounds.admit');
             Route::patch('nursing/ward-rounds/admissions/{admission}/discharge', [WardRoundController::class, 'discharge'])->name('nursing.ward-rounds.discharge');
             Route::get('nursing/records', [NursingController::class, 'index'])->name('nursing.records.index');
+            Route::get('nursing/records/history', [NursingController::class, 'history'])->name('nursing.records.history');
             Route::get('nursing/records/{nursing}/{section?}', [NursingController::class, 'view'])->name('nursing.records.view');
+            Route::patch('nursing/records/{nursing}/start', [NursingController::class, 'start'])
+                ->name('nursing.records.start');
+            Route::patch('nursing/records/{nursing}/end', [NursingController::class, 'end'])
+                ->name('nursing.records.end');
             Route::post('nursing/records/{nursing}/records/{type}', [ConsultationRecordController::class, 'storeForNursing'])->name('nursing.records.records.store');
             Route::patch('nursing/records/{nursing}/records/{type}/{record}', [ConsultationRecordController::class, 'updateForNursing'])->name('nursing.records.records.update');
             Route::delete('nursing/records/{nursing}/records/{type}/{record}', [ConsultationRecordController::class, 'destroyForNursing'])->name('nursing.records.records.destroy');
@@ -272,6 +287,7 @@ Route::prefix('{current_team}')
         // Finance (Wallet History)
         Route::middleware('permission:view finance')->group(function () {
             Route::get('finance/wallet-history', [WalletHistoryController::class, 'index'])->name('finance.wallet-history.index');
+            Route::get('finance/wallet-history/{wallet_history}', [WalletHistoryController::class, 'show'])->name('finance.wallet-history.show');
             Route::get('finance/wallet-history/patients/search', [WalletHistoryController::class, 'searchPatients'])->name('finance.wallet-history.patients.search');
             Route::post('finance/wallet-history', [WalletHistoryController::class, 'store'])->name('finance.wallet-history.store');
             Route::delete('finance/wallet-history/bulk', [WalletHistoryController::class, 'bulkDestroy'])->name('finance.wallet-history.bulk.destroy');
@@ -331,6 +347,12 @@ Route::prefix('{current_team}')
             Route::patch('coupons/{coupon}', [CouponController::class, 'update'])->name('coupons.update');
             Route::delete('coupons/{coupon}', [CouponController::class, 'destroy'])->name('coupons.destroy');
         });
+
+        // Chat
+        Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
+        Route::post('chat/conversations', [ChatController::class, 'store'])->name('chat.conversations.store');
+        Route::get('chat/conversations/{conversation}', [ChatController::class, 'show'])->name('chat.conversations.show');
+        Route::post('chat/conversations/{conversation}/messages', [ChatController::class, 'message'])->name('chat.conversations.messages.store');
     });
 
 Route::middleware(['auth'])->group(function () {

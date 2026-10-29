@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Markup extends Model
 {
     /** @use HasFactory<MarkupFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $guarded = [];
 

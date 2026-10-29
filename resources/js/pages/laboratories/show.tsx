@@ -5,7 +5,9 @@ import LabResultFields, {
     emptyResultValues,
 } from '@/components/lab-result-fields';
 import LabResultInfolist from '@/components/lab-result-infolist';
+import LabResultPrintDiv from '@/components/lab-result-print-div';
 import Heading from '@/components/heading';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -37,6 +39,7 @@ export default function LaboratoryShow({
     const [values, setValues] = useState(emptyResultValues());
     const [processing, setProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [printing, setPrinting] = useState(false);
 
     function baseUrl(path = '') {
         return `/${teamSlug}/laboratories${path}`;
@@ -62,11 +65,22 @@ export default function LaboratoryShow({
     }
 
     function printResult() {
-        const cleanup = () =>
-            document.body.classList.remove('printing-lab-result');
-        document.body.classList.add('printing-lab-result');
-        window.addEventListener('afterprint', cleanup, { once: true });
-        window.print();
+        setPrinting(true);
+        // Allow the print div to render before calling print
+        setTimeout(() => {
+            document.body.classList.add('printing-lab-result');
+            window.print();
+
+            // Cleanup after print dialog closes
+            const cleanup = () => {
+                document.body.classList.remove('printing-lab-result');
+                setPrinting(false);
+                window.removeEventListener('afterprint', cleanup);
+            };
+            window.addEventListener('afterprint', cleanup);
+            // Fallback cleanup in case afterprint doesn't fire
+            setTimeout(cleanup, 1000);
+        }, 100);
     }
 
     return (
@@ -126,56 +140,16 @@ export default function LaboratoryShow({
                     ))}
                 </div>
 
-                {/* Print-only wrapper for invoice header and results card */}
-                <div className="hidden lab-result-print-wrapper">
-                    <div className="lab-result-print-header">
-                        <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 4px 0' }}>
-                            {currentTeam?.name ?? 'Facility'}
-                        </h1>
-                        <p style={{ fontSize: '12px', margin: '0 0 12px 0', color: '#666' }}>
-                            {laboratory.facilityAddress ?? ''}
-                        </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', marginBottom: '12px' }}>
-                            <div>
-                                <span style={{ color: '#666' }}>Lab No.:</span>{' '}
-                                <strong>{laboratory.id}</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: '#666' }}>Date:</span>{' '}
-                                <strong>
-                                    {laboratory.createdAt
-                                        ? new Date(laboratory.createdAt).toLocaleString()
-                                        : '—'}
-                                </strong>
-                            </div>
-                            <div>
-                                <span style={{ color: '#666' }}>Patient:</span>{' '}
-                                <strong>{laboratory.patientName ?? '—'}</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: '#666' }}>Hospital No.:</span>{' '}
-                                <strong>{laboratory.patientId}</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: '#666' }}>Doctor:</span>{' '}
-                                <strong>{laboratory.doctorName ?? '—'}</strong>
-                            </div>
-                        </div>
-                        <hr style={{ border: 'none', borderTop: '2px solid #000', margin: '12px 0' }} />
-                    </div>
-
-                    <Card className="lab-result-print">
+                {/* Results card */}
+                <div>
+                    <Card>
                     <CardHeader>
-                        <CardTitle>Results</CardTitle>
-                        <CardDescription>
-                            Status:{' '}
-                            <span className="capitalize">
+                        <div className="flex items-center justify-between">
+                            <CardTitle>Results</CardTitle>
+                            <Badge variant="secondary" className="capitalize">
                                 {laboratory.status}
-                            </span>
-                            {' · '}
-                            Total: {currencySymbol}{' '}
-                            {laboratory.total.toLocaleString()}
-                        </CardDescription>
+                            </Badge>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {editing ? (
@@ -204,6 +178,16 @@ export default function LaboratoryShow({
                     </CardContent>
                 </Card>
                 </div>
+
+                {/* Print div overlay */}
+                {printing && (
+                    <LabResultPrintDiv
+                        laboratory={laboratory}
+                        resultForm={resultForm}
+                        facilityName={laboratory.facilityName ?? 'Facility'}
+                        facilityAddress={laboratory.facilityAddress ?? ''}
+                    />
+                )}
             </div>
         </>
     );

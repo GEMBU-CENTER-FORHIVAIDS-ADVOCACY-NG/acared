@@ -17,7 +17,7 @@ test('the reports catalog lists the financial and clinical reports', function ()
         ->assertInertia(fn ($page) => $page
             ->component('reports/catalog')
             ->has('groups', 2)
-            ->has('groups.0.reports', 8)
+            ->has('groups.0.reports', 11)
             ->has('groups.1.reports', 3)
             ->where('groups.0.key', 'financial')
             ->where('groups.1.key', 'clinical')
@@ -32,9 +32,9 @@ test('the financial reports catalog renders all financial reports', function () 
         ->get('/'.$user->currentTeam->slug.'/reports/financial')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('reports/financial/catalog')
-            ->has('reports', 8)
-            ->where('reports.0.key', 'finance'));
+            ->component('reports/finance')
+            ->has('stats')
+            ->has('revenue.datasets', 5));
 });
 
 test('the clinical reports catalog renders all clinical reports', function () {
@@ -44,7 +44,7 @@ test('the clinical reports catalog renders all clinical reports', function () {
         ->get('/'.$user->currentTeam->slug.'/reports/clinical')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('reports/clinical/catalog')
-            ->has('reports', 3)
+            ->component('reports/clinical/index')
+            ->has('dashboard')
             ->where('reports.complaints', 'Complaints report'));
 });

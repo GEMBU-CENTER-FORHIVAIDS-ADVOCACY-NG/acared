@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithInventory;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -29,6 +32,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PurchaseOrder extends Model
 {
+    use LogsActivity, LogsActivityWithInventory;
+
     protected $guarded = [];
 
     /**
@@ -61,6 +66,12 @@ class PurchaseOrder extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->inventoryDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SelectNative } from '@/components/ui/select-native';
 import {
     Select,
     SelectContent,
@@ -348,30 +349,26 @@ export function ConsultationRecordForm({
                                             {values.lines.map((line, index) => (
                                                 <tr key={index}>
                                                     <td className="px-4 py-2">
-                                                        <Select
+                                                        <SelectNative
                                                             value={line.price_list_id}
-                                                            onValueChange={(value) =>
+                                                            placeholder="Select test…"
+                                                            onChange={(event) =>
                                                                 setLine(
                                                                     index,
                                                                     'price_list_id',
-                                                                    value,
+                                                                    event.target.value,
                                                                 )
                                                             }
                                                         >
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select test…" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {linePriceLists.map((item) => (
-                                                                    <SelectItem
-                                                                        key={item.id}
-                                                                        value={String(item.id)}
-                                                                    >
-                                                                        {item.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            {linePriceLists.map((item) => (
+                                                                <option
+                                                                    key={item.id}
+                                                                    value={String(item.id)}
+                                                                >
+                                                                    {item.name}
+                                                                </option>
+                                                            ))}
+                                                        </SelectNative>
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         <Input
@@ -527,30 +524,26 @@ export function ConsultationRecordForm({
                                     key={index}
                                     className="space-y-3 rounded-md border p-3"
                                 >
-                                    <Select
+                                    <SelectNative
                                         value={line.price_list_id}
-                                        onValueChange={(value) =>
+                                        placeholder="Select drug…"
+                                        onChange={(event) =>
                                             setLine(
                                                 index,
                                                 'price_list_id',
-                                                value,
+                                                event.target.value,
                                             )
                                         }
                                     >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select item" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {linePriceLists.map((item) => (
-                                                <SelectItem
-                                                    key={item.id}
-                                                    value={String(item.id)}
-                                                >
-                                                    {item.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        {linePriceLists.map((item) => (
+                                            <option
+                                                key={item.id}
+                                                value={String(item.id)}
+                                            >
+                                                {item.name}
+                                            </option>
+                                        ))}
+                                    </SelectNative>
 
                                     <div className="grid grid-cols-2 gap-3">
                                         {type === 'vital-signs' ? (
@@ -573,43 +566,27 @@ export function ConsultationRecordForm({
                                             <>
                                                 <div>
                                                     <Label>Frequency</Label>
-                                                    <Select
+                                                    <SelectNative
                                                         value={line.frequency}
-                                                        onValueChange={(
-                                                            value,
-                                                        ) =>
+                                                        onChange={(event) =>
                                                             setLine(
                                                                 index,
                                                                 'frequency',
-                                                                value,
+                                                                event.target.value,
                                                             )
                                                         }
                                                     >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="OD" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="1.00">
-                                                                OD
-                                                            </SelectItem>
-                                                            <SelectItem value="2.00">
-                                                                BID
-                                                            </SelectItem>
-                                                            <SelectItem value="3.00">
-                                                                TID
-                                                            </SelectItem>
-                                                            <SelectItem value="4.00">
-                                                                QID
-                                                            </SelectItem>
-                                                            <SelectItem value="5.00">
-                                                                5x D
-                                                            </SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                        <option value="1.00">OD</option>
+                                                        <option value="2.00">BID</option>
+                                                        <option value="3.00">TID</option>
+                                                        <option value="4.00">QID</option>
+                                                        <option value="5.00">5x D</option>
+                                                    </SelectNative>
                                                 </div>
                                                 <div>
-                                                    <Label>Duration</Label>
+                                                    <Label>Duration (days)</Label>
                                                     <Input
+                                                        type="number"
                                                         value={line.duration}
                                                         onChange={(event) =>
                                                             setLine(
@@ -622,8 +599,9 @@ export function ConsultationRecordForm({
                                                     />
                                                 </div>
                                                 <div>
-                                                    <Label>Dosage</Label>
+                                                    <Label>Dosage (units)</Label>
                                                     <Input
+                                                        type="number"
                                                         value={line.dosage}
                                                         onChange={(event) =>
                                                             setLine(

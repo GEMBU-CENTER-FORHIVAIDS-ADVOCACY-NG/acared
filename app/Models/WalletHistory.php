@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -30,6 +33,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  */
 class WalletHistory extends Model
 {
+    use LogsActivity, LogsActivityWithPatient;
+
     protected $guarded = [];
 
     /**
@@ -78,6 +83,12 @@ class WalletHistory extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void

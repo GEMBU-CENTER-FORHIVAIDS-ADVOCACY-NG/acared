@@ -123,46 +123,32 @@ export default function PriceListReport({
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Name</TableHead>
                                 <TableHead>Category</TableHead>
-                                <TableHead>Subcategory</TableHead>
+                                <TableHead>Name</TableHead>
                                 <TableHead>Price</TableHead>
-                                <TableHead>Unit</TableHead>
-                                <TableHead>Type</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {items.data.length ? (
                                 items.data.map((item) => (
                                     <TableRow key={item.id}>
-                                        <TableCell className="font-medium">
-                                            {item.name}
-                                        </TableCell>
                                         <TableCell>
                                             {item.category ?? '—'}
                                         </TableCell>
-                                        <TableCell>
-                                            {item.subcategory ?? '—'}
+                                        <TableCell className="font-medium">
+                                            {item.name}
                                         </TableCell>
                                         <TableCell>
                                             {item.isCategory
                                                 ? '—'
                                                 : `${currencySymbol} ${item.price.toLocaleString()}`}
                                         </TableCell>
-                                        <TableCell>{item.uom ?? '—'}</TableCell>
-                                        <TableCell>
-                                            {item.isCategory
-                                                ? 'Category'
-                                                : item.isInventory
-                                                  ? 'Inventory item'
-                                                  : 'Service'}
-                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={6}
+                                        colSpan={3}
                                         className="py-10 text-center text-muted-foreground"
                                     >
                                         No price list items found.

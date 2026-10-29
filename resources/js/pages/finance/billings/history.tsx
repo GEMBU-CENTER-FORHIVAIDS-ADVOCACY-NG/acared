@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Banknote, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import ConfirmDialog from '@/components/confirm-dialog';
@@ -7,7 +7,12 @@ import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -123,26 +128,36 @@ export default function BillingHistory({
             <Head title="Billing history" />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Heading
-                        variant="small"
-                        title="Billing history"
-                        description="Paid billings and collected revenue."
-                    />
-                    <Button asChild data-test="record-payment">
-                        <Link href={index(teamSlug).url}>Record payment</Link>
-                    </Button>
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <Heading
+                            variant="small"
+                            title="Billing history"
+                            description="Paid billings and collected revenue."
+                        />
+                        <Button asChild data-test="record-payment">
+                            <Link href={index(teamSlug).url}>Record payment</Link>
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border p-4">
-                        <p className="text-sm text-muted-foreground">
-                            Collections ({summary.count})
-                        </p>
-                        <p className="text-2xl font-semibold">
-                            {currencySymbol} {summary.total.toLocaleString()}
-                        </p>
-                    </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Card>
+                        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                                Collections
+                            </CardTitle>
+                            <Banknote className="size-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-semibold tabular-nums">
+                                {currencySymbol} {summary.total.toLocaleString()}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {summary.count} billing{summary.count !== 1 ? 's' : ''}
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="flex flex-wrap items-end gap-2">

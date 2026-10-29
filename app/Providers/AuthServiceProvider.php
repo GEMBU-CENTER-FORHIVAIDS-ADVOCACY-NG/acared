@@ -77,8 +77,11 @@ use App\Policies\VitalPolicy;
 use App\Policies\WalletHistoryPolicy;
 use App\Policies\WardPolicy;
 use App\Support\PermissionRegistrar;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -155,6 +158,41 @@ class AuthServiceProvider extends ServiceProvider
                 : 'App\\Models\\'.$modelClass;
 
             return 'App\\Policies\\'.class_basename($modelClass).'Policy';
+        });
+
+        // Log authentication events to activity log
+        $this->listenForAuthEvents();
+    }
+
+    /**
+     * Listen for authentication events and log them to the activity log.
+     */
+    protected function listenForAuthEvents(): void
+    {
+        Event::listen(function (Login $event): void {
+            $user = $event->user;
+
+            if ($user !== null && method_exists($user, 'wasChanged')) {
+                activity()->causedBy($user)->event('logged_in')->log('User logged in');
+            }
+
+            // Mark user as online
+            if ($user !== null) {
+                $user->forceFill(['is_online' => true])->save();
+            }
+        });
+
+        Event::listen(function (Logout $event): void {
+            $user = $event->user;
+
+            if ($user !== null && method_exists($user, 'wasChanged')) {
+                activity()->causedBy($user)->event('logged_out')->log('User logged out');
+            }
+
+            // Mark user as offline
+            if ($user !== null) {
+                $user->forceFill(['is_online' => false])->save();
+            }
         });
     }
 

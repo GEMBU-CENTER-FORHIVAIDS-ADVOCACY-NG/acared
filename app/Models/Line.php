@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Database\Factories\LineFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -42,7 +45,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 class Line extends Model
 {
     /** @use HasFactory<LineFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity, LogsActivityWithPatient;
 
     protected $guarded = [];
 
@@ -96,6 +99,12 @@ class Line extends Model
     public function testResults(): HasMany
     {
         return $this->hasMany(TestResult::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void

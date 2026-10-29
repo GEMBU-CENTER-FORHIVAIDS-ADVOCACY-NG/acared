@@ -1,8 +1,10 @@
 export type * from './auth';
 export type * from './categories';
+export type * from './chat';
 export type * from './consultations';
 export type * from './finance';
 export type * from './laboratories';
+export type * from './nursing';
 export type * from './navigation';
 export type * from './patients';
 export type * from './reception';

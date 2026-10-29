@@ -31,7 +31,7 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return DB::transaction(function () use ($input) {
+        $user = DB::transaction(function () use ($input) {
             $user = User::create([
                 'name' => $input['name'],
                 'email' => $input['email'],
@@ -42,5 +42,9 @@ class CreateNewUser implements CreatesNewUsers
 
             return $user;
         });
+
+        activity()->causedBy($user)->event('registered')->log('User registered');
+
+        return $user;
     }
 }

@@ -1,16 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import Calendar, { plugins } from '@fullcalendar/react/all';
-import formaThemePlugin from '@fullcalendar/react/themes/forma';
-import '@fullcalendar/react/skeleton.css';
-import '@fullcalendar/react/themes/forma/theme.css';
-import '@fullcalendar/react/themes/forma/palettes/blue.css';
+import ConsultationDayTimeline from '@/components/consultation-day-timeline';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SelectNative } from '@/components/ui/select-native';
 import { index, view } from '@/routes/consultations';
 import type {
-    ConsultationEvent,
+    ConsultationDailyTimelineEvent,
     ConsultationFilters,
     ConsultationSidebar,
     ConsultationStatusOption,
@@ -21,7 +17,7 @@ type Props = {
     filters: ConsultationFilters;
     statusOptions: ConsultationStatusOption[];
     doctorOptions: DoctorOption[];
-    events: ConsultationEvent[];
+    dailyTimeline: ConsultationDailyTimelineEvent[];
     sidebar: ConsultationSidebar;
 };
 
@@ -37,22 +33,11 @@ export default function ConsultationsIndex({
     filters,
     statusOptions,
     doctorOptions,
-    events,
+    dailyTimeline,
     sidebar,
 }: Props) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
-
-    const calendarEvents = events.map((event) => ({
-        id: String(event.id),
-        title: event.title,
-        start: event.start ?? undefined,
-        end: event.end ?? undefined,
-        backgroundColor: `${event.color}1a`,
-        borderColor: event.color,
-        textColor: '#111827',
-        url: event.url,
-    }));
 
     function applyFilters(next: Partial<ConsultationFilters>) {
         const merged = { ...filters, ...next };
@@ -62,6 +47,7 @@ export default function ConsultationsIndex({
                 query: {
                     status: merged.status || undefined,
                     doctor_id: merged.doctor_id ?? undefined,
+                    date: merged.date || undefined,
                 },
             }),
             {},
@@ -148,32 +134,20 @@ export default function ConsultationsIndex({
                 <div className="grid gap-6 lg:grid-cols-3">
                     <Card className="lg:col-span-2">
                         <CardHeader>
-                            <CardTitle>Consultation calendar</CardTitle>
+                            <CardTitle>
+                                {sidebar.calendarLabel}'s schedule
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Calendar
-                                plugins={[...plugins, formaThemePlugin]}
-                                initialView="timeGridDay"
-                                headerToolbar={{
-                                    start: 'title',
-                                    center: '',
-                                    end: 'dayGridMonth,timeGridWeek,timeGridDay today prev,next',
-                                }}
-                                slotDuration="00:30:00"
-                                slotMinTime="08:00:00"
-                                slotMaxTime="18:00:00"
-                                slotMinHeight={56}
-                                displayEventTime={false}
-                                displayEventEnd={false}
-                                events={calendarEvents}
-                                height="auto"
-                            />
+                            <ConsultationDayTimeline events={dailyTimeline} />
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>{sidebar.monthLabel}</CardTitle>
+                            <CardTitle>
+                                {sidebar.calendarLabel}
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-7 gap-1 text-center text-xs">
@@ -188,13 +162,18 @@ export default function ConsultationsIndex({
                                 {sidebar.days.map((day) => (
                                     <span
                                         key={day.date}
-                                        className={`flex h-8 items-center justify-center rounded-md ${
+                                        onClick={() => {
+                                            if (day.inMonth) {
+                                                applyFilters({ date: day.date });
+                                            }
+                                        }}
+                                        className={`flex h-8 cursor-default items-center justify-center rounded-md ${
                                             day.isToday
                                                 ? 'bg-primary text-primary-foreground'
                                                 : day.hasAppointments
                                                   ? 'bg-muted font-medium'
                                                   : ''
-                                        } ${day.inMonth ? '' : 'opacity-40'}`}
+                                        } ${day.inMonth ? 'cursor-pointer hover:bg-accent' : 'opacity-40'} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
                                     >
                                         {day.day}
                                     </span>

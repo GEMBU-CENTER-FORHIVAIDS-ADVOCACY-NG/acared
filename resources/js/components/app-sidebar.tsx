@@ -7,10 +7,13 @@ import {
     ClipboardList,
     FlaskConical,
     Heart,
+    History,
     LayoutGrid,
+    MessageSquare,
     Package,
     Pill,
     ReceiptText,
+    ScrollText,
     Stethoscope,
     SwatchBook,
     Users,
@@ -56,12 +59,14 @@ import { index as inventoryStockIndex } from '@/routes/inventory/stock';
 import { index as purchaseOrdersIndex } from '@/routes/purchase-orders';
 import { index as wardsIndex } from '@/routes/nursing/wards';
 import { index as walletHistoryIndex } from '@/routes/finance/wallet-history';
-import { index as nursingRecordsIndex } from '@/routes/nursing/records';
+import { index as nursingRecordsIndex, history as nursingRecordsHistory } from '@/routes/nursing/records';
 import { laboratory as laboratoryReport } from '@/routes/reports';
 import { index as financialReportsIndex } from '@/routes/reports/financial';
 import { index as clinicalReportsIndex } from '@/routes/reports/clinical';
 import { index as stockReportsIndex } from '@/routes/reports/stock';
+import { index as activityLogsIndex } from '@/routes/reports/activity-logs';
 import { index as wardRoundsIndex } from '@/routes/nursing/ward-rounds';
+import { index as chatIndex } from '@/routes/chat';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -208,6 +213,13 @@ export function AppSidebar() {
             icon: Baby,
         },
         {
+            title: 'ANC History',
+            href: page.props.currentTeam
+                ? nursingRecordsHistory.url(page.props.currentTeam.slug)
+                : '/nursing/records/history',
+            icon: History,
+        },
+        {
             title: 'Wards and beds',
             href: page.props.currentTeam
                 ? wardsIndex.url(page.props.currentTeam.slug)
@@ -276,6 +288,15 @@ export function AppSidebar() {
             icon: Package,
         },
         {
+            title: 'Activity logs',
+            href: page.props.currentTeam
+                ? activityLogsIndex.url({
+                      current_team: page.props.currentTeam.slug,
+                  })
+                : '/reports/activity-logs',
+            icon: ScrollText,
+        },
+        {
             title: 'Documentation',
             href: '/docs/api',
             icon: BookOpen,
@@ -311,6 +332,16 @@ export function AppSidebar() {
                 {can.canViewPage('nursing') && <NavMain items={nursingNavItems} label="Nursing" />}
                 {can.canViewPage('inventory') && <NavMain items={inventoryNavItems} label="Inventory" />}
                 {can.canViewPage('finance') && <NavMain items={financeNavItems} label="Finance" />}
+                <NavMain
+                    items={[{
+                        title: 'Chat',
+                        href: page.props.currentTeam
+                            ? chatIndex(page.props.currentTeam.slug)
+                            : '/chat',
+                        icon: MessageSquare,
+                    }]}
+                    label="Chat"
+                />
             </SidebarContent>
 
             <SidebarFooter>

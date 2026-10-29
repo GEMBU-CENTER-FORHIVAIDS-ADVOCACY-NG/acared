@@ -144,7 +144,7 @@ final class DashboardDateRange
     {
         return is_string($filter) && array_key_exists($filter, self::FILTERS)
             ? $filter
-            : 'today';
+            : 'month';
     }
 
     /**

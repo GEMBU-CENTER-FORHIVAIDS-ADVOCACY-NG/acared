@@ -38,7 +38,7 @@ class NursingVitalSignController extends Controller
             ]);
 
         $priceLists = PriceList::query()
-            ->whereHas('subCategory', fn ($query) => $query->where('name', 'Vital sign'))
+            ->whereHas('category', fn ($query) => $query->whereRaw('LOWER(name) = ?', ['vital sign']))
             ->orderBy('name')
             ->get(['id', 'name', 'uom'])
             ->map(fn (PriceList $priceList): array => [
@@ -105,7 +105,7 @@ class NursingVitalSignController extends Controller
                 Rule::exists('price_lists', 'id')->where('team_id', $teamId),
                 function (string $attribute, mixed $value, \Closure $fail) use ($teamId): void {
                     $isVital = PriceList::query()->whereKey($value)->where('team_id', $teamId)
-                        ->whereHas('subCategory', fn ($query) => $query->where('name', 'Vital sign'))
+                        ->whereHas('category', fn ($query) => $query->whereRaw('LOWER(name) = ?', ['vital sign']))
                         ->exists();
                     if (! $isVital) {
                         $fail('Choose a valid vital sign.');

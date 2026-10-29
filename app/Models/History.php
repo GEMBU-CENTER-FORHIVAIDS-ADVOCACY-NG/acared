@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -23,6 +26,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class History extends Model
 {
+    use LogsActivity, LogsActivityWithPatient;
+
     protected $guarded = [];
 
     protected $casts = [
@@ -52,6 +57,12 @@ class History extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void

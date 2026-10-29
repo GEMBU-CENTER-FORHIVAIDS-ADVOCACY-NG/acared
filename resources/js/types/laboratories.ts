@@ -206,3 +206,4 @@ export type LabReportFilters = {
     perPage: number;
     page?: number;
 };
+

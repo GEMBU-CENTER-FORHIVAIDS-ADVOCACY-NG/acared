@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { index as recordsIndex } from '@/routes/nursing/records';
-import { view } from '@/routes/nursing/records';
+import { end, start, view } from '@/routes/nursing/records';
 import {
     destroy,
     store,
@@ -311,6 +311,28 @@ export default function NursingRecordsView({
         );
     }
 
+    function startANC() {
+        router.patch(
+            start.url({
+                current_team: teamSlug,
+                nursing: nursing.id,
+            }),
+            {},
+            { preserveScroll: true },
+        );
+    }
+
+    function endANC() {
+        router.patch(
+            end.url({
+                current_team: teamSlug,
+                nursing: nursing.id,
+            }),
+            {},
+            { preserveScroll: true },
+        );
+    }
+
     return (
         <>
             <Head title={`${nursing.patientId} — Maternity`} />
@@ -330,22 +352,42 @@ export default function NursingRecordsView({
                                 Back to maternity
                             </Link>
                         </Button>
+                        {nursing.status === 'scheduled' ? (
+                            <Button onClick={startANC}>
+                                Start ANC
+                            </Button>
+                        ) : null}
+                        {nursing.status === 'in_progress' ? (
+                            <Button
+                                variant="secondary"
+                                onClick={endANC}
+                            >
+                                End ANC
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {SECTIONS.map((item) => (
-                        <Button
-                            key={item.key}
-                            size="sm"
-                            variant={
-                                item.key === section ? 'default' : 'secondary'
-                            }
-                            onClick={() => switchSection(item.key)}
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
+                    {SECTIONS.map((item) => {
+                        const isDisabled =
+                            nursing.status === 'scheduled' &&
+                            item.key !== 'overview';
+
+                        return (
+                            <Button
+                                key={item.key}
+                                size="sm"
+                                variant={
+                                    item.key === section ? 'default' : 'secondary'
+                                }
+                                disabled={isDisabled}
+                                onClick={() => switchSection(item.key)}
+                            >
+                                {item.label}
+                            </Button>
+                        );
+                    })}
                 </div>
 
                 {section === 'overview' ? (

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Currency extends Model
 {
+    use LogsActivity;
+
     protected $guarded = [];
 
     public function getSymbolAttribute(): ?string

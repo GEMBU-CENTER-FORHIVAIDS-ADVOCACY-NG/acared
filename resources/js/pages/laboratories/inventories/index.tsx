@@ -1,12 +1,17 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Eye, MoreHorizontal, PackageCheck, PackageMinus, PackageSearch, Pencil, TriangleAlert, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -76,11 +81,18 @@ export default function LabInventoriesIndex({
     currencySymbol,
     inventories,
     filters,
+    summary,
     formOptions,
 }: {
     currencySymbol: string;
     inventories: LabInventoryPaginator;
     filters: LabInventoryFilters;
+    summary: {
+        products: number;
+        lowStock: number;
+        expired: number;
+        expiring: number;
+    };
     formOptions: {
         priceLists: { id: number; name: string }[];
         drugForms: { id: number; name: string }[];
@@ -233,28 +245,76 @@ export default function LabInventoriesIndex({
             <Head title="Lab inventory" />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Heading
-                        title="Lab inventory"
-                        description="Stock levels for laboratory reagents and kits."
-                    />
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            variant="secondary"
-                            disabled={selected.length === 0}
-                            onClick={() => {
-                                setAdjustQty(
-                                    Object.fromEntries(
-                                        selected.map((id) => [id, '']),
-                                    ),
-                                );
-                                setAdjustOpen(true);
-                            }}
-                        >
-                            Adjust stock
-                        </Button>
-                        <Button onClick={openCreate}>Add inventory</Button>
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <Heading
+                            title="Lab inventory"
+                            description="Stock levels for laboratory reagents and kits."
+                        />
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                variant="secondary"
+                                disabled={selected.length === 0}
+                                onClick={() => {
+                                    setAdjustQty(
+                                        Object.fromEntries(
+                                            selected.map((id) => [id, '']),
+                                        ),
+                                    );
+                                    setAdjustOpen(true);
+                                }}
+                            >
+                                Adjust stock
+                            </Button>
+                            <Button onClick={openCreate}>Add inventory</Button>
+                        </div>
                     </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                        {
+                            label: 'Total products',
+                            value: summary.products,
+                            icon: PackageSearch,
+                            detail: 'Lab inventory records',
+                        },
+                        {
+                            label: 'Low stock',
+                            value: summary.lowStock,
+                            icon: PackageMinus,
+                            detail: 'At or below minimum',
+                        },
+                        {
+                            label: 'Expired',
+                            value: summary.expired,
+                            icon: TriangleAlert,
+                            detail: 'Past expiry date',
+                        },
+                        {
+                            label: 'Expiring soon',
+                            value: summary.expiring,
+                            icon: PackageCheck,
+                            detail: 'Within the next 30 days',
+                        },
+                    ].map(({ label, value, icon: Icon, detail }) => (
+                        <Card key={label}>
+                            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {label}
+                                </CardTitle>
+                                <Icon className="size-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-semibold tabular-nums">
+                                    {value}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {detail}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

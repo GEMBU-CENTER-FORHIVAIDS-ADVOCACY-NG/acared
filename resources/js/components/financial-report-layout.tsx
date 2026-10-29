@@ -3,7 +3,6 @@ import { employeeDeduction, finance, priceList, wallet } from '@/routes/reports'
 import { index as categorySalesSummaryIndex } from '@/routes/reports/category-sales-summary';
 import { index as couponUsagesIndex } from '@/routes/reports/coupon-usages';
 import { index as discountsIndex } from '@/routes/reports/discounts';
-import { index as paymentMethodSalesSummaryIndex } from '@/routes/reports/payment-method-sales-summary';
 import { index as salesIndex } from '@/routes/reports/sales';
 
 export type FinancialReportKey =
@@ -12,8 +11,6 @@ export type FinancialReportKey =
     | 'sales:category'
     | 'sales:patient'
     | 'sales:method'
-    | 'sales:category-summary'
-    | 'sales:payment-method-summary'
     | 'coupon-usages'
     | 'discounts'
     | 'wallet'
@@ -39,12 +36,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
             salesIndex.url({ current_team: team, dimension: 'item' }),
     },
     {
-        key: 'sales:category',
-        title: 'Sales by category',
-        getUrl: (team) =>
-            salesIndex.url({ current_team: team, dimension: 'category' }),
-    },
-    {
         key: 'sales:patient',
         title: 'Sales by patient',
         getUrl: (team) =>
@@ -57,16 +48,10 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
             salesIndex.url({ current_team: team, dimension: 'method' }),
     },
     {
-        key: 'sales:category-summary',
-        title: 'Sales by category summary',
+        key: 'sales:category',
+        title: 'Sales by category',
         getUrl: (team) =>
             categorySalesSummaryIndex.url({ current_team: team }),
-    },
-    {
-        key: 'sales:payment-method-summary',
-        title: 'Sales by payment method summary',
-        getUrl: (team) =>
-            paymentMethodSalesSummaryIndex.url({ current_team: team }),
     },
     {
         key: 'coupon-usages',

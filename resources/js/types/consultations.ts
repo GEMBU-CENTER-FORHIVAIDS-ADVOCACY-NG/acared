@@ -130,6 +130,16 @@ export type ConsultationEvent = {
     meta: string;
 };
 
+export type ConsultationDailyTimelineEvent = {
+    id: number;
+    title: string;
+    startsAt: string;
+    endsAt: string | null;
+    status: string;
+    color: string;
+    url: string;
+};
+
 export type ConsultationCalendarDay = {
     date: string;
     day: number;
@@ -145,8 +155,10 @@ export type ConsultationTimeSlot = {
 
 export type ConsultationSidebar = {
     monthLabel: string;
+    calendarLabel: string;
     weekdays: string[];
     days: ConsultationCalendarDay[];
+    selectedDate: string;
     timeSlots: ConsultationTimeSlot[];
     availableCount: number;
     monthStats: { scheduled: number; started: number; completed: number };
@@ -156,6 +168,7 @@ export type ConsultationSidebar = {
 export type ConsultationFilters = {
     status: string;
     doctor_id: number | null;
+    date: string;
     perPage: number;
     page?: number;
 };

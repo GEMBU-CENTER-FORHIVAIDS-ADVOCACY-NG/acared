@@ -6,7 +6,13 @@ import { useReportPrint } from '@/hooks/use-report-print';
 import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -86,13 +92,17 @@ export default function LaboratoryReport({
                     </div>
                 </div>
 
-                <div className="rounded-lg border bg-card p-4 no-print">
-                    <p className="text-sm text-muted-foreground">
-                        Submitted ({summary.count})
-                    </p>
-                    <p className="text-2xl font-semibold">
-                        {currencySymbol} {summary.total.toLocaleString()}
-                    </p>
+                <div className="grid gap-3 sm:grid-cols-2 no-print">
+                    <StatCard
+                        title="Submitted"
+                        value={summary.count.toLocaleString()}
+                        description="Total laboratory requests"
+                    />
+                    <StatCard
+                        title="Total revenue"
+                        value={`${currencySymbol} ${summary.total.toLocaleString()}`}
+                        description="Revenue from submitted requests"
+                    />
                 </div>
 
                 <div className="flex flex-wrap items-end gap-2 no-print">
@@ -231,5 +241,27 @@ export default function LaboratoryReport({
                 </div>
             </div>
         </>
+    );
+}
+
+function StatCard({
+    title,
+    value,
+    description,
+}: {
+    title: string;
+    value: string;
+    description: string;
+}) {
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </CardContent>
+        </Card>
     );
 }

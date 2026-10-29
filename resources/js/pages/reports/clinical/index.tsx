@@ -19,6 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { exportMethod as exportReport, index } from '@/routes/reports/clinical';
+import { index as laboratoryTestsIndex } from '@/routes/reports/laboratory-tests';
 
 type RecordRow = {
     id: number;
@@ -48,6 +49,7 @@ type DashboardData = {
     perReport: Record<string, { records: number }>;
     recentRecords: RecordRow[];
 };
+
 
 export default function ClinicalReportIndex({
     report,
@@ -80,6 +82,12 @@ export default function ClinicalReportIndex({
                 </ClinicalReportLayout>
             </>
         );
+    }
+
+    // Redirect to standalone laboratory tests report
+    if (report?.key === 'laboratory-tests') {
+        router.get(laboratoryTestsIndex.url({ current_team: team }), {}, { preserveState: true });
+        return null;
     }
 
     if (!report || !records || !summary) {

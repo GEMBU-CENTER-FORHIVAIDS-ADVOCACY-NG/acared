@@ -603,6 +603,10 @@ class PrescriptionController extends Controller
         return PriceList::query()
             ->where('is_inventory', true)
             ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Pharmacy'))
+            ->where(function (Builder $query): void {
+                $query->whereHas('drugInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
+                    ->orWhereHas('inventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'));
+            })
             ->with('drugInventories.drugForm')
             ->orderBy('name')
             ->get()

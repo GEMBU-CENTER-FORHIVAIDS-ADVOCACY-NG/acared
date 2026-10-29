@@ -1,18 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
-import Pagination from '@/components/pagination';
+import NursingDayTimeline from '@/components/nursing-day-timeline';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -21,17 +13,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { index, store, view } from '@/routes/nursing/records';
-import { destroy as bulkDestroy } from '@/routes/nursing/records/bulk';
+import { store, view, index } from '@/routes/nursing/records';
+import { history as nursingRecordsHistory } from '@/routes/nursing/records';
+import type {
+    NursingDailyTimelineEvent,
+    NursingSidebar,
+} from '@/types';
 
 type Patient = { slug: string; fullName: string };
 type Nurse = { id: number; name: string };
@@ -41,27 +29,6 @@ type Billing = {
     patientName: string | null;
     status: string;
 };
-type RecordItem = {
-    id: number;
-    patientId: string;
-    patientName: string | null;
-    nurseId: number | null;
-    nurseName: string | null;
-    billingId: number;
-    billingStatus: string | null;
-    createdBy: string | null;
-    purpose: string | null;
-    status: string;
-    createdAt: string | null;
-};
-type Paginator = {
-    data: RecordItem[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-};
-type Filters = { q: string; perPage: number; page?: number };
 type Form = {
     patient_id: string;
     nurse_id: string;
@@ -77,30 +44,32 @@ const empty: Form = {
     status: 'scheduled',
 };
 
+const STATUS_BADGE: Record<string, string> = {
+    warning: 'bg-amber-100 text-amber-800',
+    info: 'bg-sky-100 text-sky-800',
+    success: 'bg-emerald-100 text-emerald-800',
+    danger: 'bg-rose-100 text-rose-800',
+    gray: 'bg-muted text-muted-foreground',
+};
+
 export default function NursingRecordsIndex({
-    records,
     patients,
     nurses,
     billings,
-    filters,
+    dailyTimeline,
+    sidebar,
 }: {
-    records: Paginator;
     patients: Patient[];
     nurses: Nurse[];
     billings: Billing[];
-    filters: Filters;
+    dailyTimeline: NursingDailyTimelineEvent[];
+    sidebar: NursingSidebar;
 }) {
-    const team = usePage().props.currentTeam?.slug ?? '';
-    const [search, setSearch] = useState(filters.q);
+    const { currentTeam } = usePage().props;
+    const teamSlug = currentTeam?.slug ?? '';
     const [form, setForm] = useState<Form>(empty);
-    const [selected, setSelected] = useState<number[]>([]);
     const [open, setOpen] = useState(false);
-    const visit = (patch: Partial<Filters>) =>
-        router.get(
-            index.url(team, { query: { ...filters, ...patch } }),
-            {},
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
+
     const availableBillings = billings.filter(
         (billing) => billing.patientId === form.patient_id,
     );
@@ -111,200 +80,202 @@ export default function NursingRecordsIndex({
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
         const payload = { ...form, nurse_id: form.nurse_id || null };
-        router.post(store.url(team), payload, {
+        router.post(store.url(teamSlug), payload, {
             preserveScroll: true,
             onSuccess: () => setOpen(false),
         });
     };
-    const removeSelected = () =>
-        router.delete(bulkDestroy.url(team), {
-            data: { ids: selected },
-            preserveScroll: true,
-            onSuccess: () => setSelected([]),
-        });
+
+    function applyFilters(next: { date: string }) {
+        router.get(
+            index.url(teamSlug, {
+                query: {
+                    date: next.date || undefined,
+                },
+            }),
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
+
+    const statCards = [
+        { title: 'Scheduled', value: sidebar.monthStats.scheduled },
+        { title: 'In Progress', value: sidebar.monthStats.started },
+        { title: 'Completed', value: sidebar.monthStats.completed },
+        { title: 'Open slots today', value: sidebar.availableCount },
+    ];
+
     return (
         <>
             <Head title="Maternity" />
+
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <Heading
                         variant="small"
                         title="Maternity"
                         description="Manage maternity nursing visits and their billing records."
                     />
-                    <Button onClick={startCreate}>New maternity visit</Button>
+                    <Button onClick={startCreate}>
+                        New maternity visit
+                    </Button>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <form
-                        className="flex flex-1 items-center gap-2"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            visit({ q: search, page: 1 });
-                        }}
-                    >
-                        <Input
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search patient or hospital number"
-                            className="max-w-sm"
-                        />
-                        <Button type="submit" variant="secondary">
-                            Search
-                        </Button>
-                    </form>
-                    {selected.length > 0 && (
-                        <Button variant="destructive" onClick={removeSelected}>
-                            Delete selected ({selected.length})
-                        </Button>
-                    )}
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {statCards.map((card) => (
+                        <Card key={card.title}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {card.title}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-semibold tabular-nums">
+                                    {card.value}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {sidebar.monthLabel}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
-                <Card>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        aria-label="Select all"
-                                        type="checkbox"
-                                        checked={
-                                            records.data.length > 0 &&
-                                            records.data.every((row) =>
-                                                selected.includes(row.id),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelected(
-                                                event.target.checked
-                                                    ? records.data.map(
-                                                          (row) => row.id,
-                                                      )
-                                                    : [],
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Nurse</TableHead>
-                                <TableHead>Billing</TableHead>
-                                <TableHead>Purpose</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {records.data.length ? (
-                                records.data.map((row) => (
-                                    <TableRow key={row.id}>
-                                        <TableCell>
-                                            <input
-                                                aria-label={`Select visit ${row.id}`}
-                                                type="checkbox"
-                                                checked={selected.includes(
-                                                    row.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelected(
-                                                        event.target.checked
-                                                            ? [
-                                                                  ...selected,
-                                                                  row.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      row.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">
-                                                {row.patientName ??
-                                                    row.patientId}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {row.patientId}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {row.nurseName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            #{row.billingId}{' '}
-                                            {row.billingStatus &&
-                                                `· ${row.billingStatus}`}
-                                        </TableCell>
-                                        <TableCell className="max-w-64 truncate">
-                                            {row.purpose ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="capitalize">
-                                                {row.status.replace('_', ' ')}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {row.createdAt
-                                                ? new Date(
-                                                      row.createdAt,
-                                                  ).toLocaleDateString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={view.url({
-                                                                current_team: team,
-                                                                nursing: row.id,
-                                                            })}
-                                                        >
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            View
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={8}
-                                        className="py-10 text-center text-muted-foreground"
+
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>
+                                {sidebar.calendarLabel}'s schedule
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <NursingDayTimeline events={dailyTimeline} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                {sidebar.calendarLabel}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                                {sidebar.weekdays.map((day) => (
+                                    <span
+                                        key={day}
+                                        className="text-muted-foreground"
                                     >
-                                        No maternity visits found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                        {day}
+                                    </span>
+                                ))}
+                                {sidebar.days.map((day) => (
+                                    <span
+                                        key={day.date}
+                                        onClick={() => {
+                                            if (day.inMonth) {
+                                                applyFilters({ date: day.date });
+                                            }
+                                        }}
+                                        className={`flex h-8 cursor-default items-center justify-center rounded-md ${
+                                            day.isToday
+                                                ? 'bg-primary text-primary-foreground'
+                                                : day.hasAppointments
+                                                  ? 'bg-muted font-medium'
+                                                  : ''
+                                        } ${day.inMonth ? 'cursor-pointer hover:bg-accent' : 'opacity-40'} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                                    >
+                                        {day.day}
+                                    </span>
+                                ))}
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-sm font-medium">
+                                    Today&apos;s slots
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                    {sidebar.timeSlots.map((slot) => (
+                                        <span
+                                            key={slot.label}
+                                            className={`rounded px-2 py-0.5 text-xs ${
+                                                slot.status === 'available'
+                                                    ? 'bg-emerald-100 text-emerald-800'
+                                                    : slot.status === 'booked'
+                                                      ? 'bg-rose-100 text-rose-800'
+                                                      : STATUS_BADGE.gray
+                                            }`}
+                                        >
+                                            {slot.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-sm font-medium">
+                                    Upcoming
+                                </p>
+                                <ul className="space-y-2">
+                                    {sidebar.upcoming.length === 0 ? (
+                                        <li className="text-sm text-muted-foreground">
+                                            No upcoming visits.
+                                        </li>
+                                    ) : (
+                                        sidebar.upcoming.map((item) => (
+                                            <li
+                                                key={item.id}
+                                                className="flex items-start justify-between gap-2"
+                                            >
+                                                <div>
+                                                    <Link
+                                                        href={view.url({
+                                                            current_team:
+                                                                teamSlug,
+                                                            nursing:
+                                                                 item.id,
+                                                        })}
+                                                        className="text-sm font-medium hover:underline"
+                                                    >
+                                                        {item.name}
+                                                    </Link>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.meta}
+                                                    </p>
+                                                </div>
+                                                <Badge
+                                                    className={
+                                                        STATUS_BADGE.gray
+                                                    }
+                                                >
+                                                    {item.status}
+                                                </Badge>
+                                            </li>
+                                        ))
+                                    )}
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Current Visits</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                            View all maternity records in{' '}
+                            <Link
+                                href={nursingRecordsHistory.url(teamSlug)}
+                                className="font-medium text-primary hover:underline"
+                            >
+                                ANC History
+                            </Link>
+                            .
+                        </p>
                     </CardContent>
                 </Card>
-                <Pagination
-                    meta={{
-                        currentPage: records.current_page,
-                        lastPage: records.last_page,
-                        perPage: records.per_page,
-                        total: records.total,
-                    }}
-                    onPageChange={(page) => visit({ page })}
-                    onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
-                />
             </div>
             {open && (
                 <div
@@ -318,9 +289,7 @@ export default function NursingRecordsIndex({
                     >
                         <div>
                             <h2 className="text-lg font-semibold">
-                                {editing
-                                    ? 'Edit maternity visit'
-                                    : 'New maternity visit'}
+                                New maternity visit
                             </h2>
                             <p className="text-sm text-muted-foreground">
                                 Choose a billing record associated with this

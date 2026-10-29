@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -20,6 +23,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CouponUsage extends Model
 {
+    use LogsActivity, LogsActivityWithPatient;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
+    }
+
     protected $guarded = [];
 
     /**

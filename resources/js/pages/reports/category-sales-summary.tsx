@@ -5,6 +5,13 @@ import Heading from '@/components/heading';
 import { useReportPrint } from '@/hooks/use-report-print';
 import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -76,13 +83,13 @@ export default function CategorySalesSummary({
 
     return (
         <>
-            <Head title="Sales by category summary" />
-            <FinancialReportLayout active="sales:category-summary">
+            <Head title="Sales by category" />
+            <FinancialReportLayout active="sales:category">
                 <div className="flex w-full flex-col space-y-6">
                     <div className="flex flex-wrap items-center justify-between gap-3 no-print">
                         <Heading
                             variant="small"
-                            title="Sales by category summary"
+                            title="Sales by category"
                             description="Total sales grouped by category."
                         />
                         <div className="flex gap-2">
@@ -103,24 +110,24 @@ export default function CategorySalesSummary({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-3 no-print">
-                        <SummaryCard
-                            label="Categories"
+                        <StatCard
+                            title="Categories"
                             value={summary.categories.toLocaleString()}
                         />
-                        <SummaryCard
-                            label="Quantity"
+                        <StatCard
+                            title="Quantity"
                             value={summary.totalQuantity.toLocaleString()}
                         />
-                        <SummaryCard
-                            label="Total cost"
+                        <StatCard
+                            title="Total cost"
                             value={money(summary.totalCost)}
                         />
-                        <SummaryCard
-                            label="Total price"
+                        <StatCard
+                            title="Total price"
                             value={money(summary.totalPrice)}
                         />
-                        <SummaryCard
-                            label="Subtotal"
+                        <StatCard
+                            title="Subtotal"
                             value={money(summary.totalAmount)}
                         />
                     </div>
@@ -227,11 +234,13 @@ export default function CategorySalesSummary({
     );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function StatCard({ title, value }: { title: string; value: string }) {
     return (
-        <div className="rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-xl font-semibold">{value}</p>
-        </div>
+        <Card>
+            <CardHeader className="pb-2">
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+        </Card>
     );
 }

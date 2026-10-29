@@ -276,7 +276,7 @@ class BillingController extends Controller
         $data = $request->validated();
 
         $billing = Billing::query()
-            ->where('status', 'billed')
+            ->whereIn('status', ['billed', 'scheduled'])
             ->whereKey($data['billing_id'])
             ->firstOrFail();
 
@@ -316,7 +316,7 @@ class BillingController extends Controller
             $billing->update(['status' => 'paid']);
 
             Line::query()
-                ->where('lineable_id', $billing->getKey())
+                ->where('lineable_id', $billing->billable_id)
                 ->where('lineable_type', $billing->billable_type)
                 ->update(['paid' => true]);
 

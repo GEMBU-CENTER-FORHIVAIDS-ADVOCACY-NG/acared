@@ -11,6 +11,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { ConnectionBadge } from '@/components/connection-badge';
 import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -23,6 +24,7 @@ export function NavUser() {
     return (
         <SidebarMenu>
             <SidebarMenuItem>
+                <ConnectionBadge />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton

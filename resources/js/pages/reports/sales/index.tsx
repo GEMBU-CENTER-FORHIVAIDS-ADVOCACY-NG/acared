@@ -6,6 +6,13 @@ import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
 import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -47,7 +54,32 @@ type PaymentRow = {
     createdAt: string | null;
 };
 
-type SalesRow = ItemRow | PaymentRow;
+type AggregatedPatientRow = {
+    id: string;
+    group: string;
+    patientId: string;
+    patientName: string | null;
+    amount: number;
+    discountAmount: number;
+    wallet: number;
+    mercyFund: number;
+    infantFormula: number;
+    transactions: number;
+};
+
+type AggregatedPaymentMethodRow = {
+    id: string;
+    group: string;
+    methodName: string | null;
+    amount: number;
+    discountAmount: number;
+    wallet: number;
+    mercyFund: number;
+    infantFormula: number;
+    transactions: number;
+};
+
+type SalesRow = ItemRow | PaymentRow | AggregatedPatientRow | AggregatedPaymentMethodRow;
 type Filters = {
     q: string;
     from: string;
@@ -109,8 +141,9 @@ export default function SalesReport({
     const [search, setSearch] = useState(filters.q);
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
-    const isItemReport = report.key === 'item' || report.key === 'category';
-    const isItemDetailReport = report.key === 'item';
+    const isItemReport = report.key === 'item';
+    const isPatientReport = report.key === 'patient';
+    const isPaymentMethodReport = report.key === 'method';
     const isDepartmentReport = report.key === 'department';
 
     const money = (value: number) =>
@@ -155,7 +188,7 @@ export default function SalesReport({
               ['Infant formula', money(summary.infantFormula ?? 0)],
           ];
 
-    const columnCount = isItemReport ? (isItemDetailReport ? 7 : 6) : (isDepartmentReport ? 10 : 9);
+    const columnCount = isItemReport ? 5 : (isDepartmentReport ? 9 : (isPatientReport ? 8 : (isPaymentMethodReport ? 7 : 8)));
 
     return (
         <>
@@ -199,14 +232,11 @@ export default function SalesReport({
                     </div>
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-3 no-print">
                     {cards.map(([label, value]) => (
-                        <div key={label} className="rounded-lg border bg-card p-4">
-                            <p className="text-sm text-muted-foreground">
-                                {label}
-                            </p>
-                            <p className="mt-1 text-xl font-semibold">
-                                {value}
-                            </p>
-                        </div>
+                        <StatCard
+                            key={label}
+                            title={label}
+                            value={String(value)}
+                        />
                     ))}
                 </div>
                 <div className="flex flex-wrap items-end gap-2 no-print">
@@ -221,7 +251,11 @@ export default function SalesReport({
                             <Label htmlFor="sales-search">
                                 {isItemReport
                                     ? 'Hospital no., patient or item'
-                                    : 'Hospital no., patient, method or department'}
+                                    : (isPatientReport
+                                        ? 'Hospital no. or patient'
+                                        : (isPaymentMethodReport
+                                            ? 'Method or patient'
+                                            : 'Hospital no., patient, method or department'))}
                             </Label>
                             <Input
                                 id="sales-search"
@@ -271,9 +305,7 @@ export default function SalesReport({
                             <TableRow>
                                 {isItemReport ? (
                                     <>
-                                        <TableHead>Hospital No.</TableHead>
-                                        <TableHead>Patient</TableHead>
-                                        {isItemDetailReport && <TableHead>Item</TableHead>}
+                                        {isItemReport && <TableHead>Item</TableHead>}
                                         <TableHead className="text-right">
                                             Quantity
                                         </TableHead>
@@ -289,11 +321,11 @@ export default function SalesReport({
                                     </>
                                 ) : (
                                     <>
-                                        <TableHead>Hospital No.</TableHead>
-                                        <TableHead>Patient name</TableHead>
-                                        <TableHead>Received by</TableHead>
+                                        {(!isPatientReport && !isPaymentMethodReport) && <TableHead>Hospital No.</TableHead>}
+                                        {!isPaymentMethodReport && <TableHead>Patient name</TableHead>}
                                         {isDepartmentReport && <TableHead>Department</TableHead>}
-                                        <TableHead>Method</TableHead>
+                                        {!isPatientReport && <TableHead>Method</TableHead>}
+                                        {(isPatientReport || isPaymentMethodReport) && <TableHead className="text-right">Count</TableHead>}
                                         <TableHead className="text-right">
                                             Amount
                                         </TableHead>
@@ -315,107 +347,13 @@ export default function SalesReport({
                         </TableHeader>
                         <TableBody>
                             {rows.data.length ? (
-                                rows.data.map((row, index) => (
-                                    <Fragment key={row.id}>
-                                        {(index === 0 ||
-                                            rows.data[index - 1].group !==
-                                                row.group) && (
-                                            <TableRow className="bg-muted/50 font-semibold hover:bg-muted/50">
-                                                {isItemReport ? (
-                                                    <>
-                                                        <TableCell colSpan={isItemDetailReport ? 3 : 2}>
-                                                            {row.group}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).quantity ?? 0
-                                                            ).toLocaleString()}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).cost ?? 0,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).price ?? 0,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).amount ?? 0,
-                                                            )}
-                                                        </TableCell>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <TableCell colSpan={isDepartmentReport ? 5 : 4}>
-                                                            {row.group}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).amount ?? 0,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).discount ?? 0,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).wallet ?? 0,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                ).mercyFund ??
-                                                                    0,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {money(
-                                                                groupTotal(
-                                                                    row.group,
-                                                                )
-                                                                    .infantFormula ??
-                                                                    0,
-                                                            )}
-                                                        </TableCell>
-                                                    </>
-                                                )}
-                                            </TableRow>
-                                        )}
-                                        {isItemReport ? (
-                                            <TableRow>
-                                                <TableCell>
-                                                    {(row as ItemRow).patientId}
+                                rows.data.map((row, index) => {
+                                    if (isItemReport) {
+                                        return (
+                                            <TableRow key={row.id}>
+                                                <TableCell className="font-medium">
+                                                    {(row as ItemRow).item}
                                                 </TableCell>
-                                                <TableCell>
-                                                    {(row as ItemRow)
-                                                        .patientName ?? '-'}
-                                                </TableCell>
-                                                {isItemDetailReport && (
-                                                    <TableCell className="font-medium">
-                                                        {(row as ItemRow).item}
-                                                    </TableCell>
-                                                )}
                                                 <TableCell className="text-right">
                                                     {(
                                                         row as ItemRow
@@ -440,66 +378,245 @@ export default function SalesReport({
                                                     )}
                                                 </TableCell>
                                             </TableRow>
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell>
-                                                    {
-                                                        (row as PaymentRow)
-                                                            .patientId
-                                                    }
-                                                </TableCell>
-                                                <TableCell>
-                                                    {(row as PaymentRow)
-                                                        .patientName ?? '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {(row as PaymentRow)
-                                                        .receivedBy ?? '-'}
-                                                </TableCell>
-                                                {isDepartmentReport && (
-                                                    <TableCell>
-                                                        {(row as PaymentRow)
-                                                            .department ?? '-'}
-                                                    </TableCell>
-                                                )}
-                                                <TableCell>
-                                                    {(row as PaymentRow)
-                                                        .method ?? '-'}
+                                        );
+                                    }
+
+                                    if (isPatientReport) {
+                                        const patientRow = row as AggregatedPatientRow;
+                                        const displayName = patientRow.patientName
+                                            ? `${patientRow.patientId} - ${patientRow.patientName}`
+                                            : patientRow.patientId;
+                                        return (
+                                            <TableRow key={patientRow.id}>
+                                                <TableCell className="font-medium">
+                                                    {displayName}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {money(
-                                                        (row as PaymentRow)
-                                                            .amount,
-                                                    )}
+                                                    {patientRow.transactions.toLocaleString()}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {money(
-                                                        (row as PaymentRow)
-                                                            .discountAmount,
-                                                    )}
+                                                    {money(patientRow.amount)}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {money(
-                                                        (row as PaymentRow)
-                                                            .wallet,
-                                                    )}
+                                                    {money(patientRow.discountAmount)}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {money(
-                                                        (row as PaymentRow)
-                                                            .mercyFund,
-                                                    )}
+                                                    {money(patientRow.wallet)}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {money(
-                                                        (row as PaymentRow)
-                                                            .infantFormula,
-                                                    )}
+                                                    {money(patientRow.mercyFund)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {money(patientRow.infantFormula)}
                                                 </TableCell>
                                             </TableRow>
-                                        )}
-                                    </Fragment>
-                                ))
+                                        );
+                                    }
+
+                                    if (isPaymentMethodReport) {
+                                        const methodRow = row as AggregatedPaymentMethodRow;
+                                        return (
+                                            <TableRow key={methodRow.id}>
+                                                <TableCell className="font-medium">
+                                                    {methodRow.methodName ?? '-'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {methodRow.transactions.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {money(methodRow.amount)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {money(methodRow.discountAmount)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {money(methodRow.wallet)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {money(methodRow.mercyFund)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {money(methodRow.infantFormula)}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    }
+
+                                    return (
+                                        <Fragment key={row.id}>
+                                            {(index === 0 ||
+                                                rows.data[index - 1].group !==
+                                                    row.group) && (
+                                                <TableRow className="bg-muted/50 font-semibold hover:bg-muted/50">
+                                                    {isItemReport ? (
+                                                        <>
+                                                            <TableCell colSpan={1}>
+                                                                {row.group}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).quantity ?? 0
+                                                                ).toLocaleString()}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).cost ?? 0,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).price ?? 0,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).amount ?? 0,
+                                                                )}
+                                                            </TableCell>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <TableCell colSpan={isPaymentMethodReport ? 1 : (isDepartmentReport ? 4 : 3)}>
+                                                                {row.group}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).amount ?? 0,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).discount ?? 0,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).wallet ?? 0,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    ).mercyFund ??
+                                                                        0,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {money(
+                                                                    groupTotal(
+                                                                        row.group,
+                                                                    )
+                                                                        .infantFormula ??
+                                                                        0,
+                                                                )}
+                                                            </TableCell>
+                                                        </>
+                                                    )}
+                                                </TableRow>
+                                            )}
+                                            {isItemReport ? (
+                                                <TableRow>
+                                                    {isItemReport && (
+                                                        <TableCell className="font-medium">
+                                                            {(row as ItemRow).item}
+                                                        </TableCell>
+                                                    )}
+                                                    <TableCell className="text-right">
+                                                        {(
+                                                            row as ItemRow
+                                                        ).quantity.toLocaleString()}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as ItemRow)
+                                                                .unitCost,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as ItemRow)
+                                                                .unitPrice,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as ItemRow)
+                                                                .totalPrice,
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell>
+                                                        {
+                                                            (row as PaymentRow)
+                                                                .patientId
+                                                        }
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {(row as PaymentRow)
+                                                            .patientName ?? '-'}
+                                                    </TableCell>
+                                                    {isDepartmentReport && (
+                                                        <TableCell>
+                                                            {(row as PaymentRow)
+                                                                .department ?? '-'}
+                                                        </TableCell>
+                                                    )}
+                                                    <TableCell>
+                                                        {(row as PaymentRow)
+                                                            .method ?? '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as PaymentRow)
+                                                                .amount,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as PaymentRow)
+                                                                .discountAmount,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as PaymentRow)
+                                                                .wallet,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as PaymentRow)
+                                                                .mercyFund,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            (row as PaymentRow)
+                                                                .infantFormula,
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </Fragment>
+                                    );
+                                })
                             ) : (
                                 <TableRow>
                                     <TableCell
@@ -515,7 +632,7 @@ export default function SalesReport({
                             <TableRow className="hover:bg-muted/50">
                                 {isItemReport ? (
                                     <>
-                                        <TableCell colSpan={isItemDetailReport ? 3 : 2}>
+                                        <TableCell colSpan={1}>
                                             Totals
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -535,7 +652,7 @@ export default function SalesReport({
                                     </>
                                 ) : (
                                     <>
-                                        <TableCell colSpan={isDepartmentReport ? 5 : 4}>
+                                        <TableCell colSpan={isPaymentMethodReport ? 2 : (isPatientReport ? 2 : (isDepartmentReport ? 4 : 3))}>
                                             Totals
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -575,5 +692,22 @@ export default function SalesReport({
                 </div>
             </FinancialReportLayout>
         </>
+    );
+}
+
+function StatCard({
+    title,
+    value,
+}: {
+    title: string;
+    value: string;
+}) {
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+        </Card>
     );
 }

@@ -263,7 +263,7 @@ final class ScheduleAppointment
 
         $priceLists = PriceList::query()
             ->whereIn('id', array_column($vitalSigns, 'price_list_id'))
-            ->whereHas('subCategory', fn (Builder $query): Builder => $query->where('name', 'Vital sign'))
+            ->whereHas('category', fn (Builder $query): Builder => $query->whereRaw('LOWER(name) = ?', ['vital sign']))
             ->get()
             ->keyBy('id');
 

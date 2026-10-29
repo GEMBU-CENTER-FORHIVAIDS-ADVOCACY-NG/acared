@@ -94,7 +94,7 @@ class LaboratoryController extends Controller
                 ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
                 ->values(),
             'stats' => $this->stats($dateFilter),
-            'topTests' => [],
+            'topTests' => $this->topTests($dateFilter),
             'paidOptions' => $paidOptions,
             'selected' => $selected ? [
                 'id' => $selected->getKey(),
@@ -639,6 +639,7 @@ class LaboratoryController extends Controller
                     ->orWhereHas('category', fn (Builder $query): Builder => $query->where('name', 'Laboratory'))
                     ->orWhereHas('subCategory', fn (Builder $query): Builder => $query->where('name', 'Laboratory'));
             })
+            ->whereHas('labInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
             ->orderBy('name')
             ->get();
     }

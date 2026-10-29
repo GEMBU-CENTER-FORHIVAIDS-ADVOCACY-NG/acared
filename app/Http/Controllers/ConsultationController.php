@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Service\ClinicalRecordData;
 use App\Service\ConsultationSlotGrid;
 use App\Service\DashboardCurrency;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -55,11 +56,24 @@ class ConsultationController extends Controller
     {
         $status = $this->statusFilter($request);
         $doctorId = $request->integer('doctor_id');
+        $date = trim((string) $request->query('date', ''));
+
+        $consultations = Consultation::query()
+            ->with(['patient', 'doctor'])
+            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
+            ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
+            ->when($date !== '', fn (Builder $query) => $query->whereDate('starts_at', $date))
+            ->orderByDesc('starts_at')
+            ->get()
+            ->map(fn (Consultation $consultation) => $this->consultationItem($consultation))
+            ->all();
 
         return Inertia::render('consultations/index', [
+            'consultations' => $consultations,
             'filters' => [
                 'status' => $status,
                 'doctor_id' => $doctorId > 0 ? $doctorId : null,
+                'date' => $date,
             ],
             'statusOptions' => collect(self::STATUS_FILTERS)
                 ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
@@ -67,7 +81,8 @@ class ConsultationController extends Controller
                 ->all(),
             'doctorOptions' => $this->doctorOptions($request),
             'events' => $this->events(),
-            'sidebar' => $this->sidebar(),
+            'dailyTimeline' => $this->dailyTimelineEvents($date),
+            'sidebar' => $this->sidebar($date),
         ]);
     }
 
@@ -227,23 +242,75 @@ class ConsultationController extends Controller
     }
 
     /**
+     * Build the daily timeline events for the compact day view.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function dailyTimelineEvents(string $date = ''): array
+    {
+        $now = CarbonImmutable::now();
+        $filterDate = $date !== '' ? $date : $now->toDateString();
+
+        return Consultation::query()
+            ->whereIn('status', ['scheduled', 'started', 'completed'])
+            ->whereDate('starts_at', $filterDate)
+            ->with('patient')
+            ->orderBy('starts_at')
+            ->get()
+            ->map(fn (Consultation $consultation) => [
+                'id' => $consultation->getKey(),
+                'title' => $consultation->patient_id.' - '.($consultation->patient->fullName ?? 'Unknown patient'),
+                'startsAt' => $consultation->starts_at?->format('g:i A'),
+                'endsAt' => $consultation->ends_at?->format('g:i A') ?? null,
+                'status' => $consultation->status,
+                'color' => $consultation->calendarColor(),
+                'url' => route('consultations.view', [
+                    'current_team' => request()->user()->currentTeam->slug,
+                    'consultation' => $consultation->getKey(),
+                ]),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Build the sidebar calendar data.
      *
      * @return array<string, mixed>
      */
-    private function sidebar(): array
+    private function sidebar(string $selectedDate = ''): array
     {
         $now = CarbonImmutable::now();
         $monthStart = $now->startOfMonth();
         $monthEnd = $now->endOfMonth();
 
         $monthConsultations = Consultation::query()
-            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->when($selectedDate !== '', fn (Builder $query) => $query->whereDate('starts_at', $selectedDate))
+            ->when($selectedDate === '', fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
             ->get(['id', 'starts_at', 'status']);
 
         $byDay = $monthConsultations->groupBy(fn (Consultation $consultation) => $consultation->starts_at?->format('Y-m-d') ?: 'unknown');
 
         $days = [];
+
+        // Calculate padding days: number of days from Monday to the 1st of the month
+        // Carbon::dayOfWeek: 0=Sunday, 1=Monday, ..., 6=Saturday
+        // Grid starts on Monday, so we need offset from Monday
+        $firstDayOfWeek = $monthStart->dayOfWeek; // 0=Sun, 1=Mon, ..., 6=Sat
+        $padding = $firstDayOfWeek === 0 ? 6 : $firstDayOfWeek - 1; // Convert to Mon=0, Tue=1, ..., Sun=6
+
+        // Add padding days before the 1st of the month
+        for ($i = $padding; $i > 0; $i--) {
+            $padDate = $monthStart->subDay($i);
+            $days[] = [
+                'date' => $padDate->format('Y-m-d'),
+                'day' => (int) $padDate->format('j'),
+                'inMonth' => false,
+                'isToday' => false,
+                'hasAppointments' => false,
+            ];
+        }
+
         for ($date = $monthStart; $date->lessThanOrEqualTo($monthEnd); $date = $date->addDay()) {
             $key = $date->format('Y-m-d');
             $days[] = [
@@ -259,8 +326,10 @@ class ConsultationController extends Controller
 
         return [
             'monthLabel' => $monthStart->format('F Y'),
+            'calendarLabel' => $selectedDate !== '' ? (new Carbon($selectedDate))->format('l, F j, Y') : $now->format('l, F j, Y'),
             'weekdays' => ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
             'days' => $days,
+            'selectedDate' => $selectedDate,
             'timeSlots' => array_map(fn (array $slot) => [
                 'label' => $slot['label'],
                 'status' => $slot['status'],

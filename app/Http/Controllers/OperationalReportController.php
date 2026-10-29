@@ -112,12 +112,17 @@ class OperationalReportController extends Controller
     {
         $filters = $this->filters($request);
         $items = PriceList::query()
-            ->with(['category', 'subCategory', 'parameter'])
-            ->when($filters['q'] !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$filters['q'].'%'))
-            ->orderBy('name')
+            ->select('price_lists.*', 'categories.name as category_name')
+            ->where('price_lists.is_category', false)
+            ->whereNotNull('price_lists.category_id')
+            ->where('price_lists.price', '>', 0)
+            ->when($filters['q'] !== '', fn (Builder $query) => $query->where('price_lists.name', 'like', '%'.$filters['q'].'%'))
+            ->leftJoin('price_lists as categories', 'price_lists.category_id', '=', 'categories.id')
+            ->orderBy('categories.name')
+            ->orderBy('price_lists.name')
             ->paginate($filters['perPage'])
             ->withQueryString()
-            ->through(fn (PriceList $item) => $this->priceListRow($item));
+            ->through(fn (PriceList $item) => array_merge($this->priceListRow($item), ['category' => $item->category_name ?? null]));
 
         return Inertia::render('reports/price-list', [
             'items' => $items,
@@ -149,9 +154,13 @@ class OperationalReportController extends Controller
     public function exportPriceList(Request $request, string $current_team): StreamedResponse
     {
         $filters = $this->filters($request);
-        $items = PriceList::query()->with(['category', 'subCategory', 'parameter'])
-            ->when($filters['q'] !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$filters['q'].'%'))
-            ->orderBy('name')->lazy(500);
+        $items = PriceList::query()->where('price_lists.is_category', false)
+            ->whereNotNull('price_lists.category_id')
+            ->where('price_lists.price', '>', 0)
+            ->when($filters['q'] !== '', fn (Builder $query) => $query->where('price_lists.name', 'like', '%'.$filters['q'].'%'))
+            ->leftJoin('price_lists as categories', 'price_lists.category_id', '=', 'categories.id')
+            ->orderBy('categories.name')
+            ->orderBy('price_lists.name')->lazy(500);
 
         return response()->streamDownload(function () use ($items): void {
             $output = fopen('php://output', 'w');

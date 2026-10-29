@@ -25,5 +25,7 @@ class ResetUserPassword implements ResetsUserPasswords
         $user->forceFill([
             'password' => $input['password'],
         ])->save();
+
+        activity()->causedBy($user)->event('password_reset')->log('User password was reset');
     }
 }

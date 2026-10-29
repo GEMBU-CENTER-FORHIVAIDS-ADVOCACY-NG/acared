@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Database\Factories\PatientFactory;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -61,7 +64,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Patient extends Model
 {
     /** @use HasFactory<PatientFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, LogsActivity, LogsActivityWithPatient, SoftDeletes;
 
     protected $guarded = [];
 
@@ -186,6 +189,12 @@ class Patient extends Model
         return $this->admissions()
             ->whereRaw('LOWER(status) = ?', ['admitted'])
             ->exists();
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void

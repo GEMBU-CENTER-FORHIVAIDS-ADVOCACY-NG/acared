@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,7 +24,6 @@ class SalesReportController extends Controller
     /** @var array<string, string> */
     private const DIMENSIONS = [
         'item' => 'Sales by item',
-        'category' => 'Sales by category',
         'department' => 'Sales by department',
         'patient' => 'Sales by patient',
         'method' => 'Sales by payment method',
@@ -34,12 +34,30 @@ class SalesReportController extends Controller
         abort_unless(array_key_exists($dimension, self::DIMENSIONS), 404);
 
         $filters = $this->filters($request);
-        $rows = $this->orderedQuery($dimension, $filters)
-            ->paginate($filters['perPage'])
-            ->withQueryString()
-            ->through(fn (Line|Payment $record) => in_array($dimension, ['item', 'category'], true)
-                ? $this->itemRow($record, $dimension)
-                : $this->paymentRow($record, $dimension));
+
+        if ($dimension === 'item') {
+            $rows = $this->aggregatedItemQuery($filters)
+                ->paginate($filters['perPage'])
+                ->withQueryString()
+                ->through(fn (object $record) => $this->aggregatedItemRow($record));
+        } elseif ($dimension === 'patient') {
+            $rows = $this->aggregatedPatientQuery($filters)
+                ->paginate($filters['perPage'])
+                ->withQueryString()
+                ->through(fn (object $record) => $this->aggregatedPatientRow($record));
+        } elseif ($dimension === 'method') {
+            $rows = $this->aggregatedPaymentMethodQuery($filters)
+                ->paginate($filters['perPage'])
+                ->withQueryString()
+                ->through(fn (object $record) => $this->aggregatedPaymentMethodRow($record));
+        } else {
+            $rows = $this->orderedQuery($dimension, $filters)
+                ->paginate($filters['perPage'])
+                ->withQueryString()
+                ->through(fn (Line|Payment $record) => $dimension === 'item'
+                    ? $this->itemRow($record, $dimension)
+                    : $this->paymentRow($record, $dimension));
+        }
 
         return Inertia::render('reports/sales/index', [
             'report' => ['key' => $dimension, 'title' => self::DIMENSIONS[$dimension]],
@@ -62,38 +80,20 @@ class SalesReportController extends Controller
         return response()->streamDownload(function () use ($rows, $dimension): void {
             $output = fopen('php://output', 'w');
 
-            if (in_array($dimension, ['item', 'category'], true)) {
-                $includeItem = $dimension === 'item';
-
-                if ($includeItem) {
-                    fputcsv($output, ['Hospital No.', 'Patient', 'Item', 'Quantity', 'Cost', 'Price', 'Subtotal', 'Date'], ',', '"', '\\');
-                } else {
-                    fputcsv($output, ['Hospital No.', 'Patient', 'Quantity', 'Cost', 'Price', 'Subtotal', 'Date'], ',', '"', '\\');
-                }
+            if ($dimension === 'item') {
+                fputcsv($output, ['Hospital No.', 'Patient', 'Item', 'Quantity', 'Cost', 'Price', 'Subtotal', 'Date'], ',', '"', '\\');
 
                 foreach ($rows as $line) {
-                    if ($includeItem) {
-                        fputcsv($output, [
-                            $line->patient_id,
-                            $line->patient?->fullName,
-                            $line->priceList?->name,
-                            $line->quantity,
-                            $line->unitCost,
-                            $line->unitPrice,
-                            $line->totalPrice,
-                            $line->created_at?->toDateTimeString(),
-                        ], ',', '"', '\\');
-                    } else {
-                        fputcsv($output, [
-                            $line->patient_id,
-                            $line->patient?->fullName,
-                            $line->quantity,
-                            $line->unitCost,
-                            $line->unitPrice,
-                            $line->totalPrice,
-                            $line->created_at?->toDateTimeString(),
-                        ], ',', '"', '\\');
-                    }
+                    fputcsv($output, [
+                        $line->patient_id,
+                        $line->patient?->fullName,
+                        $line->priceList?->name,
+                        $line->quantity,
+                        $line->unitCost,
+                        $line->unitPrice,
+                        $line->totalPrice,
+                        $line->created_at?->toDateTimeString(),
+                    ], ',', '"', '\\');
                 }
             } else {
                 $includeDepartment = $dimension === 'department';
@@ -148,7 +148,7 @@ class SalesReportController extends Controller
     {
         $query = $this->query($dimension, $filters);
 
-        if (in_array($dimension, ['item', 'category'], true)) {
+        if ($dimension === 'item') {
             return [
                 'transactions' => (clone $query)->count(),
                 'items' => (clone $query)->distinct()->count('price_list_id'),
@@ -156,6 +156,28 @@ class SalesReportController extends Controller
                 'cost' => (float) (clone $query)->sum('totalCost'),
                 'price' => (float) (clone $query)->sum('unitPrice'),
                 'amount' => (float) (clone $query)->sum('totalPrice'),
+            ];
+        }
+
+        if ($dimension === 'patient') {
+            return [
+                'transactions' => (clone $query)->distinct()->count('patient_id'),
+                'amount' => (float) (clone $query)->sum('amount'),
+                'discount' => (float) (clone $query)->sum('discount_amount'),
+                'wallet' => (float) (clone $query)->sum('wallet'),
+                'mercyFund' => (float) (clone $query)->sum('mercy_fund'),
+                'infantFormula' => (float) (clone $query)->sum('infant_formula'),
+            ];
+        }
+
+        if ($dimension === 'method') {
+            return [
+                'transactions' => (clone $query)->distinct()->count('method_id'),
+                'amount' => (float) (clone $query)->sum('amount'),
+                'discount' => (float) (clone $query)->sum('discount_amount'),
+                'wallet' => (float) (clone $query)->sum('wallet'),
+                'mercyFund' => (float) (clone $query)->sum('mercy_fund'),
+                'infantFormula' => (float) (clone $query)->sum('infant_formula'),
             ];
         }
 
@@ -175,7 +197,7 @@ class SalesReportController extends Controller
      */
     private function query(string $dimension, array $filters): Builder
     {
-        if (in_array($dimension, ['item', 'category'], true)) {
+        if ($dimension === 'item') {
             return Line::query()
                 ->where('paid', true)
                 ->where('unitPrice', '<>', 0)
@@ -208,28 +230,153 @@ class SalesReportController extends Controller
 
     /**
      * @param  array{from: string, to: string, q: string, perPage: int}  $filters
+     */
+    private function aggregatedItemQuery(array $filters): QueryBuilder
+    {
+        $teamId = auth()->user()?->currentTeam?->id;
+
+        $query = DB::table('lines')
+            ->join('price_lists', 'price_lists.id', '=', 'lines.price_list_id')
+            ->where('lines.team_id', $teamId)
+            ->where('lines.paid', true)
+            ->where('lines.unitPrice', '<>', 0)
+            ->whereBetween('lines.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['q'] !== '', function (QueryBuilder $query) use ($filters): void {
+                $search = '%'.$filters['q'].'%';
+                $query->where(function (QueryBuilder $query) use ($search): void {
+                    $query->where('lines.patient_id', 'like', $search)
+                        ->orWhereExists(fn (QueryBuilder $q) => $q
+                            ->from('patients')
+                            ->whereColumn('patients.slug', 'lines.patient_id')
+                            ->where('patients.full_name', 'like', $search))
+                        ->orWhere('price_lists.name', 'like', $search);
+                });
+            })
+            ->selectRaw('price_lists.id as price_list_id, price_lists.name as item_name, SUM(lines.quantity) as quantity, SUM(lines.totalCost) as cost, SUM(lines.unitPrice) as price, SUM(lines.totalPrice) as amount')
+            ->groupBy('price_lists.id', 'price_lists.name')
+            ->orderBy('item_name');
+
+        return $query;
+    }
+
+    /** @return array<string, mixed> */
+    private function aggregatedItemRow(object $record): array
+    {
+        return [
+            'id' => $record->price_list_id,
+            'group' => $record->item_name ?? 'Unknown item',
+            'item' => $record->item_name ?? 'Unknown item',
+            'quantity' => (float) $record->quantity,
+            'unitCost' => (float) $record->cost,
+            'unitPrice' => (float) $record->price,
+            'totalPrice' => (float) $record->amount,
+        ];
+    }
+
+    /**
+     * @param  array{from: string, to: string, q: string, perPage: int}  $filters
+     */
+    private function aggregatedPatientQuery(array $filters): QueryBuilder
+    {
+        $query = DB::table('payments')
+            ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['q'] !== '', function (QueryBuilder $query) use ($filters): void {
+                $search = '%'.$filters['q'].'%';
+                $query->where(function (QueryBuilder $query) use ($search): void {
+                    $query->where('payments.patient_id', 'like', $search)
+                        ->orWhereExists(fn (QueryBuilder $q) => $q
+                            ->from('patients')
+                            ->whereColumn('patients.slug', 'payments.patient_id')
+                            ->where('patients.full_name', 'like', $search));
+                });
+            })
+            ->selectRaw('patient_id, SUM(amount) as amount, SUM(discount_amount) as discount, SUM(wallet) as wallet, SUM(mercy_fund) as mercy_fund, SUM(infant_formula) as infant_formula, COUNT(*) as transactions')
+            ->groupBy('patient_id')
+            ->orderBy('patient_id');
+
+        return $query;
+    }
+
+    /** @return array<string, mixed> */
+    private function aggregatedPatientRow(object $record): array
+    {
+        $name = DB::table('patients')->where('slug', $record->patient_id)->value('fullName');
+
+        return [
+            'id' => $record->patient_id,
+            'group' => trim($record->patient_id.' '.($name ?? '')),
+            'patientId' => $record->patient_id,
+            'patientName' => $name,
+            'amount' => (float) $record->amount,
+            'discountAmount' => (float) $record->discount,
+            'wallet' => (float) $record->wallet,
+            'mercyFund' => (float) $record->mercy_fund,
+            'infantFormula' => (float) $record->infant_formula,
+            'transactions' => (int) $record->transactions,
+        ];
+    }
+
+    /**
+     * @param  array{from: string, to: string, q: string, perPage: int}  $filters
+     */
+    private function aggregatedPaymentMethodQuery(array $filters): QueryBuilder
+    {
+        $query = DB::table('payments')
+            ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['q'] !== '', function (QueryBuilder $query) use ($filters): void {
+                $search = '%'.$filters['q'].'%';
+                $query->where(function (QueryBuilder $query) use ($search): void {
+                    $query->where('payments.patient_id', 'like', $search)
+                        ->orWhereExists(fn (QueryBuilder $q) => $q
+                            ->from('patients')
+                            ->whereColumn('patients.slug', 'payments.patient_id')
+                            ->where('patients.full_name', 'like', $search))
+                        ->orWhereExists(fn (QueryBuilder $q) => $q
+                            ->from('methods')
+                            ->whereColumn('methods.id', 'payments.method_id')
+                            ->where('methods.name', 'like', $search));
+                });
+            })
+            ->selectRaw('method_id, SUM(amount) as amount, SUM(discount_amount) as discount, SUM(wallet) as wallet, SUM(mercy_fund) as mercy_fund, SUM(infant_formula) as infant_formula, COUNT(*) as transactions')
+            ->groupBy('method_id')
+            ->orderBy('method_id');
+
+        return $query;
+    }
+
+    /** @return array<string, mixed> */
+    private function aggregatedPaymentMethodRow(object $record): array
+    {
+        $methodName = DB::table('methods')->where('id', $record->method_id)->value('name');
+
+        return [
+            'id' => (string) $record->method_id,
+            'group' => $methodName ?? 'Unknown method',
+            'methodName' => $methodName,
+            'amount' => (float) $record->amount,
+            'discountAmount' => (float) $record->discount,
+            'wallet' => (float) $record->wallet,
+            'mercyFund' => (float) $record->mercy_fund,
+            'infantFormula' => (float) $record->infant_formula,
+            'transactions' => (int) $record->transactions,
+        ];
+    }
+
+    /**
+     * @param  array{from: string, to: string, q: string, perPage: int}  $filters
      * @return Builder<Model>
      */
     private function orderedQuery(string $dimension, array $filters): Builder
     {
         $query = $this->query($dimension, $filters)->with(
-            in_array($dimension, ['item', 'category'], true)
-                ? ['priceList.category', 'patient']
-                : ['patient', 'method', 'user', 'billing.lines.priceList.category']
+            $dimension === 'item'
+                ? ['priceList' => fn ($relation) => $relation->withoutGlobalScope('team'), 'priceList.category' => fn ($relation) => $relation->withoutGlobalScope('team'), 'patient']
+                : ['patient', 'method', 'user', 'billing.lines.priceList' => fn ($relation) => $relation->withoutGlobalScope('team'), 'billing.lines.priceList.category' => fn ($relation) => $relation->withoutGlobalScope('team')]
         );
 
         return match ($dimension) {
             'item' => $query
-                ->orderBy(PriceList::query()->select('name')->whereColumn('price_lists.id', 'lines.price_list_id'))
-                ->orderByDesc('created_at'),
-            'category' => $query
-                ->orderBy(fn (QueryBuilder $q) => $q
-                    ->select('cat.name')
-                    ->from('price_lists as cat')
-                    ->join('price_lists as pl', 'cat.id', '=', 'pl.category_id')
-                    ->whereColumn('pl.id', 'lines.price_list_id')
-                    ->limit(1)
-                )
+                ->orderBy(PriceList::withoutGlobalScope('team')->select('name')->whereColumn('price_lists.id', 'lines.price_list_id'))
                 ->orderByDesc('created_at'),
             'patient' => $query
                 ->orderBy(Patient::query()->select('slug')->whereColumn('patients.slug', 'payments.patient_id'))
@@ -243,29 +390,20 @@ class SalesReportController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function itemRow(Line $line, string $dimension = 'item'): array
+    private function itemRow(Line $line): array
     {
-        $group = $dimension === 'category'
-            ? ($line->priceList?->category?->name ?? 'Uncategorized')
-            : ($line->priceList?->name ?? 'Unknown item');
-
-        $row = [
+        return [
             'id' => $line->getKey(),
-            'group' => $group,
+            'group' => $line->priceList?->name ?? 'Unknown item',
             'patientId' => $line->patient_id,
             'patientName' => $line->patient?->fullName,
+            'item' => $line->priceList?->name ?? 'Unknown item',
             'quantity' => (float) $line->quantity,
             'unitCost' => (float) $line->unitCost,
             'unitPrice' => (float) $line->unitPrice,
             'totalPrice' => (float) $line->totalPrice,
             'createdAt' => $line->created_at?->toIso8601String(),
         ];
-
-        if ($dimension === 'item') {
-            $row['item'] = $line->priceList?->name ?? 'Unknown item';
-        }
-
-        return $row;
     }
 
     /** @return array<string, mixed> */
@@ -342,7 +480,7 @@ class SalesReportController extends Controller
                 ->groupBy('price_list_id')
                 ->get();
 
-            $names = PriceList::query()
+            $names = PriceList::withoutGlobalScope('team')
                 ->whereIn('id', $rows->pluck('price_list_id'))
                 ->pluck('name', 'id');
 
@@ -350,35 +488,6 @@ class SalesReportController extends Controller
 
             foreach ($rows as $row) {
                 $totals[$names[$row->price_list_id] ?? 'Unknown item'] = [
-                    'quantity' => (float) $row->quantity,
-                    'cost' => (float) $row->cost,
-                    'price' => (float) $row->price,
-                    'amount' => (float) $row->amount,
-                ];
-            }
-
-            return $totals;
-        }
-
-        if ($dimension === 'category') {
-            $rows = (clone $query)
-                ->join('price_lists as pl', 'pl.id', '=', 'lines.price_list_id')
-                ->selectRaw('COALESCE(pl.category_id, 0) as category_key, SUM(lines.quantity) as quantity, SUM(lines.totalCost) as cost, SUM(lines.unitPrice) as price, SUM(lines.totalPrice) as amount')
-                ->groupBy('category_key')
-                ->get();
-
-            $names = PriceList::query()
-                ->whereIn('id', $rows->pluck('category_key')->filter())
-                ->pluck('name', 'id');
-
-            $totals = [];
-
-            foreach ($rows as $row) {
-                $label = $row->category_key
-                    ? ($names[$row->category_key] ?? 'Unknown category')
-                    : 'Uncategorized';
-
-                $totals[$label] = [
                     'quantity' => (float) $row->quantity,
                     'cost' => (float) $row->cost,
                     'price' => (float) $row->price,

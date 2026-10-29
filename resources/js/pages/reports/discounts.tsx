@@ -6,6 +6,13 @@ import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
 import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
@@ -101,20 +108,20 @@ export default function Discounts({
                         </div>
                     </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 no-print">
-                    <Summary
-                        label="Total payments"
+                    <StatCard
+                        title="Total payments"
                         value={summary.count.toLocaleString()}
                     />
-                    <Summary
-                        label="Total discounts"
+                    <StatCard
+                        title="Total discounts"
                         value={summary.discounts.toLocaleString()}
                     />
-                    <Summary
-                        label="100% discounts"
+                    <StatCard
+                        title="100% discounts"
                         value={summary.discount100.toLocaleString()}
                     />
-                    <Summary
-                        label="50% discounts"
+                    <StatCard
+                        title="50% discounts"
                         value={summary.discount50.toLocaleString()}
                     />
                 </div>
@@ -240,11 +247,13 @@ export default function Discounts({
     );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+function StatCard({ title, value }: { title: string; value: string }) {
     return (
-        <div className="rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-2xl font-semibold">{value}</p>
-        </div>
+        <Card>
+            <CardHeader className="pb-2">
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+        </Card>
     );
 }

@@ -3,8 +3,12 @@ import {
     ArrowRightLeft,
     Eye,
     MoreHorizontal,
+    PackageCheck,
+    PackageMinus,
+    PackageSearch,
     Pencil,
     Trash2,
+    TriangleAlert,
     TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -13,7 +17,12 @@ import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -314,19 +323,47 @@ export default function InventoryStockIndex({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {[
-                        ['Products', summary.products],
-                        ['Low stock', summary.lowStock],
-                        ['Expired', summary.expired],
-                        ['Expiring soon', summary.expiring],
-                    ].map(([label, value]) => (
-                        <div key={label} className="rounded-lg border p-4">
-                            <p className="text-sm text-muted-foreground">
-                                {label}
-                            </p>
-                            <p className="mt-1 text-2xl font-semibold">
-                                {value}
-                            </p>
-                        </div>
+                        {
+                            label: 'Total products',
+                            value: summary.products,
+                            icon: PackageSearch,
+                            detail: 'Inventory records',
+                        },
+                        {
+                            label: 'Low stock',
+                            value: summary.lowStock,
+                            icon: PackageMinus,
+                            detail: 'At or below minimum',
+                        },
+                        {
+                            label: 'Expired',
+                            value: summary.expired,
+                            icon: TriangleAlert,
+                            detail: 'Past expiry date',
+                        },
+                        {
+                            label: 'Expiring soon',
+                            value: summary.expiring,
+                            icon: PackageCheck,
+                            detail: 'Within the next 30 days',
+                        },
+                    ].map(({ label, value, icon: Icon, detail }) => (
+                        <Card key={label}>
+                            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
+                                    {label}
+                                </CardTitle>
+                                <Icon className="size-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-semibold tabular-nums">
+                                    {value}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {detail}
+                                </p>
+                            </CardContent>
+                        </Card>
                     ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

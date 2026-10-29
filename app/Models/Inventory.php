@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithInventory;
 use Carbon\CarbonInterface;
 use Database\Factories\InventoryFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -35,7 +38,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Inventory extends Model
 {
     /** @use HasFactory<InventoryFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity, LogsActivityWithInventory;
 
     protected $guarded = [];
 
@@ -74,6 +77,12 @@ class Inventory extends Model
     protected $casts = [
         'expires_at' => 'datetime',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->inventoryDescriptionPrefix().$eventName);
+    }
 
     protected static function booted(): void
     {

@@ -35,6 +35,32 @@ class WardRoundController extends Controller
 
     public function __construct(private readonly ClinicalRecordData $clinicalRecords) {}
 
+    /**
+     * Show an admissions overview dashboard.
+     */
+    public function admissionsIndex(Request $request): Response
+    {
+        $filters = $request->validate([
+            'date_filter' => ['nullable', Rule::in(['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month', 'this_year', 'last_year'])],
+        ]);
+        $period = $filters['date_filter'] ?? 'today';
+        [$start, $end] = $this->admissionRange($period);
+        $counts = Admission::query()
+            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'discharged' THEN 1 ELSE 0 END) as discharged, SUM(CASE WHEN status = 'admitted' THEN 1 ELSE 0 END) as admitted, SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending")
+            ->whereBetween('created_at', [$start, $end])
+            ->first();
+
+        return Inertia::render('nursing/admissions/index', [
+            'filters' => ['dateFilter' => $period],
+            'counts' => [
+                'total' => (int) ($counts->total ?? 0),
+                'discharged' => (int) ($counts->discharged ?? 0),
+                'admitted' => (int) ($counts->admitted ?? 0),
+                'pending' => (int) ($counts->pending ?? 0),
+            ],
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $filters = $request->validate([

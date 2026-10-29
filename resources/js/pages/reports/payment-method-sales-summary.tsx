@@ -5,6 +5,13 @@ import Heading from '@/components/heading';
 import { useReportPrint } from '@/hooks/use-report-print';
 import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -107,32 +114,32 @@ export default function PaymentMethodSalesSummary({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-3 no-print">
-                        <SummaryCard
-                            label="Payment methods"
+                        <StatCard
+                            title="Payment methods"
                             value={summary.methods.toLocaleString()}
                         />
-                        <SummaryCard
-                            label="Transactions"
+                        <StatCard
+                            title="Transactions"
                             value={summary.totalTransactions.toLocaleString()}
                         />
-                        <SummaryCard
-                            label="Total amount"
+                        <StatCard
+                            title="Total amount"
                             value={money(summary.totalAmount)}
                         />
-                        <SummaryCard
-                            label="Total discount"
+                        <StatCard
+                            title="Total discount"
                             value={money(summary.totalDiscount)}
                         />
-                        <SummaryCard
-                            label="Total wallet"
+                        <StatCard
+                            title="Total wallet"
                             value={money(summary.totalWallet)}
                         />
-                        <SummaryCard
-                            label="Total mercy fund"
+                        <StatCard
+                            title="Total mercy fund"
                             value={money(summary.totalMercyFund)}
                         />
-                        <SummaryCard
-                            label="Total infant formula"
+                        <StatCard
+                            title="Total infant formula"
                             value={money(summary.totalInfantFormula)}
                         />
                     </div>
@@ -253,11 +260,13 @@ export default function PaymentMethodSalesSummary({
     );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function StatCard({ title, value }: { title: string; value: string }) {
     return (
-        <div className="rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-xl font-semibold">{value}</p>
-        </div>
+        <Card>
+            <CardHeader className="pb-2">
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+        </Card>
     );
 }

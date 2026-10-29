@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Complaint;
 use App\Models\Diagnose;
 use App\Models\Examination;
+use App\Models\Laboratory;
+use App\Models\Line;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -29,6 +31,7 @@ class ClinicalReportController extends Controller
         'complaints' => 'Complaints report',
         'diagnoses' => 'Diagnoses report',
         'examinations' => 'Examinations report',
+        'laboratory-tests' => 'Laboratory tests report',
     ];
 
     public function index(Request $request, string $current_team, ?string $report = null): Response
@@ -99,6 +102,17 @@ class ClinicalReportController extends Controller
                 ],
             ];
         });
+
+        // Add laboratory tests count to dashboard stats
+        $laboratoryTestsCount = Line::query()
+            ->where('lineable_type', Laboratory::class)
+            ->whereHas('lineable', fn (Builder $q) => $q->where('status', 'submitted'))
+            ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
+            ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
+            ->count();
+
+        $perReportStats['laboratory-tests'] = ['records' => $laboratoryTestsCount];
+        $totalRecords += $laboratoryTestsCount;
 
         $recentRecords = collect(self::REPORTS)
             ->mapWithKeys(function (array $config, string $key) {

@@ -1,11 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import { index as clinicalReportsIndex } from '@/routes/reports/clinical';
+import { index as laboratoryTestsIndex } from '@/routes/reports/laboratory-tests';
 
 export type ClinicalReportKey =
     | 'dashboard'
     | 'complaints'
     | 'diagnoses'
-    | 'examinations';
+    | 'examinations'
+    | 'laboratory-tests';
 
 type SidebarItem = {
     key: ClinicalReportKey;
@@ -37,6 +39,12 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
         title: 'Examinations report',
         getUrl: (team) =>
             clinicalReportsIndex.url({ current_team: team, report: 'examinations' }),
+    },
+    {
+        key: 'laboratory-tests',
+        title: 'Laboratory tests report',
+        getUrl: (team) =>
+            laboratoryTestsIndex.url({ current_team: team }),
     },
 ];
 

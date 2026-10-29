@@ -15,6 +15,7 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -29,18 +30,19 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $remember_token
  * @property int|null $current_team_id
  * @property Carbon|null $created_at
+ * @property bool $is_online
  * @property Carbon|null $updated_at
  * @property-read Team|null $currentTeam
  * @property-read Collection<int, Team> $ownedTeams
  * @property-read Collection<int, Membership> $teamMemberships
  * @property-read Collection<int, Team> $teams
  */
-#[Fillable(['name', 'email', 'password', 'current_team_id'])]
+#[Fillable(['name', 'email', 'password', 'current_team_id', 'is_online'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, HasTeams, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable {
+    use HasApiTokens, HasFactory, HasRoles, HasTeams, LogsActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable {
         HasTeams::teams insteadof HasRoles;
     }
 
@@ -55,6 +57,7 @@ class User extends Authenticatable implements PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'is_online' => 'boolean',
         ];
     }
 }

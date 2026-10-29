@@ -153,11 +153,13 @@ class ClinicalRecordData
             'laboratoryTests' => PriceList::query()
                 ->whereNull('parameter_id')
                 ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Laboratory'))
+                ->whereHas('labInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])
                 ->all(),
             'drugs' => PriceList::query()
                 ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Pharmacy'))
+                ->whereHas('drugInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])
                 ->all(),

@@ -1,12 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Eye, FileText, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -141,13 +141,23 @@ export default function LaboratoryHistory({
                     </Button>
                 </div>
 
-                <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">
-                        Requests ({summary.count})
-                    </p>
-                    <p className="text-2xl font-semibold">
-                        {currencySymbol} {summary.total.toLocaleString()}
-                    </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Card>
+                        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                                Requests
+                            </CardTitle>
+                            <FileText className="size-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-semibold tabular-nums">
+                                {currencySymbol} {summary.total.toLocaleString()}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {summary.count} request{summary.count !== 1 ? 's' : ''}
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="flex flex-wrap items-end gap-2">

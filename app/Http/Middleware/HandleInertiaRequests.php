@@ -2,11 +2,21 @@
 
 namespace App\Http\Middleware;
 
+use Closure;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    public function handle(Request $request, Closure $next)
+    {
+        if ($request->is('_connection-badge/ping')) {
+            return $next($request);
+        }
+
+        return parent::handle($request, $next);
+    }
+
     /**
      * The root template that's loaded on the first page visit.
      *

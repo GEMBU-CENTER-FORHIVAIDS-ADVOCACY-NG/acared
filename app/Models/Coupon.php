@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\LogsActivityWithPatient;
 use Carbon\CarbonInterface;
 use Database\Factories\CouponFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -40,7 +43,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Coupon extends Model
 {
     /** @use HasFactory<CouponFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity, LogsActivityWithPatient;
 
     use SoftDeletes;
 
@@ -146,6 +149,12 @@ class Coupon extends Model
         }
 
         return min($discount, $amount); // never exceed bill total
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->patientDescriptionPrefix().$eventName);
     }
 
     protected static function booted(): void
