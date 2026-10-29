@@ -58,4 +58,9 @@ class DrugInventoryPolicy
     {
         return $this->hasPermission($user, 'forceDeleteAny druginventory');
     }
+
+    public function stockCount(User $user): bool
+    {
+        return $this->hasPermission($user, 'stock count druginventory');
+    }
 }

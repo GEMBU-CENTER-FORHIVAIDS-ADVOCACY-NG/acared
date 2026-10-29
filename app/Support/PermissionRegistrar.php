@@ -75,6 +75,11 @@ class PermissionRegistrar
         'view markups',
         'view methods',
         'view coupons',
+
+        // Stock count permissions for inventory adjustments
+        'stock count inventory',
+        'stock count druginventory',
+        'stock count labinventory',
     ];
 
     /**

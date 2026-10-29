@@ -22,6 +22,7 @@ export function usePermissions() {
             hasAll: (perms: string[]) => hasAllAccess || perms.every(p => permissions.includes(p)),
             canView: (resource: string) => hasAllAccess || permissions.includes(`viewAny ${resource}`) || permissions.includes(`view ${resource}`),
             canViewPage: (page: string) => hasAllAccess || permissions.includes(`view ${page}`),
+            canStockCount: (resource: string) => hasAllAccess || permissions.includes(`stock count ${resource}`),
         };
     }, [auth.permissions, auth.roles]);
 }

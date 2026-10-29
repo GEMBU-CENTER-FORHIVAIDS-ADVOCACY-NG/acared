@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
+    ClipboardCheck,
     Eye,
     MoreHorizontal,
     PackageCheck,
@@ -11,10 +12,11 @@ import {
     TrendingUp,
     Trash2,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import { usePermissions } from '@/hooks/use-permissions';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import {
@@ -139,6 +141,7 @@ export default function PharmacyIndex({
     };
 }) {
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
+    const can = usePermissions();
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
@@ -152,10 +155,16 @@ export default function PharmacyIndex({
     const [quantities, setQuantities] = useState<Record<number, string>>({});
     const [adjustType, setAdjustType] = useState('add');
     const [reason, setReason] = useState('received');
+    const [isStockCount, setIsStockCount] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [importError, setImportError] = useState<string | null>(null);
     const importInput = useRef<HTMLInputElement>(null);
+
+    const selectedItems = useMemo(
+        () => inventories.data.filter((item) => selected.includes(item.id)),
+        [inventories.data, selected],
+    );
 
     function applyFilters(next: {
         q?: string;
@@ -180,6 +189,24 @@ export default function PharmacyIndex({
         setForm(EMPTY_FORM);
         setError(null);
         setFormOpen(true);
+    }
+
+    function openAdjust(ids: number[], isStockCountMode = false) {
+        setSelected(ids);
+        if (isStockCountMode) {
+            setIsStockCount(true);
+            setAdjustType('set');
+            setReason('correction');
+            setQuantities(Object.fromEntries(ids.map((id) => {
+                const item = inventories.data.find((i) => i.id === id);
+                return [id, item ? String(item.quantity) : '0'];
+            })));
+        } else {
+            setIsStockCount(false);
+            setQuantities(Object.fromEntries(ids.map((id) => [id, ''])));
+        }
+        setError(null);
+        setAdjustOpen(true);
     }
 
     function importDrugCatalog(file: File | undefined) {
@@ -348,7 +375,15 @@ export default function PharmacyIndex({
                             title="Medication inventory"
                             description="Manage pharmacy stock, monitor expiry dates, and review stock activity."
                         />
-                        <Button onClick={openCreate}>Add medication</Button>
+                        <div className="flex gap-2">
+                            {can.canStockCount('druginventory') && selected.length > 0 && (
+                                <Button variant="outline" onClick={() => openAdjust(selected, true)}>
+                                    <ClipboardCheck className="mr-2 size-4" />
+                                    Stock Count ({selected.length})
+                                </Button>
+                            )}
+                            <Button onClick={openCreate}>Add medication</Button>
+                        </div>
                     </div>
                     <input
                         ref={importInput}
@@ -476,13 +511,19 @@ export default function PharmacyIndex({
                                 {selected.length} selected
                             </p>
                             <div className="flex gap-2">
+                                {can.canStockCount('druginventory') && (
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => openAdjust(selected, true)}
+                                    >
+                                        Stock count
+                                    </Button>
+                                )}
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                        setError(null);
-                                        setAdjustOpen(true);
-                                    }}
+                                    onClick={() => openAdjust(selected)}
                                 >
                                     Adjust selected stock
                                 </Button>
@@ -661,14 +702,25 @@ export default function PharmacyIndex({
                                                                 <Pencil className="mr-2 h-4 w-4" />
                                                                 Edit
                                                             </DropdownMenuItem>
+                                                            {can.canStockCount('druginventory') && (
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        openAdjust(
+                                                                            [item.id],
+                                                                            true,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                                                                    Stock Count
+                                                                </DropdownMenuItem>
+                                                            )}
                                                             <DropdownMenuItem
-                                                                onClick={() => {
-                                                                    setSelected([
-                                                                        item.id,
-                                                                    ]);
-                                                                    setError(null);
-                                                                    setAdjustOpen(true);
-                                                                }}
+                                                                onClick={() =>
+                                                                    openAdjust(
+                                                                        [item.id],
+                                                                    )
+                                                                }
                                                             >
                                                                 <TrendingUp className="mr-2 h-4 w-4" />
                                                                 Adjust
@@ -832,72 +884,94 @@ export default function PharmacyIndex({
                 </SheetContent>
             </Sheet>
 
-            <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
+            <Sheet open={adjustOpen} onOpenChange={(open) => {
+                if (!open) {
+                    setIsStockCount(false);
+                }
+                setAdjustOpen(open);
+            }}>
                 <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
-                        <SheetTitle>Adjust pharmacy stock</SheetTitle>
+                        <SheetTitle>
+                            {isStockCount ? 'Stock count' : 'Adjust pharmacy stock'}
+                        </SheetTitle>
                         <SheetDescription>
-                            Record a received, dispensed, or corrected quantity.
+                            {isStockCount
+                                ? 'Set the exact quantity found during physical stock count.'
+                                : 'Record a received, dispensed, or corrected quantity.'}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6 space-y-4 px-4 pb-4">
-                        <div className="space-y-2">
-                            <Label>Adjustment</Label>
-                            <SelectNative
-                                value={adjustType}
-                                onChange={(event) =>
-                                    setAdjustType(event.target.value)
-                                }
-                            >
-                                <option value="add">Add quantity</option>
-                                <option value="remove">Remove quantity</option>
-                                <option value="set">Set exact quantity</option>
-                            </SelectNative>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Reason</Label>
-                            <SelectNative
-                                value={reason}
-                                onChange={(event) =>
-                                    setReason(event.target.value)
-                                }
-                            >
-                                <option value="received">Received</option>
-                                <option value="dispensed">Dispensed</option>
-                                <option value="damaged">
-                                    Damaged / expired
-                                </option>
-                                <option value="correction">
-                                    Stock correction
-                                </option>
-                                <option value="returned">Returned</option>
-                                <option value="other">Other</option>
-                            </SelectNative>
-                        </div>
-                        {inventories.data
-                            .filter((item) => selected.includes(item.id))
-                            .map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="space-y-2 rounded-lg border p-3"
-                                >
-                                    <p className="text-sm font-medium">
-                                        {item.name} (current: {item.quantity})
-                                    </p>
-                                    <Input
-                                        type="number"
-                                        min="0.01"
-                                        placeholder="Quantity"
-                                        value={quantities[item.id] ?? ''}
+                        {isStockCount ? (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                <p className="font-medium">Stock count mode</p>
+                                <p className="text-xs">Enter the exact quantity found for each item. The reason is set to "Stock count correction".</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Adjustment</Label>
+                                    <SelectNative
+                                        value={adjustType}
                                         onChange={(event) =>
-                                            setQuantities({
-                                                ...quantities,
-                                                [item.id]: event.target.value,
-                                            })
+                                            setAdjustType(event.target.value)
                                         }
-                                    />
+                                    >
+                                        <option value="add">Add quantity</option>
+                                        <option value="remove">Remove quantity</option>
+                                        <option value="set">Set exact quantity</option>
+                                    </SelectNative>
                                 </div>
-                            ))}
+                                <div className="space-y-2">
+                                    <Label>Reason</Label>
+                                    <SelectNative
+                                        value={reason}
+                                        onChange={(event) =>
+                                            setReason(event.target.value)
+                                        }
+                                    >
+                                        <option value="received">Received</option>
+                                        <option value="dispensed">Dispensed</option>
+                                        <option value="damaged">
+                                            Damaged / expired
+                                        </option>
+                                        <option value="correction">
+                                            Stock correction
+                                        </option>
+                                        <option value="returned">Returned</option>
+                                        <option value="other">Other</option>
+                                    </SelectNative>
+                                </div>
+                            </>
+                        )}
+                        {selectedItems.length > 0 ? selectedItems.map((item) => (
+                            <div
+                                key={item.id}
+                                className="space-y-2 rounded-lg border p-3"
+                            >
+                                <p className="text-sm font-medium">
+                                    {item.name} ({item.quantity} current)
+                                </p>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    placeholder={isStockCount ? `Current: ${item.quantity}` : 'Quantity'}
+                                    value={quantities[item.id] ?? ''}
+                                    onChange={(event) =>
+                                        setQuantities({
+                                            ...quantities,
+                                            [item.id]: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                        )) : (
+                            <p className="text-sm text-muted-foreground">
+                                {isStockCount
+                                    ? 'Select items from the table to count their stock, or use the checkbox to select multiple items.'
+                                    : 'Select items to adjust.'}
+                            </p>
+                        )}
                         {error ? (
                             <p className="text-sm text-red-600">{error}</p>
                         ) : null}
@@ -913,7 +987,7 @@ export default function PharmacyIndex({
                             disabled={processing}
                             onClick={submitAdjustment}
                         >
-                            {processing ? 'Applying…' : 'Apply adjustment'}
+                            {isStockCount ? 'Save stock count' : (processing ? 'Applying…' : 'Apply adjustment')}
                         </Button>
                     </SheetFooter>
                 </SheetContent>

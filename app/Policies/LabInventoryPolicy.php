@@ -58,4 +58,9 @@ class LabInventoryPolicy
     {
         return $this->hasPermission($user, 'forceDeleteAny labinventory');
     }
+
+    public function stockCount(User $user): bool
+    {
+        return $this->hasPermission($user, 'stock count labinventory');
+    }
 }

@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
+    ClipboardCheck,
     Eye,
     MoreHorizontal,
     PackageCheck,
@@ -15,6 +16,7 @@ import {
 import { useRef, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import { usePermissions } from '@/hooks/use-permissions';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -164,6 +166,7 @@ export default function InventoryStockIndex({
     };
 }) {
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
+    const can = usePermissions();
     const teamSlug = currentTeam?.slug ?? '';
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
@@ -177,6 +180,7 @@ export default function InventoryStockIndex({
     const [transferOpen, setTransferOpen] = useState(false);
     const [operation, setOperation] = useState<'add' | 'remove' | 'set'>('add');
     const [reason, setReason] = useState('correction');
+    const [isStockCount, setIsStockCount] = useState(false);
     const [location, setLocation] = useState<'lab' | 'pharmacy'>('lab');
     const [receiver, setReceiver] = useState('');
     const [quantities, setQuantities] = useState<Record<number, string>>({});
@@ -265,9 +269,20 @@ export default function InventoryStockIndex({
         }
     }
 
-    function openOperation(kind: 'adjust' | 'transfer', ids: number[]) {
+    function openOperation(kind: 'adjust' | 'transfer', ids: number[], isStockCountMode = false) {
         setSelected(ids);
-        setQuantities(Object.fromEntries(ids.map((id) => [id, '1'])));
+        if (isStockCountMode) {
+            setIsStockCount(true);
+            setOperation('set');
+            setReason('correction');
+            setQuantities(Object.fromEntries(ids.map((id) => {
+                const item = inventories.data.find((i) => i.id === id);
+                return [id, item ? String(item.quantity) : '0'];
+            })));
+        } else {
+            setIsStockCount(false);
+            setQuantities(Object.fromEntries(ids.map((id) => [id, '1'])));
+        }
         if (kind === 'adjust') setAdjustOpen(true);
         else setTransferOpen(true);
     }
@@ -470,6 +485,12 @@ export default function InventoryStockIndex({
                             <Upload className="mr-2 size-4" />
                             Import CSV
                         </Button>
+                        {can.canStockCount('inventory') && selected.length > 0 && (
+                            <Button variant="outline" onClick={() => openOperation('adjust', selected, true)}>
+                                <ClipboardCheck className="mr-2 size-4" />
+                                Stock Count ({selected.length})
+                            </Button>
+                        )}
                         <Button onClick={openCreate}>Add inventory item</Button>
                     </div>
                 </div>
@@ -553,6 +574,15 @@ export default function InventoryStockIndex({
                             <span className="text-sm text-muted-foreground">
                                 {selected.length} selected
                             </span>
+                            {can.canStockCount('inventory') && (
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => openOperation('adjust', selected, true)}
+                                >
+                                    Stock count
+                                </Button>
+                            )}
                             <Button
                                 size="sm"
                                 variant="secondary"
@@ -738,6 +768,20 @@ export default function InventoryStockIndex({
                                                         <Pencil className="mr-2 h-4 w-4" />
                                                         Edit
                                                     </DropdownMenuItem>
+                                                    {can.canStockCount('inventory') && (
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openOperation(
+                                                                    'adjust',
+                                                                    [item.id],
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            <ClipboardCheck className="mr-2 h-4 w-4" />
+                                                            Stock Count
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuItem
                                                         onClick={() =>
                                                             openOperation(
@@ -915,70 +959,85 @@ export default function InventoryStockIndex({
                 </SheetContent>
             </Sheet>
 
-            <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
+            <Sheet open={adjustOpen} onOpenChange={(open) => {
+                if (!open) {
+                    setIsStockCount(false);
+                }
+                setAdjustOpen(open);
+            }}>
                 <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
-                        <SheetTitle>Stock adjustment</SheetTitle>
+                        <SheetTitle>
+                            {isStockCount ? 'Stock count' : 'Stock adjustment'}
+                        </SheetTitle>
                         <SheetDescription>
-                            Adjust quantity and record the reason for each stock
-                            movement.
+                            {isStockCount
+                                ? 'Set the exact quantity found during physical stock count.'
+                                : 'Adjust quantity and record the reason for each stock movement.'}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="space-y-4 px-4 py-5">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>Adjustment</Label>
-                                <SelectNative
-                                    value={operation}
-                                    onChange={(event) =>
-                                        setOperation(
-                                            event.target.value as
-                                                | 'add'
-                                                | 'remove'
-                                                | 'set',
-                                        )
-                                    }
-                                >
-                                    <option value="add">Add stock</option>
-                                    <option value="remove">Remove stock</option>
-                                    <option value="set">
-                                        Set exact quantity
-                                    </option>
-                                </SelectNative>
+                        {isStockCount ? (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                <p className="font-medium">Stock count mode</p>
+                                <p className="text-xs">Enter the exact quantity found for each item. The reason is set to "Stock count correction".</p>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Reason</Label>
-                                <SelectNative
-                                    value={reason}
-                                    onChange={(event) =>
-                                        setReason(event.target.value)
-                                    }
-                                >
-                                    <option value="damaged">
-                                        Damaged / expired
-                                    </option>
-                                    <option value="correction">
-                                        Stock count correction
-                                    </option>
-                                    <option value="returned">
-                                        Returned to supplier
-                                    </option>
-                                    <option value="donated">Donated</option>
-                                    <option value="other">Other</option>
-                                </SelectNative>
+                        ) : (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Adjustment</Label>
+                                    <SelectNative
+                                        value={operation}
+                                        onChange={(event) =>
+                                            setOperation(
+                                                event.target.value as
+                                                    | 'add'
+                                                    | 'remove'
+                                                    | 'set',
+                                            )
+                                        }
+                                    >
+                                        <option value="add">Add stock</option>
+                                        <option value="remove">Remove stock</option>
+                                        <option value="set">
+                                            Set exact quantity
+                                        </option>
+                                    </SelectNative>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Reason</Label>
+                                    <SelectNative
+                                        value={reason}
+                                        onChange={(event) =>
+                                            setReason(event.target.value)
+                                        }
+                                    >
+                                        <option value="damaged">
+                                            Damaged / expired
+                                        </option>
+                                        <option value="correction">
+                                            Stock count correction
+                                        </option>
+                                        <option value="returned">
+                                            Returned to supplier
+                                        </option>
+                                        <option value="donated">Donated</option>
+                                        <option value="other">Other</option>
+                                    </SelectNative>
+                                </div>
                             </div>
-                        </div>
-                        {selectedItems.map((item) => (
+                        )}
+                        {selectedItems.length > 0 ? selectedItems.map((item) => (
                             <div
                                 key={item.id}
                                 className="grid grid-cols-[1fr_120px] items-center gap-3"
                             >
                                 <Label>
-                                    {item.name} ({item.quantity} available)
+                                    {item.name} ({item.quantity} current)
                                 </Label>
                                 <Input
                                     type="number"
-                                    min="0.01"
+                                    min="0"
                                     step="any"
                                     value={quantities[item.id] ?? ''}
                                     onChange={(event) =>
@@ -987,9 +1046,16 @@ export default function InventoryStockIndex({
                                             [item.id]: event.target.value,
                                         })
                                     }
+                                    placeholder={isStockCount ? `Current: ${item.quantity}` : 'Quantity'}
                                 />
                             </div>
-                        ))}
+                        )) : (
+                            <p className="text-sm text-muted-foreground">
+                                {isStockCount
+                                    ? 'Select items from the table to count their stock, or use the checkbox to select multiple items.'
+                                    : 'Select items to adjust.'}
+                            </p>
+                        )}
                         {formError ? (
                             <p className="text-sm text-destructive">
                                 {formError}
@@ -1007,7 +1073,7 @@ export default function InventoryStockIndex({
                             disabled={processing}
                             onClick={submitAdjustment}
                         >
-                            Apply adjustment
+                            {isStockCount ? 'Save stock count' : 'Apply adjustment'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>

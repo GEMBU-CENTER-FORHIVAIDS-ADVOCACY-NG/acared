@@ -1,8 +1,20 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, PackageCheck, PackageMinus, PackageSearch, Pencil, TriangleAlert, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import {
+    ClipboardCheck,
+    Eye,
+    MoreHorizontal,
+    PackageCheck,
+    PackageMinus,
+    PackageSearch,
+    Pencil,
+    TriangleAlert,
+    TrendingUp,
+    Trash2,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import { usePermissions } from '@/hooks/use-permissions';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +28,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -99,6 +112,7 @@ export default function LabInventoriesIndex({
     };
 }) {
     const { currentTeam } = usePage<LayoutProps>().props;
+    const can = usePermissions();
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
     const [formOpen, setFormOpen] = useState(false);
@@ -109,6 +123,7 @@ export default function LabInventoriesIndex({
     const [adjustType, setAdjustType] = useState('add');
     const [adjustReason, setAdjustReason] = useState('correction');
     const [adjustQty, setAdjustQty] = useState<Record<number, string>>({});
+    const [isStockCount, setIsStockCount] = useState(false);
     const [toDelete, setToDelete] = useState<LabInventoryListItem | null>(null);
     const [viewing, setViewing] = useState<LabInventoryListItem | null>(null);
     const [processing, setProcessing] = useState(false);
@@ -240,6 +255,28 @@ export default function LabInventoriesIndex({
         );
     }
 
+    const selectedItems = useMemo(
+        () => inventories.data.filter((item) => selected.includes(item.id)),
+        [inventories.data, selected],
+    );
+
+    function openAdjust(ids: number[], isStockCountMode = false) {
+        setSelected(ids);
+        if (isStockCountMode) {
+            setIsStockCount(true);
+            setAdjustType('set');
+            setAdjustReason('correction');
+            setAdjustQty(Object.fromEntries(ids.map((id) => {
+                const item = inventories.data.find((i) => i.id === id);
+                return [id, item ? String(item.quantity) : '0'];
+            })));
+        } else {
+            setIsStockCount(false);
+            setAdjustQty(Object.fromEntries(ids.map((id) => [id, ''])));
+        }
+        setAdjustOpen(true);
+    }
+
     return (
         <>
             <Head title="Lab inventory" />
@@ -252,20 +289,12 @@ export default function LabInventoriesIndex({
                             description="Stock levels for laboratory reagents and kits."
                         />
                         <div className="flex flex-wrap gap-2">
-                            <Button
-                                variant="secondary"
-                                disabled={selected.length === 0}
-                                onClick={() => {
-                                    setAdjustQty(
-                                        Object.fromEntries(
-                                            selected.map((id) => [id, '']),
-                                        ),
-                                    );
-                                    setAdjustOpen(true);
-                                }}
-                            >
-                                Adjust stock
-                            </Button>
+                            {can.canStockCount('labinventory') && selected.length > 0 && (
+                                <Button variant="outline" onClick={() => openAdjust(selected, true)}>
+                                    <ClipboardCheck className="mr-2 size-4" />
+                                    Stock Count ({selected.length})
+                                </Button>
+                            )}
                             <Button onClick={openCreate}>Add inventory</Button>
                         </div>
                     </div>
@@ -337,12 +366,70 @@ export default function LabInventoriesIndex({
                     </form>
                 </div>
 
+                {selected.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-6 py-3">
+                        <p className="text-sm text-muted-foreground">
+                            {selected.length} selected
+                        </p>
+                        <div className="flex gap-2">
+                            {can.canStockCount('labinventory') && (
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => openAdjust(selected, true)}
+                                >
+                                    Stock count
+                                </Button>
+                            )}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openAdjust(selected)}
+                            >
+                                Adjust stock
+                            </Button>
+                        </div>
+                    </div>
+                )}
                 <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                             <TableRow>
-                                <TableHead className="w-10" />
+                                <TableHead className="w-10">
+                                    <input
+                                        type="checkbox"
+                                        aria-label="Select all lab inventory items"
+                                        checked={
+                                            inventories.data.length > 0 &&
+                                            inventories.data.every((item) =>
+                                                selected.includes(item.id),
+                                            )
+                                        }
+                                        onChange={(event) =>
+                                            setSelected(
+                                                event.target.checked
+                                                    ? [
+                                                          ...new Set([
+                                                              ...selected,
+                                                              ...inventories.data.map(
+                                                                  (item) =>
+                                                                      item.id,
+                                                              ),
+                                                          ]),
+                                                      ]
+                                                    : selected.filter(
+                                                          (id) =>
+                                                              !inventories.data.some(
+                                                                  (item) =>
+                                                                      item.id ===
+                                                                      id,
+                                                              ),
+                                                      ),
+                                            )
+                                        }
+                                    />
+                                </TableHead>
                                 <TableHead>Product</TableHead>
                                 <TableHead>Form</TableHead>
                                 <TableHead>Min</TableHead>
@@ -437,6 +524,30 @@ export default function LabInventoriesIndex({
                                                         <Pencil className="mr-2 h-4 w-4" />
                                                         Edit
                                                     </DropdownMenuItem>
+                                                    {can.canStockCount('labinventory') && (
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openAdjust(
+                                                                    [item.id],
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            <ClipboardCheck className="mr-2 h-4 w-4" />
+                                                            Stock Count
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            openAdjust(
+                                                                [item.id],
+                                                            )
+                                                        }
+                                                    >
+                                                        <TrendingUp className="mr-2 h-4 w-4" />
+                                                        Adjust
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         onClick={() =>
                                                             setToDelete(item)
@@ -655,78 +766,95 @@ export default function LabInventoriesIndex({
                 </DialogContent>
             </Dialog>
 
-            <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
+            <Sheet open={adjustOpen} onOpenChange={(open) => {
+                if (!open) {
+                    setIsStockCount(false);
+                }
+                setAdjustOpen(open);
+            }}>
                 <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
-                        <SheetTitle>Stock adjustment</SheetTitle>
+                        <SheetTitle>
+                            {isStockCount ? 'Stock count' : 'Stock adjustment'}
+                        </SheetTitle>
                         <SheetDescription>
-                            Add, remove, or set quantities for selected
-                            products.
+                            {isStockCount
+                                ? 'Set the exact quantity found during physical stock count.'
+                                : 'Add, remove, or set quantities for selected products.'}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6 space-y-4 px-4 pb-4">
-                        <div className="space-y-2">
-                            <Label>Type</Label>
-                            <SelectNative
-                                value={adjustType}
-                                onChange={(event) =>
-                                    setAdjustType(event.target.value)
-                                }
-                            >
-                                <option value="add">Add stock</option>
-                                <option value="remove">Remove stock</option>
-                                <option value="set">Set exact quantity</option>
-                            </SelectNative>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Reason</Label>
-                            <SelectNative
-                                value={adjustReason}
-                                onChange={(event) =>
-                                    setAdjustReason(event.target.value)
-                                }
-                            >
-                                <option value="damaged">
-                                    Damaged / Expired
-                                </option>
-                                <option value="correction">
-                                    Stock count correction
-                                </option>
-                                <option value="returned">
-                                    Returned to supplier
-                                </option>
-                                <option value="donated">Donated</option>
-                                <option value="other">Other</option>
-                            </SelectNative>
-                        </div>
-                        {selected.map((id) => {
-                            const item = inventories.data.find(
-                                (row) => row.id === id,
-                            );
-
-                            return (
-                                <div
-                                    key={id}
-                                    className="space-y-2 rounded-lg border p-3"
-                                >
-                                    <p className="text-sm font-medium">
-                                        {item?.priceListName} ({item?.quantity})
-                                    </p>
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        placeholder="Adjustment qty"
-                                        value={adjustQty[id] ?? ''}
+                        {isStockCount ? (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                <p className="font-medium">Stock count mode</p>
+                                <p className="text-xs">Enter the exact quantity found for each item. The reason is set to "Stock count correction".</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Type</Label>
+                                    <SelectNative
+                                        value={adjustType}
                                         onChange={(event) =>
-                                            setAdjustQty((current) => ({
-                                                ...current,
-                                                [id]: event.target.value,
-                                            }))
+                                            setAdjustType(event.target.value)
                                         }
-                                    />
+                                    >
+                                        <option value="add">Add stock</option>
+                                        <option value="remove">Remove stock</option>
+                                        <option value="set">Set exact quantity</option>
+                                    </SelectNative>
                                 </div>
-                            );
-                        })}
+                                <div className="space-y-2">
+                                    <Label>Reason</Label>
+                                    <SelectNative
+                                        value={adjustReason}
+                                        onChange={(event) =>
+                                            setAdjustReason(event.target.value)
+                                        }
+                                    >
+                                        <option value="damaged">
+                                            Damaged / Expired
+                                        </option>
+                                        <option value="correction">
+                                            Stock count correction
+                                        </option>
+                                        <option value="returned">
+                                            Returned to supplier
+                                        </option>
+                                        <option value="donated">Donated</option>
+                                        <option value="other">Other</option>
+                                    </SelectNative>
+                                </div>
+                            </>
+                        )}
+                        {selectedItems.length > 0 ? selectedItems.map((item) => (
+                            <div
+                                key={item.id}
+                                className="space-y-2 rounded-lg border p-3"
+                            >
+                                <p className="text-sm font-medium">
+                                    {item.priceListName} ({item.quantity} current)
+                                </p>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    placeholder={isStockCount ? `Current: ${item.quantity}` : 'Adjustment qty'}
+                                    value={adjustQty[item.id] ?? ''}
+                                    onChange={(event) =>
+                                        setAdjustQty((current) => ({
+                                            ...current,
+                                            [item.id]: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                        )) : (
+                            <p className="text-sm text-muted-foreground">
+                                {isStockCount
+                                    ? 'Select items from the table to count their stock, or use the checkbox to select multiple items.'
+                                    : 'Select items to adjust.'}
+                            </p>
+                        )}
                     </div>
                     <SheetFooter className="mt-6">
                         <Button
@@ -736,7 +864,7 @@ export default function LabInventoriesIndex({
                             Cancel
                         </Button>
                         <Button disabled={processing} onClick={submitAdjust}>
-                            {processing ? 'Applying…' : 'Apply adjustment'}
+                            {isStockCount ? 'Save stock count' : (processing ? 'Applying…' : 'Apply adjustment')}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
