@@ -83,6 +83,7 @@ export default function LaboratoryIndex({
     const [patientId, setPatientId] = useState(
         createOptions.selectedPatientId ?? '',
     );
+    const [selectedPatientLabel, setSelectedPatientLabel] = useState('');
     const [lines, setLines] = useState<CreateLine[]>([
         { price_list_id: '', unitPrice: '', unitCost: '', quantity: '1' },
     ]);
@@ -156,13 +157,7 @@ export default function LaboratoryIndex({
         };
     }, []);
 
-    const selectedPatientLabel = (() => {
-        if (!patientId) {
-            return '';
-        }
-        const found = patientSearchResults.find((p) => p.slug === patientId);
-        return found?.label ?? patientId;
-    })();
+    const displayPatientLabel = patientId ? selectedPatientLabel : '';
 
     useEffect(() => {
         setResultValues(emptyResultValues());
@@ -217,6 +212,70 @@ export default function LaboratoryIndex({
                 onError: (errors) =>
                     setFormError(
                         Object.values(errors)[0] ?? 'Unable to submit results.',
+                    ),
+                onFinish: () => setProcessing(false),
+            },
+        );
+    }
+
+    function saveStepResults(stepIndex: number, _stepName: string) {
+        if (!selected || !resultForm) {
+            return;
+        }
+
+        setProcessing(true);
+        setFormError(null);
+
+        const step = resultForm.steps[stepIndex];
+        if (!step) {
+            setProcessing(false);
+            return;
+        }
+
+        // Build payload for the current step only
+        const stepLines: Record<string, string> = {};
+        const stepTestResults: Record<string, { price_list_id: number; result: string }[]> = {};
+        const stepInventoryConsumption: Record<string, { lab_inventory_id: number; quantity: number }[]> = {};
+
+        for (const test of step.tests) {
+            if (test.kind === 'simple') {
+                const value = resultValues.lines[String(test.id)];
+                if (value) {
+                    stepLines[String(test.id)] = value;
+                }
+            } else if (test.kind === 'parameters') {
+                const testResultMap = resultValues.testResults[String(test.id)] ?? {};
+                const rows = Object.entries(testResultMap)
+                    .filter(([, result]) => result)
+                    .map(([priceListId, result]) => ({
+                        price_list_id: Number(priceListId),
+                        result,
+                    }));
+                if (rows.length > 0) {
+                    stepTestResults[String(test.id)] = rows;
+                }
+            }
+
+            // Collect inventory consumption keyed by test (price_list_id)
+            const consumptionRows = resultValues.inventoryConsumption[String(test.id)] ?? [];
+            const filtered = consumptionRows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
+            if (filtered.length > 0) {
+                stepInventoryConsumption[String(test.id)] = filtered;
+            }
+        }
+
+        router.patch(
+            baseUrl(`/${selected.id}/results`),
+            { lines: stepLines, testResults: stepTestResults, inventoryConsumption: stepInventoryConsumption },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // After saving, the saved tests will no longer appear as pending
+                    // The page will reload with updated resultForm from the server
+                },
+                onError: (errors) =>
+                    setFormError(
+                        Object.values(errors)[0] ?? 'Unable to save step results.',
                     ),
                 onFinish: () => setProcessing(false),
             },
@@ -426,21 +485,13 @@ export default function LaboratoryIndex({
                                     form={resultForm}
                                     values={resultValues}
                                     onChange={setResultValues}
+                                    onSaveStep={saveStepResults}
+                                    onSubmitResults={submitResults}
                                 />
                                 {formError ? (
                                     <p className="text-sm text-red-600">
                                         {formError}
                                     </p>
-                                ) : null}
-                                {resultForm.hasPending ? (
-                                    <Button
-                                        disabled={processing}
-                                        onClick={submitResults}
-                                    >
-                                        {processing
-                                            ? 'Submitting…'
-                                            : 'Submit results'}
-                                    </Button>
                                 ) : null}
                             </div>
                         ) : (
@@ -471,7 +522,7 @@ export default function LaboratoryIndex({
                                     id="create-patient"
                                     ref={patientSearchInputRef}
                                     placeholder="Search patient by name, code, or phone…"
-                                    value={patientId ? selectedPatientLabel : patientSearchQuery}
+                                    value={displayPatientLabel || patientSearchQuery}
                                     readOnly={!!patientId && Boolean(createOptions.selectedPatientId)}
                                     onClick={() => {
                                         if (!patientId || !createOptions.selectedPatientId) {
@@ -481,6 +532,7 @@ export default function LaboratoryIndex({
                                     onChange={(event) => {
                                         const value = event.target.value;
                                         setPatientId('');
+                                        setSelectedPatientLabel('');
                                         setPatientSearchQuery(value);
                                         searchPatients(value);
                                         setPatientSearchOpen(true);
@@ -505,6 +557,7 @@ export default function LaboratoryIndex({
                                                 className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
                                                 onClick={() => {
                                                     setPatientId(option.slug);
+                                                    setSelectedPatientLabel(option.label);
                                                     setPatientSearchQuery('');
                                                     setPatientSearchResults([]);
                                                     setPatientSearchOpen(false);

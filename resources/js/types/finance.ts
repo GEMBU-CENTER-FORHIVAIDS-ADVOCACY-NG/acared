@@ -90,6 +90,25 @@ export type BillingFormFilters = {
 export type BillingPatientOption = {
     slug: string;
     label: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    gender: string | null;
+    birthDate: string | null;
+    email: string | null;
+    phone: string | null;
+    mobile: string | null;
+    category_id: string;
+    country_id: string;
+    state_id: string;
+    lga_id: string;
+    address: string | null;
+    kinFullName: string | null;
+    kinPhone: string | null;
+    kinEmail: string | null;
+    relation: string | null;
+    art: string | null;
+    slugOther: string | null;
 };
 
 export type BillingPriceListOption = {
@@ -115,6 +134,7 @@ export type NewBillingOptions = {
     states: PatientLocationOption[];
     lgas: PatientLgaOption[];
     priceLists: BillingPriceListOption[];
+    services: BillingPriceListOption[];
 };
 
 export type BillingPaymentLine = {

@@ -26,6 +26,13 @@ class TransferAppointmentRequest extends FormRequest
             ->pluck('id')
             ->all();
 
+        $nurseIds = User::query()
+            ->whereHas('teams', fn ($query) => $query->whereKey($teamId))
+            ->pluck('id')
+            ->all();
+
+        $transferTo = $this->input('transferTo', 'doctor');
+
         return [
             'patient_id' => [
                 'required',
@@ -48,11 +55,13 @@ class TransferAppointmentRequest extends FormRequest
                     }
                 },
             ],
-            'doctor_id' => [
-                'required',
-                'integer',
-                Rule::in($doctorIds),
-            ],
+            'transferTo' => ['required', Rule::in(['doctor', 'nurse'])],
+            'doctor_id' => $transferTo === 'doctor'
+                ? ['required', 'integer', Rule::in($doctorIds)]
+                : ['nullable', 'integer'],
+            'nurse_id' => $transferTo === 'nurse'
+                ? ['required', 'integer', Rule::in($nurseIds)]
+                : ['nullable', 'integer'],
         ];
     }
 }

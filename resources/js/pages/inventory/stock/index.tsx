@@ -8,6 +8,7 @@ import {
     PackageMinus,
     PackageSearch,
     Pencil,
+    Printer,
     Trash2,
     TriangleAlert,
     TrendingUp,
@@ -114,6 +115,7 @@ type Inventory = {
     profit: number;
     status: string;
     expiresAt: string | null;
+    subCategory: string | null;
 };
 type Paginator = {
     data: Inventory[];
@@ -152,11 +154,13 @@ export default function InventoryStockIndex({
 }: {
     currencySymbol: string;
     inventories: Paginator;
-    filters: { q: string; status: string; perPage: number };
+    filters: { q: string; status: string; categoryId: number | null; subcategoryId: number | null; sort: string; perPage: number };
     formOptions: {
         priceLists: { id: number; name: string }[];
         drugForms: { id: number; name: string }[];
         users: { id: number; name: string }[];
+        categories: { id: number; name: string }[];
+        subcategories: { id: number; name: string }[];
     };
     summary: {
         products: number;
@@ -170,6 +174,8 @@ export default function InventoryStockIndex({
     const teamSlug = currentTeam?.slug ?? '';
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
+    const [categoryId, setCategoryId] = useState(filters.categoryId?.toString() ?? '');
+    const [subcategoryId, setSubcategoryId] = useState(filters.subcategoryId?.toString() ?? '');
     const [editing, setEditing] = useState<Inventory | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState<FormValues>(emptyForm);
@@ -194,12 +200,15 @@ export default function InventoryStockIndex({
     const [importProcessing, setImportProcessing] = useState(false);
     const importFileInput = useRef<HTMLInputElement>(null);
 
-    function applyFilters(page = 1, perPage = filters.perPage) {
+    function applyFilters(page = 1, perPage = filters.perPage, sort = filters.sort) {
         router.get(
             stockRoutes.index.url(teamSlug, {
                 query: {
                     q: query || undefined,
                     status: status === 'all' ? undefined : status,
+                    category_id: categoryId || undefined,
+                    subcategory_id: subcategoryId || undefined,
+                    sort: sort === 'price_list_id' ? undefined : sort,
                     page,
                     perPage,
                 },
@@ -290,15 +299,26 @@ export default function InventoryStockIndex({
     function submitAdjustment() {
         setProcessing(true);
         setFormError(null);
+
+        const items = selected
+            .map((id) => ({
+                id,
+                quantity: Number(quantities[id]) || 0,
+            }))
+            .filter((item) => item.quantity > 0);
+
+        if (items.length === 0) {
+            setFormError('Please enter a quantity greater than zero for at least one item.');
+            setProcessing(false);
+            return;
+        }
+
         router.post(
             stockRoutes.adjust.url(teamSlug),
             {
                 type: operation,
                 reason,
-                items: selected.map((id) => ({
-                    id,
-                    quantity: Number(quantities[id]) || 0,
-                })),
+                items,
             },
             {
                 preserveScroll: true,
@@ -315,15 +335,26 @@ export default function InventoryStockIndex({
     function submitTransfer() {
         setProcessing(true);
         setFormError(null);
+
+        const items = selected
+            .map((id) => ({
+                id,
+                quantity: Number(quantities[id]) || 0,
+            }))
+            .filter((item) => item.quantity > 0);
+
+        if (items.length === 0) {
+            setFormError('Please enter a quantity greater than zero for at least one item.');
+            setProcessing(false);
+            return;
+        }
+
         router.post(
             stockRoutes.transfer.url(teamSlug),
             {
                 location,
                 receiver: Number(receiver),
-                items: selected.map((id) => ({
-                    id,
-                    quantity: Number(quantities[id]) || 0,
-                })),
+                items,
             },
             {
                 preserveScroll: true,
@@ -481,6 +512,17 @@ export default function InventoryStockIndex({
                                 Export CSV
                             </a>
                         </Button>
+                        <Button variant="outline" asChild>
+                            <a href={stockRoutes.exportStockTaking.url(teamSlug)}>
+                                Export stock taking
+                            </a>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <Link href={stockRoutes.print.url(teamSlug)}>
+                                <Printer className="mr-2 size-4" />
+                                Print stock taking
+                            </Link>
+                        </Button>
                         <Button variant="outline" onClick={() => setImportOpen(true)}>
                             <Upload className="mr-2 size-4" />
                             Import CSV
@@ -565,6 +607,30 @@ export default function InventoryStockIndex({
                             <option value="expired">Expired</option>
                             <option value="expiring">Expiring soon</option>
                         </SelectNative>
+                        <SelectNative
+                            aria-label="Filter by category"
+                            value={categoryId}
+                            onChange={(event) => setCategoryId(event.target.value)}
+                        >
+                            <option value="">All categories</option>
+                            {formOptions.categories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                    {category.name}
+                                </option>
+                            ))}
+                        </SelectNative>
+                        <SelectNative
+                            aria-label="Filter by subcategory"
+                            value={subcategoryId}
+                            onChange={(event) => setSubcategoryId(event.target.value)}
+                        >
+                            <option value="">All subcategories</option>
+                            {formOptions.subcategories.map((subcategory) => (
+                                <option key={subcategory.id} value={subcategory.id}>
+                                    {subcategory.name}
+                                </option>
+                            ))}
+                        </SelectNative>
                         <Button type="submit" variant="secondary">
                             Filter
                         </Button>
@@ -646,16 +712,37 @@ export default function InventoryStockIndex({
                                         }
                                     />
                                 </TableHead>
+                                <TableHead>SKU</TableHead>
+                                <TableHead
+                                    className="cursor-pointer select-none"
+                                    onClick={() => {
+                                        const nextSort =
+                                            filters.sort === 'category_asc'
+                                                ? 'category_desc'
+                                                : 'category_asc';
+                                        applyFilters(1, filters.perPage, nextSort);
+                                    }}
+                                >
+                                    Category {filters.sort === 'category_asc' ? '↑' : filters.sort === 'category_desc' ? '↓' : ''}
+                                </TableHead>
                                 <TableHead>Product</TableHead>
                                 <TableHead>Form</TableHead>
-                                <TableHead>SKU</TableHead>
                                 <TableHead>Minimum</TableHead>
-                                <TableHead>Quantity</TableHead>
-                                <TableHead>Price</TableHead>
+                                <TableHead
+                                    className="cursor-pointer select-none"
+                                    onClick={() => {
+                                        const nextSort =
+                                            filters.sort === 'quantity_asc'
+                                                ? 'quantity_desc'
+                                                : 'quantity_asc';
+                                        applyFilters(1, filters.perPage, nextSort);
+                                    }}
+                                >
+                                    Quantity {filters.sort === 'quantity_asc' ? '↑' : filters.sort === 'quantity_desc' ? '↓' : ''}
+                                </TableHead>
                                 <TableHead>Cost</TableHead>
                                 <TableHead>Value</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead>Expiry</TableHead>
                                 <TableHead className="text-right">
                                     Actions
                                 </TableHead>
@@ -665,7 +752,7 @@ export default function InventoryStockIndex({
                             {inventories.data.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={12}
+                                        colSpan={10}
                                         className="py-10 text-center text-muted-foreground"
                                     >
                                         No inventory items found.
@@ -697,13 +784,16 @@ export default function InventoryStockIndex({
                                                 }
                                             />
                                         </TableCell>
+                                        <TableCell>{item.sku}</TableCell>
+                                        <TableCell className="break-words whitespace-normal">
+                                            {item.subCategory ?? '—'}
+                                        </TableCell>
                                         <TableCell className="font-medium">
                                             {item.name}
                                         </TableCell>
                                         <TableCell>
                                             {item.drugForm ?? '—'}
                                         </TableCell>
-                                        <TableCell>{item.sku}</TableCell>
                                         <TableCell>{item.minQty}</TableCell>
                                         <TableCell
                                             className={
@@ -713,10 +803,6 @@ export default function InventoryStockIndex({
                                             }
                                         >
                                             {item.quantity.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            {currencySymbol}
-                                            {item.price.toLocaleString()}
                                         </TableCell>
                                         <TableCell>
                                             {currencySymbol}
@@ -730,9 +816,6 @@ export default function InventoryStockIndex({
                                             <Badge variant="secondary" className="capitalize">
                                                 {item.status}
                                             </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.expiresAt ?? '—'}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>

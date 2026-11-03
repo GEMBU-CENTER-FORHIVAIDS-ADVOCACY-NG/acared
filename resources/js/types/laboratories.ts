@@ -33,6 +33,11 @@ export type LabSelected = {
     isAdmitted: boolean;
 };
 
+export type LabInventoryConsumption = {
+    lab_inventory_id: number;
+    quantity: number;
+};
+
 export type LabResultParameterRow = {
     price_list_id: number;
     name: string;
@@ -62,6 +67,7 @@ export type LabResultStep = {
 export type LabResultForm = {
     steps: LabResultStep[];
     hasPending: boolean;
+    inventoryItems: { id: number; sku: string; name: string; quantity: number }[];
 };
 
 export type LabCreateOptions = {
@@ -186,6 +192,8 @@ export type LabIntakeListItem = {
 
 export type LabIntakeFilters = {
     q: string;
+    categoryId: string;
+    subcategoryId: string;
     sort: string;
     direction: 'asc' | 'desc';
     perPage: number;

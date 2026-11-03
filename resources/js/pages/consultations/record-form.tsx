@@ -95,15 +95,18 @@ function initialValues(
         duration: String(record.duration ?? '0'),
         lines:
             record.lines && record.lines.length > 0
-                ? record.lines.map((line: ConsultationLine) => ({
-                      price_list_id: String(line.price_list_id),
-                      unitPrice: String(line.unitPrice ?? ''),
-                      quantity: String(line.quantity ?? '1'),
-                      results: line.results ?? '',
-                      frequency: line.frequency ?? '',
-                      duration: line.duration ?? '',
-                      dosage: line.dosage ?? '',
-                  }))
+                ? record.lines.map((line: ConsultationLine) => {
+                      const freq = line.frequency ?? '';
+                      return {
+                          price_list_id: String(line.price_list_id),
+                          unitPrice: String(line.unitPrice ?? ''),
+                          quantity: String(line.quantity ?? '1'),
+                          results: line.results ?? '',
+                          frequency: freq !== '' ? Number(freq).toFixed(2) : '',
+                          duration: line.duration ?? '',
+                          dosage: line.dosage ?? '',
+                      };
+                  })
                 : [{ ...EMPTY_LINE }],
     };
 }
@@ -161,10 +164,10 @@ export function ConsultationRecordForm({
             }
 
             if (pharmacy) {
-                const freq = Number(lines[index].frequency || 0);
+                const freq = Number(lines[index].frequency || 1);
                 const dur = Number(lines[index].duration || 0);
                 const dose = Number(lines[index].dosage || 0);
-                if (freq > 0 && dur > 0 && dose > 0) {
+                if (dur > 0 && dose > 0) {
                     lines[index].quantity = String(freq * dur * dose);
                 }
             }
@@ -182,7 +185,7 @@ export function ConsultationRecordForm({
 
     return (
         <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-            <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+            <SheetContent className="w-full overflow-y-auto sm:max-w-4xl">
                 <SheetHeader>
                     <SheetTitle>
                         {record ? 'Edit' : 'New'} {TITLES[type]}
@@ -311,25 +314,7 @@ export function ConsultationRecordForm({
 
                     {type === 'laboratories' ? (
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label>Tests</Label>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() =>
-                                        setValues((current) => ({
-                                            ...current,
-                                            lines: [
-                                                ...current.lines,
-                                                { ...EMPTY_LINE },
-                                            ],
-                                        }))
-                                    }
-                                >
-                                    Add test
-                                </Button>
-                            </div>
+                            <Label>Tests</Label>
 
                             {values.lines.length > 0 ? (
                                 <div className="rounded-lg border">
@@ -398,6 +383,23 @@ export function ConsultationRecordForm({
                                     </table>
                                 </div>
                             ) : null}
+
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() =>
+                                    setValues((current) => ({
+                                        ...current,
+                                        lines: [
+                                            ...current.lines,
+                                            { ...EMPTY_LINE },
+                                        ],
+                                    }))
+                                }
+                            >
+                                Add test
+                            </Button>
                         </div>
                     ) : type === 'treatments' ? (
                         <div className="space-y-3">
@@ -493,12 +495,188 @@ export function ConsultationRecordForm({
                         </div>
                     ) : hasLines ? (
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label>
-                                    {pharmacy
-                                        ? 'Drugs'
-                                        : 'Vitals'}
-                                </Label>
+                            {values.lines.length > 0 ? (
+                                <div className="rounded-lg border">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left font-medium min-w-[300px]">
+                                                    {pharmacy ? 'Drug' : 'Vital'}
+                                                </th>
+                                                {pharmacy ? (
+                                                    <>
+                                                        <th className="px-3 py-2 text-left font-medium">
+                                                            Frequency
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left font-medium">
+                                                            Duration
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left font-medium">
+                                                            Dosage
+                                                        </th>
+                                                    </>
+                                                ) : null}
+                                                {type === 'vital-signs' ? (
+                                                    <th className="px-3 py-2 text-left font-medium">
+                                                        Results
+                                                    </th>
+                                                ) : null}
+                                                <th className="px-3 py-2 text-left font-medium">
+                                                    Price
+                                                </th>
+                                                <th className="px-3 py-2 text-left font-medium">
+                                                    Quantity
+                                                </th>
+                                                <th className="px-3 py-2 text-center font-medium"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {values.lines.map((line, index) => (
+                                                <tr key={index}>
+                                                    <td className="px-3 py-2 min-w-[300px]">
+                                                        <SelectNative
+                                                            value={line.price_list_id}
+                                                            placeholder={pharmacy ? 'Select drug…' : 'Select vital…'}
+                                                            onChange={(event) =>
+                                                                setLine(
+                                                                    index,
+                                                                    'price_list_id',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        >
+                                                            {linePriceLists.map((item) => (
+                                                                <option
+                                                                    key={item.id}
+                                                                    value={String(item.id)}
+                                                                >
+                                                                    {item.name}
+                                                                </option>
+                                                            ))}
+                                                        </SelectNative>
+                                                    </td>
+                                                    {pharmacy ? (
+                                                        <>
+                                                            <td className="px-3 py-2">
+                                                                <SelectNative
+                                                                    value={line.frequency}
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'frequency',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <option value="1.00">OD</option>
+                                                                    <option value="2.00">BID</option>
+                                                                    <option value="3.00">TID</option>
+                                                                    <option value="4.00">QID</option>
+                                                                    <option value="5.00">5x D</option>
+                                                                </SelectNative>
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    value={line.duration}
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'duration',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    value={line.dosage}
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'dosage',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </td>
+                                                        </>
+                                                    ) : null}
+                                                    {type === 'vital-signs' ? (
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                value={line.results}
+                                                                onChange={(event) =>
+                                                                    setLine(
+                                                                        index,
+                                                                        'results',
+                                                                        event.target.value,
+                                                                    )
+                                                                }
+                                                            />
+                                                        </td>
+                                                    ) : null}
+                                                    <td className="px-3 py-2">
+                                                        <Input
+                                                            value={line.unitPrice}
+                                                            readOnly
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <Input
+                                                            type="number"
+                                                            value={line.quantity}
+                                                            readOnly={pharmacy}
+                                                            onChange={(event) =>
+                                                                setLine(
+                                                                    index,
+                                                                    'quantity',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2 text-center">
+                                                        {values.lines.length > 1 ? (
+                                                            <button
+                                                                type="button"
+                                                                className="text-muted-foreground hover:text-red-600"
+                                                                onClick={() =>
+                                                                    setValues((current) => ({
+                                                                        ...current,
+                                                                        lines: current.lines.filter(
+                                                                            (_, i) => i !== index,
+                                                                        ),
+                                                                    }))
+                                                                }
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        ) : null}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-muted/50 font-semibold">
+                                            <tr>
+                                                <td
+                                                    className="px-3 py-2 text-right text-sm"
+                                                    colSpan={pharmacy ? 4 : (type === 'vital-signs' ? 2 : 1)}
+                                                >
+                                                    Total:
+                                                </td>
+                                                <td className="px-3 py-2 text-sm tabular-nums">
+                                                    {Number(values.total || 0).toLocaleString()}
+                                                </td>
+                                                <td colSpan={2}></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            ) : null}
+
+                            <div className="flex items-center justify-between gap-2">
                                 <Button
                                     type="button"
                                     size="sm"
@@ -513,168 +691,16 @@ export function ConsultationRecordForm({
                                         }))
                                     }
                                 >
-                                    Add line
+                                    {pharmacy ? 'Add Drugs' : 'Add line'}
                                 </Button>
                             </div>
-
-                            {values.lines.map((line, index) => (
-                                <div
-                                    key={index}
-                                    className="space-y-3 rounded-md border p-3"
-                                >
-                                    <SelectNative
-                                        value={line.price_list_id}
-                                        placeholder="Select drug…"
-                                        onChange={(event) =>
-                                            setLine(
-                                                index,
-                                                'price_list_id',
-                                                event.target.value,
-                                            )
-                                        }
-                                    >
-                                        {linePriceLists.map((item) => (
-                                            <option
-                                                key={item.id}
-                                                value={String(item.id)}
-                                            >
-                                                {item.name}
-                                            </option>
-                                        ))}
-                                    </SelectNative>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {type === 'vital-signs' ? (
-                                            <div>
-                                                <Label>Results</Label>
-                                                <Input
-                                                    value={line.results}
-                                                    onChange={(event) =>
-                                                        setLine(
-                                                            index,
-                                                            'results',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        ) : null}
-
-                                        {pharmacy ? (
-                                            <>
-                                                <div>
-                                                    <Label>Frequency</Label>
-                                                    <SelectNative
-                                                        value={line.frequency}
-                                                        onChange={(event) =>
-                                                            setLine(
-                                                                index,
-                                                                'frequency',
-                                                                event.target.value,
-                                                            )
-                                                        }
-                                                    >
-                                                        <option value="1.00">OD</option>
-                                                        <option value="2.00">BID</option>
-                                                        <option value="3.00">TID</option>
-                                                        <option value="4.00">QID</option>
-                                                        <option value="5.00">5x D</option>
-                                                    </SelectNative>
-                                                </div>
-                                                <div>
-                                                    <Label>Duration (days)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={line.duration}
-                                                        onChange={(event) =>
-                                                            setLine(
-                                                                index,
-                                                                'duration',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>Dosage (units)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={line.dosage}
-                                                        onChange={(event) =>
-                                                            setLine(
-                                                                index,
-                                                                'dosage',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                    />
-                                                </div>
-                                            </>
-                                        ) : null}
-
-                                        <div>
-                                            <Label>Price</Label>
-                                            <Input
-                                                value={line.unitPrice}
-                                                readOnly
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <Label>Quantity</Label>
-                                            <Input
-                                                type="number"
-                                                value={line.quantity}
-                                                readOnly={pharmacy}
-                                                onChange={(event) =>
-                                                    setLine(
-                                                        index,
-                                                        'quantity',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {values.lines.length > 1 ? (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                                setValues((current) => ({
-                                                    ...current,
-                                                    lines: current.lines.filter(
-                                                        (_, i) => i !== index,
-                                                    ),
-                                                }))
-                                            }
-                                        >
-                                            Remove line
-                                        </Button>
-                                    ) : null}
-                                </div>
-                            ))}
-                        </div>
-                    ) : null}
-
-                    {NOTIFY_TYPES.includes(type) ? (
-                        <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                            <span className="text-sm text-muted-foreground">
-                                Total
-                            </span>
-                            <span className="text-sm font-semibold tabular-nums">
-                                {values.total || '0'}
-                            </span>
                         </div>
                     ) : null}
                 </div>
 
-                <SheetFooter>
+                <SheetFooter className="flex-row gap-2">
                     <Button
+                        className="flex-1"
                         variant="secondary"
                         onClick={onClose}
                         disabled={processing}
@@ -682,6 +708,7 @@ export function ConsultationRecordForm({
                         Cancel
                     </Button>
                     <Button
+                        className="flex-1"
                         onClick={() => onSubmit(values)}
                         disabled={processing}
                     >

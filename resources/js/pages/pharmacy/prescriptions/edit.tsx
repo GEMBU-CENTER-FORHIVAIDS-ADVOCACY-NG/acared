@@ -50,6 +50,10 @@ type LineForm = {
 type Prescription = {
     id: number;
     patientSlug: string;
+    patientName: string | null;
+    patientGender: string | null;
+    patientAge: string | null;
+    patientBirthDate: string | null;
     lines: {
         id: number;
         priceListId: number;
@@ -264,6 +268,26 @@ export default function PrescriptionEdit({
                         title="Edit prescription"
                         description="Adjust dosage schedule, drugs, and quantities."
                     />
+                    {prescription.patientName ? (
+                        <Card>
+                            <CardContent className="p-2">
+                                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground">Patient</dt>
+                                        <dd className="text-sm font-medium">{prescription.patientName}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground">Gender</dt>
+                                        <dd className="text-sm font-medium">{prescription.patientGender ?? '—'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground">Age</dt>
+                                        <dd className="text-sm font-medium">{prescription.patientAge ?? '—'}</dd>
+                                    </div>
+                                </dl>
+                            </CardContent>
+                        </Card>
+                    ) : null}
                 </div>
 
                 <Card>
@@ -336,11 +360,11 @@ export default function PrescriptionEdit({
                         <Table overflow="overflow-visible">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Drug</TableHead>
+                                    <TableHead className="min-w-[400px]">Drug</TableHead>
                                     <TableHead>Frequency</TableHead>
-                                    <TableHead>Duration</TableHead>
-                                    <TableHead>Dosage</TableHead>
-                                    <TableHead>Qty</TableHead>
+                                    <TableHead className="w-[80px]">Duration</TableHead>
+                                    <TableHead className="w-[80px]">Dosage</TableHead>
+                                    <TableHead className="w-[80px]">Qty</TableHead>
                                     <TableHead className="text-right">
                                         Line total
                                     </TableHead>
@@ -358,7 +382,7 @@ export default function PrescriptionEdit({
                                         price;
                                     return (
                                         <TableRow key={line.id ?? index}>
-                                            <TableCell className="min-w-[280px] align-top">
+                                            <TableCell className="min-w-[400px] align-top">
                                                 <SelectNative
                                                     className="h-auto py-1.5"
                                                     value={
@@ -425,7 +449,7 @@ export default function PrescriptionEdit({
                                                     )}
                                                 </SelectNative>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-[80px]">
                                                 <Input
                                                     type="number"
                                                     min="0"
@@ -439,7 +463,7 @@ export default function PrescriptionEdit({
                                                     }
                                                 />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-[80px]">
                                                 <Input
                                                     type="number"
                                                     min="0"
@@ -453,7 +477,7 @@ export default function PrescriptionEdit({
                                                     }
                                                 />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-[80px]">
                                                 <Input
                                                     type="number"
                                                     min="0"

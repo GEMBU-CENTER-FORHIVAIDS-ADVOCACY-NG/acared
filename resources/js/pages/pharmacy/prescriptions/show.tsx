@@ -88,6 +88,9 @@ export default function PrescriptionShow({
     const [refundSelection, setRefundSelection] = useState<
         Record<number, boolean>
     >(Object.fromEntries(prescription.lines.map((line) => [line.id, true])));
+    const [refundQuantities, setRefundQuantities] = useState<
+        Record<number, number>
+    >(Object.fromEntries(prescription.lines.map((line) => [line.id, line.quantity])));
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +172,11 @@ export default function PrescriptionShow({
 
     const refundTotal = prescription.lines
         .filter((line) => refundSelection[line.id])
-        .reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+        .reduce(
+            (sum, line) =>
+                sum + (refundQuantities[line.id] ?? line.quantity) * line.unitPrice,
+            0,
+        );
 
     function submitRefund() {
         setProcessing(true);
@@ -183,6 +190,10 @@ export default function PrescriptionShow({
                 lines: prescription.lines.map((line) => ({
                     line_id: line.id,
                     refund: Boolean(refundSelection[line.id]),
+                    quantity:
+                        refundSelection[line.id]
+                            ? refundQuantities[line.id]
+                            : undefined,
                 })),
             },
             {
@@ -493,39 +504,56 @@ export default function PrescriptionShow({
                         </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6 space-y-4 px-4 pb-4">
-                        {prescription.lines.map((line) => (
-                            <label
-                                key={line.id}
-                                className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                            >
-                                <span className="flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={Boolean(
-                                            refundSelection[line.id],
-                                        )}
-                                        onChange={(event) =>
-                                            setRefundSelection({
-                                                ...refundSelection,
-                                                [line.id]: event.target.checked,
-                                            })
-                                        }
-                                    />
-                                    <span className="text-sm font-medium">
-                                        {line.name ?? 'Drug'} · Qty{' '}
-                                        {line.quantity.toLocaleString()} ·{' '}
-                                        {currencySymbol}{' '}
-                                        {line.unitPrice.toLocaleString()}
-                                    </span>
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                    {currencySymbol}{' '}
-                                    {(
-                                        line.quantity * line.unitPrice
-                                    ).toLocaleString()}
-                                </span>
-                            </label>
-                        ))}
+                        {prescription.lines.map((line) => {
+                            const isSelected = Boolean(refundSelection[line.id]);
+                            const refundQty = refundQuantities[line.id] ?? line.quantity;
+                            const lineTotal = refundQty * line.unitPrice;
+
+                            return (
+                                <div
+                                    key={line.id}
+                                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                                >
+                                    <label className="flex items-center gap-3 flex-1 min-w-0">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={(event) =>
+                                                setRefundSelection({
+                                                    ...refundSelection,
+                                                    [line.id]: event.target.checked,
+                                                })
+                                            }
+                                        />
+                                        <span className="text-sm font-medium">
+                                            {line.name ?? 'Drug'} ·{' '}
+                                            {currencySymbol}{' '}
+                                            {line.unitPrice.toLocaleString()}
+                                        </span>
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min="0.001"
+                                            step="any"
+                                            className="w-20 rounded-md border bg-background px-2 py-1 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={refundQty}
+                                            disabled={!isSelected}
+                                            onChange={(event) =>
+                                                setRefundQuantities({
+                                                    ...refundQuantities,
+                                                    [line.id]: parseFloat(event.target.value) || 0,
+                                                })
+                                            }
+                                        />
+                                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                            {currencySymbol}{' '}
+                                            {lineTotal.toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
                         <div className="rounded-lg border bg-muted/40 p-3">
                             <Label className="text-sm text-muted-foreground">
                                 Refund total

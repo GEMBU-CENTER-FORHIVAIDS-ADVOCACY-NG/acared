@@ -16,11 +16,10 @@ class OperationalReportController extends Controller
 {
     public function employeeDeduction(Request $request, string $current_team): Response
     {
-        $filters = $this->filters($request, true);
+        $filters = $this->filters($request, false);
         $query = Patient::query()
             ->where('wallet', '<', 0)
             ->whereHas('category', fn (Builder $q) => $q->whereRaw('LOWER(name) = ?', ['employee']))
-            ->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
             ->when($filters['q'] !== '', fn (Builder $patients) => $patients->where(fn (Builder $patients) => $patients
                 ->where('slug', 'like', '%'.$filters['q'].'%')
                 ->orWhere('fullName', 'like', '%'.$filters['q'].'%')));
@@ -53,11 +52,10 @@ class OperationalReportController extends Controller
 
     public function exportEmployeeDeduction(Request $request, string $current_team): StreamedResponse
     {
-        $filters = $this->filters($request, true);
+        $filters = $this->filters($request, false);
         $patients = Patient::query()
             ->where('wallet', '<', 0)
             ->whereHas('category', fn (Builder $q) => $q->whereRaw('LOWER(name) = ?', ['employee']))
-            ->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
             ->when($filters['q'] !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->where('slug', 'like', '%'.$filters['q'].'%')
                 ->orWhere('fullName', 'like', '%'.$filters['q'].'%')))
@@ -78,17 +76,34 @@ class OperationalReportController extends Controller
     {
         $filters = $this->filters($request, true);
         $query = Patient::query()->where('wallet', '<>', 0)
-            ->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['balanceType'] === '', fn (Builder $patients) => $patients->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59']))
+            ->when($filters['balanceType'] === 'positive', fn (Builder $patients) => $patients->where('wallet', '>', 0))
+            ->when($filters['balanceType'] === 'negative', fn (Builder $patients) => $patients->where('wallet', '<', 0))
             ->when($filters['q'] !== '', fn (Builder $patients) => $patients->where(fn (Builder $patients) => $patients
                 ->where('slug', 'like', '%'.$filters['q'].'%')
                 ->orWhere('fullName', 'like', '%'.$filters['q'].'%')));
+        // Overall totals
         $totals = (clone $query)
+            ->selectRaw('COALESCE(SUM(wallet), 0) as net, COALESCE(SUM(ABS(wallet)), 0) as absolute')
+            ->first();
+        // Positive balance totals
+        $positiveTotals = (clone $query)->where('wallet', '>', 0)
+            ->selectRaw('COALESCE(SUM(wallet), 0) as net, COALESCE(SUM(ABS(wallet)), 0) as absolute')
+            ->first();
+        // Negative balance totals
+        $negativeTotals = (clone $query)->where('wallet', '<', 0)
             ->selectRaw('COALESCE(SUM(wallet), 0) as net, COALESCE(SUM(ABS(wallet)), 0) as absolute')
             ->first();
         $summary = [
             'patients' => (clone $query)->count(),
             'walletBalance' => (float) ($totals->net ?? 0),
             'walletTotal' => (float) ($totals->absolute ?? 0),
+            'positivePatients' => (clone $query)->where('wallet', '>', 0)->count(),
+            'positiveBalance' => (float) ($positiveTotals->net ?? 0),
+            'positiveTotal' => (float) ($positiveTotals->absolute ?? 0),
+            'negativePatients' => (clone $query)->where('wallet', '<', 0)->count(),
+            'negativeBalance' => (float) ($negativeTotals->net ?? 0),
+            'negativeTotal' => (float) ($negativeTotals->absolute ?? 0),
         ];
         $patients = $query->orderBy('fullName')->paginate($filters['perPage'])->withQueryString()
             ->through(fn (Patient $patient) => [
@@ -135,7 +150,9 @@ class OperationalReportController extends Controller
     {
         $filters = $this->filters($request, true);
         $patients = Patient::query()->where('wallet', '<>', 0)
-            ->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
+            ->when($filters['balanceType'] === '', fn (Builder $patients) => $patients->whereBetween('updated_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59']))
+            ->when($filters['balanceType'] === 'positive', fn (Builder $patients) => $patients->where('wallet', '>', 0))
+            ->when($filters['balanceType'] === 'negative', fn (Builder $patients) => $patients->where('wallet', '<', 0))
             ->when($filters['q'] !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->where('slug', 'like', '%'.$filters['q'].'%')
                 ->orWhere('fullName', 'like', '%'.$filters['q'].'%')))
@@ -188,12 +205,13 @@ class OperationalReportController extends Controller
         }, 'price-list-report.csv', ['Content-Type' => 'text/csv']);
     }
 
-    /** @return array{q: string, from: ?string, to: ?string, perPage: int} */
+    /** @return array{q: string, from: ?string, to: ?string, balanceType: string, perPage: int} */
     private function filters(Request $request, bool $withDates = false): array
     {
         $rules = [
             'q' => ['nullable', 'string', 'max:255'],
             'perPage' => ['nullable', 'integer', Rule::in([10, 25, 50, 100])],
+            'balanceType' => ['nullable', 'string', Rule::in(['', 'positive', 'negative'])],
         ];
 
         if ($withDates) {
@@ -207,6 +225,7 @@ class OperationalReportController extends Controller
             'q' => trim((string) ($validated['q'] ?? '')),
             'from' => $withDates ? ($validated['from'] ?? today()->toDateString()) : null,
             'to' => $withDates ? ($validated['to'] ?? today()->toDateString()) : null,
+            'balanceType' => trim((string) ($validated['balanceType'] ?? '')),
             'perPage' => (int) ($validated['perPage'] ?? 25),
         ];
     }

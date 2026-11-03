@@ -29,8 +29,8 @@ return new class extends Migration
             $table->decimal('dosage', 20)->nullable();
             $table->longText('results')->nullable();
             $table->decimal('unitCost', 20)->nullable();
-            $table->decimal('totalPrice', 20)->virtualAs('quantity * unitPrice')->nullable();
-            $table->decimal('totalCost', 20)->virtualAs('quantity * unitCost')->nullable();
+            $table->decimal('totalPrice', 20)->nullable();
+            $table->decimal('totalCost', 20)->nullable();
             $table->timestamps();
         });
     }

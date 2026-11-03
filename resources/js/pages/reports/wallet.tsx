@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SelectNative } from '@/components/ui/select-native';
 import {
     Table,
     TableBody,
@@ -38,6 +39,7 @@ type Filters = {
     q: string;
     from: string;
     to: string;
+    balanceType: string;
     perPage: number;
     page?: number;
 };
@@ -56,7 +58,17 @@ export default function WalletReport({
     currencySymbol,
 }: {
     patients: Paginator;
-    summary: { patients: number; walletBalance: number; walletTotal: number };
+    summary: {
+        patients: number;
+        walletBalance: number;
+        walletTotal: number;
+        positivePatients: number;
+        positiveBalance: number;
+        positiveTotal: number;
+        negativePatients: number;
+        negativeBalance: number;
+        negativeTotal: number;
+    };
     filters: Filters;
     currencySymbol: string;
 }) {
@@ -65,6 +77,7 @@ export default function WalletReport({
     const [search, setSearch] = useState(filters.q);
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
+    const balanceType = filters.balanceType;
     const visit = (patch: Partial<Filters>) => {
         const next = { ...filters, ...patch };
         router.get(
@@ -73,6 +86,7 @@ export default function WalletReport({
                 q: next.q || undefined,
                 from: next.from || undefined,
                 to: next.to || undefined,
+                balanceType: next.balanceType || undefined,
                 perPage: next.perPage,
                 page: next.page || undefined,
             },
@@ -89,7 +103,7 @@ export default function WalletReport({
                         <Heading
                             variant="small"
                             title="Wallet report"
-                            description="Current patient wallet balances for patients updated in the selected period."
+                            description={balanceType ? 'All patients with the selected balance type.' : 'Current patient wallet balances for patients updated in the selected period.'}
                         />
                         <div className="flex gap-2">
                             <Button
@@ -101,7 +115,7 @@ export default function WalletReport({
                             <Button variant="outline" asChild>
                                 <a
                                     href={exportReport.url(team, {
-                                        query: { ...filters, q: search },
+                                        query: { ...filters, q: search, balanceType: filters.balanceType || undefined },
                                     })}
                                 >
                                     Export CSV
@@ -109,10 +123,20 @@ export default function WalletReport({
                             </Button>
                         </div>
                     </div>
-                <div className="grid gap-3 sm:grid-cols-2 no-print">
+                <div className="grid gap-3 sm:grid-cols-4 no-print">
                     <StatCard
                         title="Patients with balances"
                         value={summary.patients.toLocaleString()}
+                    />
+                    <StatCard
+                        title="Positive balance patients"
+                        value={summary.positivePatients.toLocaleString()}
+                        color="text-emerald-600 dark:text-emerald-400"
+                    />
+                    <StatCard
+                        title="Negative balance patients"
+                        value={summary.negativePatients.toLocaleString()}
+                        color="text-destructive"
                     />
                     <StatCard
                         title="Net wallet balance"
@@ -145,33 +169,50 @@ export default function WalletReport({
                         </Button>
                     </form>
                     <div className="space-y-1">
-                        <Label htmlFor="wallet-report-from">From</Label>
-                        <Input
-                            id="wallet-report-from"
-                            type="date"
-                            value={from}
-                            onChange={(event) => setFrom(event.target.value)}
-                        />
+                        <Label htmlFor="wallet-report-balance-type">Balance type</Label>
+                        <SelectNative
+                            id="wallet-report-balance-type"
+                            value={balanceType}
+                            onChange={(event) => visit({ balanceType: event.target.value, page: 1 })}
+                            searchable={false}
+                        >
+                            <option value="">All balances</option>
+                            <option value="positive">Positive only</option>
+                            <option value="negative">Negative only</option>
+                        </SelectNative>
                     </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="wallet-report-to">To</Label>
-                        <Input
-                            id="wallet-report-to"
-                            type="date"
-                            value={to}
-                            onChange={(event) => setTo(event.target.value)}
-                        />
-                    </div>
-                    <Button
-                        variant="secondary"
-                        onClick={() => visit({ from, to, page: 1 })}
-                    >
-                        Apply dates
-                    </Button>
+                    {!balanceType && (
+                        <>
+                            <div className="space-y-1">
+                                <Label htmlFor="wallet-report-from">From</Label>
+                                <Input
+                                    id="wallet-report-from"
+                                    type="date"
+                                    value={from}
+                                    onChange={(event) => setFrom(event.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="wallet-report-to">To</Label>
+                                <Input
+                                    id="wallet-report-to"
+                                    type="date"
+                                    value={to}
+                                    onChange={(event) => setTo(event.target.value)}
+                                />
+                            </div>
+                            <Button
+                                variant="secondary"
+                                onClick={() => visit({ from, to, page: 1 })}
+                            >
+                                Apply dates
+                            </Button>
+                        </>
+                    )}
                 </div>
                 <div ref={printRef} className="report-print-container">
                     <h2 className="mb-3 text-lg font-semibold">
-                        Wallet Report from {formatReportDate(from)} to {formatReportDate(to)}
+                        {balanceType ? 'Wallet Report - ' + (balanceType === 'positive' ? 'Positive Balances' : 'Negative Balances') : 'Wallet Report from ' + formatReportDate(from) + ' to ' + formatReportDate(to)}
                     </h2>
                     <div className="rounded-lg border bg-card">
                     <Table>
@@ -212,8 +253,7 @@ export default function WalletReport({
                                         colSpan={3}
                                         className="py-10 text-center text-muted-foreground"
                                     >
-                                        No patient wallet balances found for
-                                        this period.
+                                        No patient wallet balances found.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -248,12 +288,12 @@ export default function WalletReport({
     );
 }
 
-function StatCard({ title, value }: { title: string; value: string }) {
+function StatCard({ title, value, color }: { title: string; value: string; color?: string }) {
     return (
         <Card>
             <CardHeader className="pb-2">
                 <CardDescription>{title}</CardDescription>
-                <CardTitle className="text-2xl">{value}</CardTitle>
+                <CardTitle className={`text-2xl ${color ?? ''}`}>{value}</CardTitle>
             </CardHeader>
         </Card>
     );

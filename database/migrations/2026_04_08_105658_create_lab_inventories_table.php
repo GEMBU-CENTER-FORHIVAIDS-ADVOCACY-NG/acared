@@ -24,8 +24,8 @@ return new class extends Migration
             $table->decimal('quantity', 20)->default(0);
             $table->decimal('price', 20)->default(0);
             $table->decimal('cost', 20)->default(0);
-            $table->decimal('value', 20)->virtualAs('quantity * cost');
-            $table->decimal('profit', 20)->virtualAs('(quantity * price) - cost');
+            $table->decimal('value', 20)->default(0);
+            $table->decimal('profit', 20)->default(0);
             $table->string('status')->default('low');
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();

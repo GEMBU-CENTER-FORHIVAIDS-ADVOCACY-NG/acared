@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\Method;
 use App\Models\Patient;
 use App\Models\Payment;
+use App\Models\Prescription;
 use App\Models\PriceList;
 use App\Models\State;
 use App\Models\User;
@@ -491,4 +492,39 @@ test('a new billing can reuse an existing patient', function () {
         ->assertRedirect(billingTeamUrl($user));
 
     expect(Billing::query()->where('patient_id', $patientSlug)->where('status', 'billed')->exists())->toBeTrue();
+});
+
+test('paying a billing updates the linked prescription status to paid', function () {
+    $user = User::factory()->create();
+    $cash = teamMethod($user, 'Cash');
+    $patientSlug = teamPatientSlug($user);
+
+    $prescription = Prescription::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'patient_id' => $patientSlug,
+        'doctor_id' => $user->getKey(),
+        'total' => 0.5,
+        'status' => 'pending',
+    ]);
+
+    Billing::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'patient_id' => $patientSlug,
+        'user_id' => $user->getKey(),
+        'billable_type' => Prescription::class,
+        'billable_id' => $prescription->getKey(),
+        'total' => 0.5,
+        'status' => 'billed',
+    ]);
+
+    $this->actingAs($user)
+        ->post(billingTeamUrl($user), [
+            'billing_id' => $prescription->billings->first()->getKey(),
+            'payments' => [
+                ['method_id' => $cash->getKey(), 'amount' => 0.5],
+            ],
+        ])
+        ->assertRedirect(billingTeamUrl($user));
+
+    expect($prescription->fresh()->status)->toBe('paid');
 });

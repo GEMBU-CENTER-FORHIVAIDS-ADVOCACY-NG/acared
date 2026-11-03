@@ -33,6 +33,7 @@ export type ConsultationDetail = {
     birthDate: string | null;
     gender: string | null;
     age: string | null;
+    category: string | null;
     startsAt: string | null;
     endsAt: string | null;
     doctorName: string | null;
@@ -131,13 +132,18 @@ export type ConsultationEvent = {
 };
 
 export type ConsultationDailyTimelineEvent = {
-    id: number;
+    id: number | string;
     title: string;
+    patientId: string;
     startsAt: string;
     endsAt: string | null;
     status: string;
+    visitType: 'new' | 'revisit';
     color: string;
     url: string;
+    birthDate: string | null;
+    age: string | null;
+    categoryName: string | null;
 };
 
 export type ConsultationCalendarDay = {

@@ -1,9 +1,23 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Plus, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import ConsultationDayTimeline from '@/components/consultation-day-timeline';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { index, view } from '@/routes/consultations';
 import type {
     ConsultationDailyTimelineEvent,
@@ -12,6 +26,15 @@ import type {
     ConsultationStatusOption,
     DoctorOption,
 } from '@/types';
+import type {
+    BillingPatientOption,
+    NewBillingOptions,
+} from '@/types/finance';
+
+type ServiceLineRow = {
+    price_list_id: string;
+    unitPrice: string;
+};
 
 type Props = {
     filters: ConsultationFilters;
@@ -19,6 +42,7 @@ type Props = {
     doctorOptions: DoctorOption[];
     dailyTimeline: ConsultationDailyTimelineEvent[];
     sidebar: ConsultationSidebar;
+    newBillingOptions: NewBillingOptions;
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -35,8 +59,10 @@ export default function ConsultationsIndex({
     doctorOptions,
     dailyTimeline,
     sidebar,
+    newBillingOptions,
 }: Props) {
     const { currentTeam } = usePage().props;
+    const { currencySymbol = '₦' } = usePage().props;
     const teamSlug = currentTeam?.slug;
 
     function applyFilters(next: Partial<ConsultationFilters>) {
@@ -53,6 +79,150 @@ export default function ConsultationsIndex({
             {},
             { preserveState: true, preserveScroll: true, replace: true },
         );
+    }
+
+    // New Billing state
+    const [billingOpen, setBillingOpen] = useState(false);
+    const [billingLines, setBillingLines] = useState<ServiceLineRow[]>([
+        { price_list_id: '', unitPrice: '' },
+    ]);
+    const [billingProcessing, setBillingProcessing] = useState(false);
+    const [billingError, setBillingError] = useState<string | null>(null);
+    const [billingPatientSearchQuery, setBillingPatientSearchQuery] = useState('');
+    const [billingPatientSearchResults, setBillingPatientSearchResults] = useState<BillingPatientOption[]>([]);
+    const [billingPatientSearchOpen, setBillingPatientSearchOpen] = useState(false);
+    const [billingPatientSearchLoading, setBillingPatientSearchLoading] = useState(false);
+    const [billingExistingPatientId, setBillingExistingPatientId] = useState('');
+    const [billingSelectedPatientLabel, setBillingSelectedPatientLabel] = useState('');
+    const billingPatientSearchInputRef = useRef<HTMLInputElement>(null);
+    const billingPatientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const billingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const billingTotal = useMemo(
+        () =>
+            billingLines.reduce((sum, line) => sum + (Number(line.unitPrice) || 0), 0),
+        [billingLines],
+    );
+
+    // Debounced search for patients
+    const searchBillingPatients = useCallback((query: string) => {
+        if (billingDebounceTimerRef.current) {
+            clearTimeout(billingDebounceTimerRef.current);
+        }
+
+        if (!query.trim()) {
+            setBillingPatientSearchResults([]);
+            return;
+        }
+
+        setBillingPatientSearchLoading(true);
+        billingDebounceTimerRef.current = setTimeout(() => {
+            const url = BillingController.searchPatients.url(teamSlug, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setBillingPatientSearchResults(results);
+                    setBillingPatientSearchLoading(false);
+                })
+                .catch(() => {
+                    setBillingPatientSearchLoading(false);
+                });
+        }, 300);
+    }, [teamSlug]);
+
+    // Close billing patient dropdown on outside click
+    useEffect(() => {
+        if (!billingPatientSearchOpen) {
+            return;
+        }
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                billingPatientSearchContainerRef.current &&
+                !billingPatientSearchContainerRef.current.contains(event.target as Node)
+            ) {
+                setBillingPatientSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [billingPatientSearchOpen]);
+
+    // Cleanup billing debounce timer
+    useEffect(() => {
+        return () => {
+            if (billingDebounceTimerRef.current) {
+                clearTimeout(billingDebounceTimerRef.current);
+            }
+        };
+    }, []);
+
+    function openBilling() {
+        setBillingExistingPatientId('');
+        setBillingSelectedPatientLabel('');
+        setBillingPatientSearchQuery('');
+        setBillingPatientSearchResults([]);
+        setBillingPatientSearchOpen(false);
+        setBillingLines([{ price_list_id: '', unitPrice: '' }]);
+        setBillingError(null);
+        setBillingOpen(true);
+    }
+
+    function chooseBillingService(index: number, value: string) {
+        const service = newBillingOptions.services.find(
+            (item) => String(item.id) === value,
+        );
+
+        setBillingLines((current) =>
+            current.map((row, rowIndex) =>
+                rowIndex === index
+                    ? { ...row, price_list_id: value, unitPrice: service ? String(service.price) : '' }
+                    : row,
+            ),
+        );
+    }
+
+    function submitBilling() {
+        if (!billingExistingPatientId) {
+            setBillingError('Please select an existing patient.');
+            return;
+        }
+
+        const linePayload = billingLines
+            .filter((line) => line.price_list_id !== '')
+            .map((line) => ({
+                price_list_id: Number(line.price_list_id),
+                unitPrice: Number(line.unitPrice) || 0,
+            }));
+
+        if (linePayload.length === 0) {
+            setBillingError('Add at least one service.');
+            return;
+        }
+
+        setBillingProcessing(true);
+        setBillingError(null);
+
+        const payload = {
+            source: 'new_billing',
+            existing_patient_id: billingExistingPatientId,
+            billings: [{ lines: linePayload, total: billingTotal }],
+        };
+
+        router.post(BillingController.newBilling.url(teamSlug), payload, {
+            preserveScroll: true,
+            onError: (errors: Record<string, string>) =>
+                setBillingError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
+            onSuccess: () => setBillingOpen(false),
+            onFinish: () => setBillingProcessing(false),
+        });
     }
 
     const statCards = [
@@ -74,6 +244,13 @@ export default function ConsultationsIndex({
                         description="Track appointments and clinical records."
                     />
                     <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="default"
+                            onClick={openBilling}
+                        >
+                            New Billing
+                        </Button>
                         <SelectNative
                             value={filters.status}
                             onChange={(event) =>
@@ -248,6 +425,206 @@ export default function ConsultationsIndex({
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* New Billing Sheet */}
+                <Sheet open={billingOpen} onOpenChange={setBillingOpen}>
+                    <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+                        <SheetHeader>
+                            <SheetTitle>New Billing</SheetTitle>
+                            <SheetDescription>
+                                Raise invoices for a patient and add services.
+                            </SheetDescription>
+                        </SheetHeader>
+
+                        <div className="space-y-4 px-4 pb-6">
+                            {/* Patient Search */}
+                            <div className="space-y-2" ref={billingPatientSearchContainerRef}>
+                                <Label htmlFor="billing-existing-patient">
+                                    Existing patient
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        id="billing-existing-patient"
+                                        data-test="new-billing-patient"
+                                        ref={billingPatientSearchInputRef}
+                                        placeholder="Search patient by name, code, or phone…"
+                                        value={billingExistingPatientId ? billingSelectedPatientLabel : billingPatientSearchQuery}
+                                        readOnly={!!billingExistingPatientId}
+                                        onClick={() => {
+                                            if (!billingExistingPatientId) {
+                                                setBillingPatientSearchOpen(true);
+                                            }
+                                        }}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setBillingExistingPatientId('');
+                                            setBillingSelectedPatientLabel('');
+                                            setBillingPatientSearchQuery(value);
+                                            searchBillingPatients(value);
+                                            setBillingPatientSearchOpen(true);
+                                        }}
+                                    />
+                                    {billingPatientSearchOpen && !billingExistingPatientId && (
+                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                            {billingPatientSearchLoading && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    Searching…
+                                                </div>
+                                            )}
+                                            {!billingPatientSearchLoading && billingPatientSearchResults.length === 0 && billingPatientSearchQuery.trim() && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    No patients found
+                                                </div>
+                                            )}
+                                            {billingPatientSearchResults.map((option) => (
+                                                <button
+                                                    key={option.slug}
+                                                    type="button"
+                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                    onClick={() => {
+                                                        setBillingExistingPatientId(option.slug);
+                                                        setBillingSelectedPatientLabel(option.label);
+                                                        setBillingPatientSearchQuery('');
+                                                        setBillingPatientSearchResults([]);
+                                                        setBillingPatientSearchOpen(false);
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Services Table */}
+                            <div className="space-y-3">
+                                <Label>Services</Label>
+
+                                {billingLines.length > 0 ? (
+                                    <div className="rounded-lg border">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted/50">
+                                                <tr>
+                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                        Service
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
+                                                        Price
+                                                    </th>
+                                                    <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {billingLines.map((line, index) => (
+                                                    <tr key={index}>
+                                                        <td className="px-4 py-2">
+                                                            <SelectNative
+                                                                value={line.price_list_id}
+                                                                placeholder="Select service…"
+                                                                onChange={(event) =>
+                                                                    chooseBillingService(
+                                                                        index,
+                                                                        event.target.value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">Select service…</option>
+                                                                {newBillingOptions.services.map(
+                                                                    (service) => (
+                                                                        <option
+                                                                            key={service.id}
+                                                                            value={String(service.id)}
+                                                                        >
+                                                                            {service.name}
+                                                                        </option>
+                                                                    ),
+                                                                )}
+                                                            </SelectNative>
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <Input
+                                                                value={line.unitPrice}
+                                                                readOnly
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2 text-center">
+                                                            {billingLines.length > 1 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-muted-foreground hover:text-red-600"
+                                                                    onClick={() =>
+                                                                        setBillingLines((current) =>
+                                                                            current.filter(
+                                                                                (_, i) => i !== index,
+                                                                            ),
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            ) : null}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : null}
+
+                                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                                    <span className="text-sm text-muted-foreground">
+                                        Total
+                                    </span>
+                                    <span className="text-sm font-semibold tabular-nums">
+                                        {currencySymbol} {billingTotal.toLocaleString()}
+                                    </span>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() =>
+                                        setBillingLines([
+                                            ...billingLines,
+                                            { price_list_id: '', unitPrice: '' },
+                                        ])
+                                    }
+                                >
+                                    <Plus className="mr-1 h-4 w-4" />
+                                    Add service
+                                </Button>
+                            </div>
+
+                            {billingError ? (
+                                <p className="text-sm text-destructive">
+                                    {billingError}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <SheetFooter className="flex-row gap-2">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                className="flex-1"
+                                onClick={() => setBillingOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                className="flex-1"
+                                onClick={submitBilling}
+                                disabled={billingProcessing}
+                                data-test="submit-new-billing"
+                            >
+                                {billingProcessing ? 'Saving...' : 'Create billing'}
+                            </Button>
+                        </SheetFooter>
+                    </SheetContent>
+                </Sheet>
             </div>
         </>
     );

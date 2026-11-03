@@ -135,7 +135,7 @@ class WardRoundController extends Controller
      */
     public function view(Request $request, string $current_team, Admission $admission, string $section = 'overview'): Response
     {
-        $admission->load(['patient', 'doctor', 'ward', 'bed']);
+        $admission->load(['patient.category', 'doctor', 'ward', 'bed']);
 
         abort_unless($admission->patient !== null, 404);
 
@@ -167,6 +167,7 @@ class WardRoundController extends Controller
                 'birthDate' => $admission->patient?->birthDate,
                 'gender' => $admission->patient?->gender,
                 'age' => $admission->patient?->age,
+                'category' => $admission->patient?->category?->name,
                 'wardName' => $admission->ward?->name,
                 'bedName' => $admission->bed?->name,
                 'doctorName' => $admission->doctor?->name,

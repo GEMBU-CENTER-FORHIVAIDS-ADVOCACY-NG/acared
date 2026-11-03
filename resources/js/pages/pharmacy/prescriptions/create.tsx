@@ -71,6 +71,10 @@ export default function PrescriptionCreate({
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [patientId, setPatientId] = useState(selectedPatientId);
+    const [selectedPatientLabel, setSelectedPatientLabel] = useState('');
+    const [selectedPatientGender, setSelectedPatientGender] = useState<string | null>(null);
+    const [selectedPatientAge, setSelectedPatientAge] = useState<string | null>(null);
+    const [selectedPatientCategory, setSelectedPatientCategory] = useState<string | null>(null);
     const [lines, setLines] = useState<PrescriptionLine[]>([newLine()]);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -78,7 +82,7 @@ export default function PrescriptionCreate({
     // Server-side patient search state
     const [patientSearchQuery, setPatientSearchQuery] = useState('');
     const [patientSearchResults, setPatientSearchResults] = useState<
-        { slug: string; label: string }[]
+        { slug: string; label: string; gender: string | null; age: string | null; category: string | null }[]
     >([]);
     const [patientSearchOpen, setPatientSearchOpen] = useState(false);
     const [patientSearchLoading, setPatientSearchLoading] = useState(false);
@@ -115,13 +119,7 @@ export default function PrescriptionCreate({
         }, 300);
     }, [teamSlug]);
 
-    const selectedPatientLabel = (() => {
-        if (!patientId) {
-            return '';
-        }
-        const found = patientSearchResults.find((p) => p.slug === patientId);
-        return found?.label ?? patientId;
-    })();
+    const displayPatientLabel = patientId ? selectedPatientLabel : '';
     const priceById = useMemo(
         () => new Map(formOptions.priceLists.map((item) => [item.id, item])),
         [formOptions.priceLists],
@@ -215,69 +213,84 @@ export default function PrescriptionCreate({
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-visible space-y-6">
-                        <div className="max-w-lg space-y-2" ref={patientSearchContainerRef}>
+                        <div className="space-y-2" ref={patientSearchContainerRef}>
                             <Label htmlFor="patient_id">
                                 Patient
                             </Label>
-                            <div className="relative">
-                                <Input
-                                    id="patient_id"
-                                    ref={patientSearchInputRef}
-                                    placeholder="Search patient by name, code, or phone…"
-                                    value={patientId ? selectedPatientLabel : patientSearchQuery}
-                                    readOnly={!!patientId && selectedPatientId !== ''}
-                                    onClick={() => {
-                                        if (!patientId || selectedPatientId === '') {
+                            <div className="flex gap-4 items-center">
+                                <div className="relative flex-1 max-w-lg">
+                                    <Input
+                                        id="patient_id"
+                                        ref={patientSearchInputRef}
+                                        placeholder="Search patient by name, code, or phone…"
+                                        value={displayPatientLabel || patientSearchQuery}
+                                        readOnly={!!patientId && selectedPatientId !== ''}
+                                        onClick={() => {
+                                            if (!patientId || selectedPatientId === '') {
+                                                setPatientSearchOpen(true);
+                                            }
+                                        }}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setPatientId('');
+                                            setSelectedPatientLabel('');
+                                            setSelectedPatientGender(null);
+                                            setSelectedPatientAge(null);
+                                            setSelectedPatientCategory(null);
+                                            setPatientSearchQuery(value);
+                                            searchPatients(value);
                                             setPatientSearchOpen(true);
-                                        }
-                                    }}
-                                    onChange={(event) => {
-                                        const value = event.target.value;
-                                        setPatientId('');
-                                        setPatientSearchQuery(value);
-                                        searchPatients(value);
-                                        setPatientSearchOpen(true);
-                                    }}
-                                />
-                                {patientSearchOpen && !patientId && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
-                                        {patientSearchLoading && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                Searching…
-                                            </div>
-                                        )}
-                                        {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                No patients found
-                                            </div>
-                                        )}
-                                        {patientSearchResults.map((option) => (
-                                            <button
-                                                key={option.slug}
-                                                type="button"
-                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                onClick={() => {
-                                                    setPatientId(option.slug);
-                                                    setPatientSearchQuery('');
-                                                    setPatientSearchResults([]);
-                                                    setPatientSearchOpen(false);
-                                                }}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
-                                    </div>
+                                        }}
+                                    />
+                                    {patientSearchOpen && !patientId && (
+                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                            {patientSearchLoading && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    Searching…
+                                                </div>
+                                            )}
+                                            {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    No patients found
+                                                </div>
+                                            )}
+                                            {patientSearchResults.map((option) => (
+                                                <button
+                                                    key={option.slug}
+                                                    type="button"
+                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                    onClick={() => {
+                                                        setPatientId(option.slug);
+                                                        setSelectedPatientLabel(option.label);
+                                                        setSelectedPatientGender(option.gender);
+                                                        setSelectedPatientAge(option.age);
+                                                        setSelectedPatientCategory(option.category);
+                                                        setPatientSearchQuery('');
+                                                        setPatientSearchResults([]);
+                                                        setPatientSearchOpen(false);
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                {patientId && (
+                                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                        {selectedPatientGender ?? '—'} · {selectedPatientAge ?? '—'} · {selectedPatientCategory ?? '—'}
+                                    </span>
                                 )}
                             </div>
                         </div>
                         <Table overflow="overflow-visible">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Drug</TableHead>
+                                    <TableHead className="min-w-[400px]">Drug</TableHead>
                                     <TableHead>Frequency</TableHead>
-                                    <TableHead>Duration</TableHead>
-                                    <TableHead>Dosage</TableHead>
-                                    <TableHead>Qty</TableHead>
+                                    <TableHead className="w-[80px]">Duration</TableHead>
+                                    <TableHead className="w-[80px]">Dosage</TableHead>
+                                    <TableHead className="w-[80px]">Qty</TableHead>
                                     <TableHead className="text-right">
                                         Line total
                                     </TableHead>
@@ -295,7 +308,7 @@ export default function PrescriptionCreate({
                                         (Number(line.dosage) || 0);
                                     return (
                                         <TableRow key={index}>
-                                            <TableCell className="min-w-[280px] align-top">
+                                            <TableCell className="min-w-[400px] align-top">
                                                 <SelectNative
                                                     className="h-auto py-1.5"
                                                     value={line.price_list_id}
@@ -356,7 +369,7 @@ export default function PrescriptionCreate({
                                                     )}
                                                 </SelectNative>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-[80px]">
                                                 <Input
                                                     type="number"
                                                     min="1"
@@ -370,7 +383,7 @@ export default function PrescriptionCreate({
                                                     }
                                                 />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-[80px]">
                                                 <Input
                                                     type="number"
                                                     min="1"
@@ -383,7 +396,7 @@ export default function PrescriptionCreate({
                                                     }
                                                 />
                                             </TableCell>
-                                            <TableCell>{quantity}</TableCell>
+                                            <TableCell className="w-[80px]">{quantity}</TableCell>
                                             <TableCell className="text-right">
                                                 {currencySymbol}{' '}
                                                 {(

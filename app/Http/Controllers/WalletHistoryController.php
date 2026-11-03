@@ -64,13 +64,13 @@ class WalletHistoryController extends Controller
             'coupons' => Coupon::query()
                 ->where('team_id', $teamId)
                 ->where('is_active', true)
-                ->get(['id', 'code', 'type', 'value', 'balance', 'fund_type', 'patient_id'])
+                ->get(['id', 'code', 'type', 'value', 'fund_type', 'patient_id'])
                 ->map(fn (Coupon $coupon) => [
                     'id' => $coupon->id,
                     'code' => $coupon->code,
                     'type' => $coupon->type,
                     'value' => (float) $coupon->value,
-                    'balance' => (float) $coupon->balance,
+                    'balance' => (float) $coupon->value,
                     'fundType' => $coupon->fund_type,
                     'patientId' => $coupon->patient_id,
                 ]),
@@ -129,7 +129,6 @@ class WalletHistoryController extends Controller
             // For Wallet method: only debit is allowed
             if ($method->name === 'Wallet') {
                 $walletPatientId = $data['wallet_patient_id'] ?? $patientId;
-                Patient::query()->where('slug', $walletPatientId)->decrement('wallet', $debit);
 
                 $walletHistory = WalletHistory::create([
                     'team_id' => $teamId,

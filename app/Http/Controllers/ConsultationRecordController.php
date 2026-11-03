@@ -301,7 +301,7 @@ class ConsultationRecordController extends Controller
         return [
             'team_id' => (int) $consultation->team_id,
             'patient_id' => $consultation->patient_id,
-            'appointment_id' => $consultation->getKey(),
+            'appointment_id' => $consultation->appointment_id,
             'user_id' => (int) $consultation->user_id,
         ];
     }

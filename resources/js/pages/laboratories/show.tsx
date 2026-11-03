@@ -139,6 +139,49 @@ export default function LaboratoryShow({
                                     form={resultForm}
                                     values={values}
                                     onChange={setValues}
+                                    onSubmitResults={saveResults}
+                                    onSaveStep={(stepIndex) => {
+                                        const step = resultForm.steps[stepIndex];
+                                        if (!step) return;
+
+                                        const stepLines = {};
+                                        const stepTestResults = {};
+                                        const stepInventoryConsumption = {};
+
+                                        for (const test of step.tests) {
+                                            if (test.kind === 'simple') {
+                                                const val = values.lines[String(test.id)];
+                                                if (val) stepLines[String(test.id)] = val;
+                                            } else if (test.kind === 'parameters') {
+                                                const testResultMap = values.testResults[String(test.id)] || {};
+                                                const rows = Object.entries(testResultMap)
+                                                    .filter(([, r]) => r)
+                                                    .map(([pid, r]) => ({ price_list_id: Number(pid), result: r }));
+                                                if (rows.length > 0) stepTestResults[String(test.id)] = rows;
+                                            }
+
+                                            const consumptionRows = values.inventoryConsumption[String(test.id)] || [];
+                                            const filtered = consumptionRows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
+                                            if (filtered.length > 0) {
+                                                stepInventoryConsumption[String(test.id)] = filtered;
+                                            }
+                                        }
+
+                                        setProcessing(true);
+                                        setFormError(null);
+                                        router.patch(
+                                            baseUrl(`/${laboratory.id}/results`),
+                                            { lines: stepLines, testResults: stepTestResults, inventoryConsumption: stepInventoryConsumption },
+                                            {
+                                                preserveScroll: true,
+                                                onError: (errors) =>
+                                                    setFormError(
+                                                        Object.values(errors)[0] ?? 'Unable to save step results.',
+                                                    ),
+                                                onFinish: () => setProcessing(false),
+                                            },
+                                        );
+                                    }}
                                     readOnly={false}
                                 />
                                 {formError ? (
@@ -146,12 +189,6 @@ export default function LaboratoryShow({
                                         {formError}
                                     </p>
                                 ) : null}
-                                <Button
-                                    disabled={processing}
-                                    onClick={saveResults}
-                                >
-                                    {processing ? 'Saving…' : 'Save results'}
-                                </Button>
                             </>
                         ) : (
                             <LabResultInfolist form={resultForm} />

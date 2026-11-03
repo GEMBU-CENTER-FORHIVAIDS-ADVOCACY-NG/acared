@@ -60,7 +60,7 @@ export default function BillingShow({
                             Print receipt
                         </Button>
                         <Button asChild variant="secondary">
-                            <Link href={history(teamSlug).url}>Back</Link>
+                            <Link href={index(teamSlug)}>Back</Link>
                         </Button>
                     </div>
                 </div>

@@ -5,11 +5,26 @@ import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
 import { TreatmentViewModal } from '@/components/treatment-view-modal';
+import { PrescriptionViewModal } from '@/components/prescription-view-modal';
+import { LaboratoryViewModal } from '@/components/laboratory-view-modal';
+import { EndAppointmentModal } from '@/components/end-appointment-modal';
 import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { index, end, start, view, viewAll } from '@/routes/consultations';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { SelectNative } from '@/components/ui/select-native';
+import { end, index, start, transfer, view, viewAll } from '@/routes/consultations';
 import { ConsultationRecordForm } from './record-form';
 import type {
     ConsultationDetail,
@@ -23,6 +38,8 @@ import type {
     ConsultationSection,
     PaginatedConsultationRecords,
 } from '@/types';
+type DoctorOption = { id: number; name: string };
+type NurseOption = { id: number; name: string };
 
 type Props = {
     section: ConsultationSection;
@@ -32,6 +49,8 @@ type Props = {
     options: ConsultationRecordOptions;
     currencySymbol: string;
     pagination: ConsultationPagination | null;
+    doctorOptions: DoctorOption[];
+    nurseOptions: NurseOption[];
 };
 
 const SECTIONS: { key: ConsultationSection; label: string }[] = [
@@ -54,6 +73,12 @@ const STATUS_BADGE: Record<string, string> = {
     gray: 'bg-muted text-muted-foreground',
 };
 
+const EMPTY_TRANSFER = {
+    transferTo: 'doctor' as 'doctor' | 'nurse',
+    doctor_id: '',
+    nurse_id: '',
+};
+
 export default function ConsultationsView({
     section,
     consultation,
@@ -62,6 +87,8 @@ export default function ConsultationsView({
     options,
     currencySymbol,
     pagination,
+    doctorOptions,
+    nurseOptions,
 }: Props) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
@@ -74,8 +101,49 @@ export default function ConsultationsView({
     const [error, setError] = useState<string | null>(null);
     const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
     const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
+    const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
+    const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
+    const [showEndAppointment, setShowEndAppointment] = useState(false);
+
+    // Transfer state
+    const [transferOpen, setTransferOpen] = useState(false);
+    const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER);
+    const [transferProcessing, setTransferProcessing] = useState(false);
+    const [transferError, setTransferError] = useState<string | null>(null);
 
     const recordType = section === 'overview' ? null : section;
+
+    // Transfer functions
+    function openTransfer() {
+        setTransferForm(EMPTY_TRANSFER);
+        setTransferError(null);
+        setTransferOpen(true);
+    }
+
+    function submitTransfer() {
+        setTransferProcessing(true);
+        setTransferError(null);
+
+        router.patch(
+            transfer.url({
+                current_team: teamSlug,
+                consultation: consultation.id,
+            }),
+            transferForm,
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setTransferError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => {
+                    setTransferOpen(false);
+                    setTransferForm(EMPTY_TRANSFER);
+                },
+                onFinish: () => setTransferProcessing(false),
+            },
+        );
+    }
 
     // Determine if records are paginated
     const isPaginated = recordType
@@ -179,6 +247,10 @@ export default function ConsultationsView({
             onSuccess: () => {
                 setFormOpen(false);
                 setActiveRecord(null);
+                // Show end appointment modal only for new prescriptions
+                if (!activeRecord && recordType === 'prescriptions') {
+                    setShowEndAppointment(true);
+                }
             },
             onFinish: () => setProcessing(false),
         };
@@ -277,6 +349,13 @@ export default function ConsultationsView({
                                 All records
                             </Link>
                         </Button>
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={openTransfer}
+                        >
+                            Transfer patient
+                        </Button>
                         {consultation.status !== 'started' &&
                         consultation.status !== 'completed' ? (
                             <Button onClick={startConsultation}>
@@ -326,10 +405,17 @@ export default function ConsultationsView({
                         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <DetailRow
                                 label="Date of birth"
-                                value={detail.birthDate}
+                                value={
+                                    detail.birthDate
+                                        ? new Date(
+                                              detail.birthDate,
+                                          ).toLocaleDateString()
+                                        : null
+                                }
                             />
                             <DetailRow label="Gender" value={detail.gender} />
                             <DetailRow label="Age" value={detail.age} />
+                            <DetailRow label="Category" value={detail.category} />
                             <DetailRow
                                 label="Appointment date and time"
                                 value={
@@ -408,6 +494,8 @@ export default function ConsultationsView({
                                                 onDelete={() => destroy(record)}
                                                 onViewVitalSigns={(r) => setViewVitalSigns(r)}
                                                 onViewTreatment={(r) => setViewTreatment(r)}
+                                                onViewPrescription={(r) => setViewPrescription(r)}
+                                                onViewLaboratory={(id) => setViewLaboratory(id)}
                                             />
                                         ))}
                                     </div>
@@ -465,6 +553,152 @@ export default function ConsultationsView({
                     }
                 }}
             />
+
+            <PrescriptionViewModal
+                record={viewPrescription}
+                open={viewPrescription !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewPrescription(null);
+                    }
+                }}
+                currencySymbol={currencySymbol}
+            />
+
+            <LaboratoryViewModal
+                laboratoryId={viewLaboratory}
+                teamSlug={teamSlug ?? ''}
+                open={viewLaboratory !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewLaboratory(null);
+                    }
+                }}
+            />
+
+            <EndAppointmentModal
+                open={showEndAppointment}
+                onEndAppointment={() => {
+                    setShowEndAppointment(false);
+                    endConsultation();
+                }}
+                onContinue={() => setShowEndAppointment(false)}
+            />
+
+            {/* Transfer Patient Dialog */}
+            <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Transfer patient</DialogTitle>
+                        <DialogDescription>
+                            Transfer {consultation.patientId} to another{' '}
+                            {transferForm.transferTo}.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="consultation-transfer-to-type">
+                                Transfer to
+                            </Label>
+                            <SelectNative
+                                id="consultation-transfer-to-type"
+                                value={transferForm.transferTo}
+                                onChange={(event) =>
+                                    setTransferForm((current) => ({
+                                        ...current,
+                                        transferTo: event.target.value as
+                                            | 'doctor'
+                                            | 'nurse',
+                                        doctor_id: '',
+                                        nurse_id: '',
+                                    }))
+                                }
+                            >
+                                <option value="doctor">Doctor</option>
+                                <option value="nurse">Nurse</option>
+                            </SelectNative>
+                        </div>
+
+                        {transferForm.transferTo === 'doctor' ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="consultation-transfer-doctor">
+                                    To doctor
+                                </Label>
+                                <SelectNative
+                                    id="consultation-transfer-doctor"
+                                    value={transferForm.doctor_id}
+                                    onChange={(event) =>
+                                        setTransferForm((current) => ({
+                                            ...current,
+                                            doctor_id: event.target.value,
+                                        }))
+                                    }
+                                >
+                                    <option value="">Select a doctor</option>
+                                    {doctorOptions.map((option) => (
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label htmlFor="consultation-transfer-nurse">
+                                    To nurse
+                                </Label>
+                                <SelectNative
+                                    id="consultation-transfer-nurse"
+                                    value={transferForm.nurse_id}
+                                    onChange={(event) =>
+                                        setTransferForm((current) => ({
+                                            ...current,
+                                            nurse_id: event.target.value,
+                                        }))
+                                    }
+                                >
+                                    <option value="">Select a nurse</option>
+                                    {nurseOptions.map((option) => (
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            </div>
+                        )}
+
+                        {transferError ? (
+                            <p className="text-sm text-destructive">
+                                {transferError}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">
+                                Cancel
+                            </Button>
+                        </DialogClose>
+                        <Button
+                            type="button"
+                            onClick={submitTransfer}
+                            disabled={transferProcessing}
+                        >
+                            {transferProcessing
+                                ? 'Transferring...'
+                                : 'Transfer patient'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
@@ -486,6 +720,8 @@ function RecordCard({
     onDelete,
     onViewVitalSigns,
     onViewTreatment,
+    onViewPrescription,
+    onViewLaboratory,
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
@@ -494,9 +730,9 @@ function RecordCard({
     onDelete: () => void;
     onViewVitalSigns: (record: ConsultationRecord) => void;
     onViewTreatment: (record: ConsultationRecord) => void;
+    onViewPrescription: (record: ConsultationRecord) => void;
+    onViewLaboratory: (id: number) => void;
 }) {
-    const { currentTeam } = usePage().props;
-    const teamSlug = currentTeam?.slug;
     const recordedBy = record.recordedByName ?? '—';
 
     return (
@@ -616,17 +852,22 @@ function RecordCard({
                         View
                     </Button>
                 ) : null}
-                {type === 'laboratories' && teamSlug ? (
+                {type === 'laboratories' ? (
                     <Button
                         size="sm"
                         variant="outline"
-                        asChild
+                        onClick={() => onViewLaboratory(record.id)}
                     >
-                        <Link
-                            href={`/${teamSlug}/laboratories/${record.id}`}
-                        >
-                            View
-                        </Link>
+                        View
+                    </Button>
+                ) : null}
+                {type === 'prescriptions' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewPrescription(record)}
+                    >
+                        View
                     </Button>
                 ) : null}
                 <Button

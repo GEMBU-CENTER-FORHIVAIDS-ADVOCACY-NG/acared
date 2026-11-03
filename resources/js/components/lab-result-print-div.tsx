@@ -259,16 +259,20 @@ export default function LabResultPrintDiv({
                     ))
                 )}
 
-                {/* Footer */}
+                {/* Reported by section */}
                 <div style={{
-                    marginTop: '32px',
-                    paddingTop: '16px',
-                    borderTop: '1px solid #d1d5db',
-                    fontSize: '11px',
-                    color: '#9ca3af',
-                    textAlign: 'center',
+                    marginTop: '48px',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
                 }}>
-                    <p style={{ margin: 0 }}>This is a computer-generated report.</p>
+                    <div style={{ width: '280px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 40px 0', color: '#374151' }}>
+                            Reported by
+                        </p>
+                        <div style={{ borderTop: '1px solid #333', paddingTop: '4px', fontSize: '11px', color: '#6b7280', textAlign: 'center' }}>
+                            Stamp / Signature / Date
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

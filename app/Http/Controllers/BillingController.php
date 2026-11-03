@@ -70,8 +70,11 @@ class BillingController extends Controller
 
         $methods = Method::query()->orderBy('name')->get(['id', 'name']);
 
+        [$start, $end] = $this->dateRange($dateFilter);
+
         $billings = Billing::query()
             ->where('status', 'billed')
+            ->whereBetween('created_at', [$start, $end])
             ->with([
                 'patient.category',
                 'patient.admissions' => fn ($query) => $query->whereRaw('LOWER(status) = ?', ['admitted']),
@@ -122,6 +125,19 @@ class BillingController extends Controller
                         'name' => $priceList->name,
                         'price' => (float) ($priceList->price ?? 0),
                     ])->values(),
+                'services' => PriceList::query()
+                    ->whereHas('subCategory', fn (Builder $query) => $query->whereIn('name', [
+                        'Treatment',
+                        'Nursing Services',
+                        'Maternity Services',
+                        'Mortuary Services',
+                        'Surgery',
+                        'Ophthalmic Services',
+                        'Dental Services',
+                    ]))
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'price'])
+                    ->all(),
             ],
         ]);
     }
@@ -147,10 +163,51 @@ class BillingController extends Controller
             })
             ->orderBy('slug')
             ->limit(50)
-            ->get(['slug', 'fullName'])
+            ->get([
+                'slug',
+                'fullName',
+                'firstName',
+                'middleName',
+                'lastName',
+                'gender',
+                'birthDate',
+                'email',
+                'phone',
+                'mobile',
+                'category_id',
+                'country_id',
+                'state_id',
+                'lga_id',
+                'address',
+                'kinFullName',
+                'kinPhone',
+                'kinEmail',
+                'relation',
+                'art',
+                'slugOther',
+            ])
             ->map(fn (Patient $patient) => [
                 'slug' => $patient->slug,
                 'label' => "{$patient->slug} - {$patient->fullName}",
+                'firstName' => $patient->firstName,
+                'middleName' => $patient->middleName,
+                'lastName' => $patient->lastName,
+                'gender' => $patient->gender,
+                'birthDate' => $patient->birthDate?->format('Y-m-d'),
+                'email' => $patient->email,
+                'phone' => $patient->phone,
+                'mobile' => $patient->mobile,
+                'category_id' => $patient->category_id ? (string) $patient->category_id : '',
+                'country_id' => $patient->country_id ? (string) $patient->country_id : '',
+                'state_id' => $patient->state_id ? (string) $patient->state_id : '',
+                'lga_id' => $patient->lga_id ? (string) $patient->lga_id : '',
+                'address' => $patient->address,
+                'kinFullName' => $patient->kinFullName,
+                'kinPhone' => $patient->kinPhone,
+                'kinEmail' => $patient->kinEmail,
+                'relation' => $patient->relation,
+                'art' => $patient->art,
+                'slugOther' => $patient->slugOther,
             ])->values();
 
         return response()->json($patients);
@@ -212,9 +269,55 @@ class BillingController extends Controller
         $user = $request->user();
         $teamId = $user->currentTeam->getKey();
 
-        $existing = $request->input('existing_patient_id');
+        $source = $request->input('source');
+        $isPatientRegistration = $source === 'patient_registration';
 
-        if (filled($existing)) {
+        if ($isPatientRegistration) {
+            $existing = $request->input('existing_patient_id');
+
+            if (filled($existing)) {
+                $request->validate([
+                    'existing_patient_id' => [
+                        'required',
+                        'string',
+                        Rule::exists('patients', 'slug')->where(fn ($query) => $query->where('team_id', $teamId)),
+                    ],
+                    'billings' => ['required', 'array', 'min:1'],
+                    'billings.*.lines' => ['required', 'array', 'min:1'],
+                    'billings.*.lines.*.price_list_id' => [
+                        'required',
+                        'integer',
+                        Rule::exists(PriceList::class, 'id')->where(fn ($query) => $query->where('team_id', $teamId)),
+                    ],
+                    'billings.*.lines.*.unitPrice' => ['required', 'numeric', 'min:0'],
+                ]);
+
+                $patientSlug = $existing;
+            } else {
+                /** @var array<string, mixed> $data */
+                $data = $request->validate([
+                    ...$this->patientRules($user, includeSlug: false),
+                    'billings' => ['required', 'array', 'min:1'],
+                    'billings.*.lines' => ['required', 'array', 'min:1'],
+                    'billings.*.lines.*.price_list_id' => [
+                        'required',
+                        'integer',
+                        Rule::exists(PriceList::class, 'id')->where(fn ($query) => $query->where('team_id', $teamId)),
+                    ],
+                    'billings.*.lines.*.unitPrice' => ['required', 'numeric', 'min:0'],
+                ]);
+
+                $patientSlug = Patient::create([
+                    ...collect($data)->only([
+                        'art', 'slugOther', 'category_id', 'firstName', 'middleName', 'lastName',
+                        'gender', 'birthDate', 'email', 'phone', 'mobile', 'country_id',
+                        'state_id', 'lga_id', 'address', 'kinFullName', 'kinPhone', 'kinEmail', 'relation',
+                    ])->all(),
+                    'slug' => $this->nextHospitalNumber(),
+                    'team_id' => $teamId,
+                ])->slug;
+            }
+        } else {
             $request->validate([
                 'existing_patient_id' => [
                     'required',
@@ -231,33 +334,10 @@ class BillingController extends Controller
                 'billings.*.lines.*.unitPrice' => ['required', 'numeric', 'min:0'],
             ]);
 
-            $patientSlug = $existing;
-        } else {
-            /** @var array<string, mixed> $data */
-            $data = $request->validate([
-                ...$this->patientRules($user, includeSlug: false),
-                'billings' => ['required', 'array', 'min:1'],
-                'billings.*.lines' => ['required', 'array', 'min:1'],
-                'billings.*.lines.*.price_list_id' => [
-                    'required',
-                    'integer',
-                    Rule::exists(PriceList::class, 'id')->where(fn ($query) => $query->where('team_id', $teamId)),
-                ],
-                'billings.*.lines.*.unitPrice' => ['required', 'numeric', 'min:0'],
-            ]);
-
-            $patientSlug = Patient::create([
-                ...collect($data)->only([
-                    'art', 'slugOther', 'category_id', 'firstName', 'middleName', 'lastName',
-                    'gender', 'birthDate', 'email', 'phone', 'mobile', 'country_id',
-                    'state_id', 'lga_id', 'address', 'kinFullName', 'kinPhone', 'kinEmail', 'relation',
-                ])->all(),
-                'slug' => $this->nextHospitalNumber(),
-                'team_id' => $teamId,
-            ])->slug;
+            $patientSlug = $request->input('existing_patient_id');
         }
 
-        $this->applyBillings($patientSlug, $teamId, $user, (array) $request->input('billings', []));
+        $this->applyBillings($patientSlug, $teamId, $user, (array) $request->input('billings', []), $isPatientRegistration);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Billing applied to {$patientSlug}."]);
 
@@ -313,7 +393,10 @@ class BillingController extends Controller
                 }
             }
 
-            $billing->update(['status' => 'paid']);
+            $billing->update([
+                'status' => 'paid',
+                'created_at' => Carbon::now(),
+            ]);
 
             Line::query()
                 ->where('lineable_id', $billing->billable_id)
@@ -322,7 +405,7 @@ class BillingController extends Controller
 
             $billable = $billing->billable;
 
-            if ($billable?->status && $billing->total > 1) {
+            if ($billable?->status && $billing->total > 0) {
                 $billable->update(['status' => 'paid']);
             }
         });
@@ -365,36 +448,71 @@ class BillingController extends Controller
      * Create the patient invoices and their lines.
      *
      * @param  array<int, array{lines: array<int, array{price_list_id: int, unitPrice: float}>, total?: float}>  $billings
+     * @param  bool  $isPatientRegistration  When true (Patient Registration modal), bill directly to the Patient. When false (New Billing modal), create a Treatment as the billable.
      */
-    private function applyBillings(string $patientSlug, int $teamId, User $user, array $billings): void
+    private function applyBillings(string $patientSlug, int $teamId, User $user, array $billings, bool $isPatientRegistration = false): void
     {
         foreach ($billings as $billingData) {
             if (empty($billingData['lines'])) {
                 continue;
             }
 
-            $billing = Billing::create([
-                'team_id' => $teamId,
-                'patient_id' => $patientSlug,
-                'billable_type' => Billing::class,
-                'billable_id' => null,
-                'user_id' => $user->getKey(),
-                'total' => $billingData['total'] ?? collect($billingData['lines'])->sum(fn (array $line) => $line['unitPrice']),
-                'status' => 'billed',
-            ]);
+            $total = $billingData['total'] ?? collect($billingData['lines'])->sum(fn (array $line) => $line['unitPrice']);
 
-            $billing->update(['billable_id' => $billing->getKey()]);
+            if ($isPatientRegistration) {
+                $patient = Patient::query()->where('team_id', $teamId)->where('slug', $patientSlug)->firstOrFail();
 
-            foreach ($billingData['lines'] as $lineData) {
-                Line::create([
+                Billing::create([
                     'team_id' => $teamId,
                     'patient_id' => $patientSlug,
-                    'price_list_id' => $lineData['price_list_id'],
-                    'unitPrice' => $lineData['unitPrice'],
-                    'quantity' => 1,
-                    'lineable_type' => Billing::class,
-                    'lineable_id' => $billing->getKey(),
+                    'billable_type' => Patient::class,
+                    'billable_id' => $patient->getKey(),
+                    'user_id' => $user->getKey(),
+                    'total' => $total,
+                    'status' => 'billed',
                 ]);
+
+                foreach ($billingData['lines'] as $lineData) {
+                    Line::create([
+                        'team_id' => $teamId,
+                        'patient_id' => $patientSlug,
+                        'price_list_id' => $lineData['price_list_id'],
+                        'unitPrice' => $lineData['unitPrice'],
+                        'quantity' => 1,
+                        'lineable_type' => Patient::class,
+                        'lineable_id' => $patient->getKey(),
+                    ]);
+                }
+            } else {
+                $treatment = Treatment::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientSlug,
+                    'user_id' => $user->getKey(),
+                    'status' => 'billed',
+                    'total' => $total,
+                ]);
+
+                Billing::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientSlug,
+                    'billable_type' => Treatment::class,
+                    'billable_id' => $treatment->getKey(),
+                    'user_id' => $user->getKey(),
+                    'total' => $total,
+                    'status' => 'billed',
+                ]);
+
+                foreach ($billingData['lines'] as $lineData) {
+                    Line::create([
+                        'team_id' => $teamId,
+                        'patient_id' => $patientSlug,
+                        'price_list_id' => $lineData['price_list_id'],
+                        'unitPrice' => $lineData['unitPrice'],
+                        'quantity' => 1,
+                        'lineable_type' => Treatment::class,
+                        'lineable_id' => $treatment->getKey(),
+                    ]);
+                }
             }
         }
     }

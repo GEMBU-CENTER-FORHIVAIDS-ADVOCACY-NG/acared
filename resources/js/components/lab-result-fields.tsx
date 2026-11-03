@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
 import type {
+    LabInventoryConsumption,
     LabResultForm,
     LabResultParameterRow,
     LabResultTest,
@@ -14,8 +15,11 @@ type Props = {
     values: {
         lines: Record<string, string>;
         testResults: Record<string, Record<string, string>>;
+        inventoryConsumption: Record<string, LabInventoryConsumption[]>;
     };
     onChange: (next: Props['values']) => void;
+    onSaveStep?: (stepIndex: number, stepName: string) => void;
+    onSubmitResults?: () => void;
     readOnly?: boolean;
 };
 
@@ -172,6 +176,153 @@ function ParameterTable({
     );
 }
 
+function InventoryConsumptionRepeater({
+    testId,
+    testName,
+    inventoryItems,
+    rows,
+    readOnly,
+    onChange,
+}: {
+    testId: number;
+    testName: string;
+    inventoryItems: { id: number; sku: string; name: string; quantity: number }[];
+    rows: LabInventoryConsumption[];
+    readOnly?: boolean;
+    onChange: (rows: LabInventoryConsumption[]) => void;
+}) {
+    function handleAdd() {
+        onChange([...rows, { lab_inventory_id: 0, quantity: 1 }]);
+    }
+
+    function handleRemove(index: number) {
+        const next = rows.filter((_, i) => i !== index);
+        onChange(next);
+    }
+
+    function handleItemChange(index: number, inventoryId: number) {
+        const next = rows.map((row, i) =>
+            i === index ? { ...row, lab_inventory_id: inventoryId } : row,
+        );
+        onChange(next);
+    }
+
+    function handleQtyChange(index: number, quantity: number) {
+        const next = rows.map((row, i) =>
+            i === index ? { ...row, quantity } : row,
+        );
+        onChange(next);
+    }
+
+    return (
+        <div className="space-y-3 rounded-lg border p-4">
+            <h4 className="font-medium">Inventory used for {testName}</h4>
+            <div className="overflow-visible">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                            <th className="w-[70%] py-2 pr-3 font-medium">Item</th>
+                            <th className="w-[10%] py-2 pr-3 font-medium">Available</th>
+                            <th className="w-[20%] py-2 pr-3 font-medium">Qty Used</th>
+                            <th className="py-2 font-medium">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, index) => {
+                            const selectedItem = inventoryItems.find(
+                                (item) => item.id === row.lab_inventory_id,
+                            );
+
+                            return (
+                                <tr
+                                    key={index}
+                                    className="border-b last:border-0"
+                                >
+                                    <td className="w-[70%] py-2 pr-3">
+                                        <SelectNative
+                                            value={row.lab_inventory_id}
+                                            disabled={readOnly}
+                                            onChange={(e) =>
+                                                handleItemChange(
+                                                    index,
+                                                    Number(e.target.value),
+                                                )
+                                            }
+                                            className="w-full"
+                                        >
+                                            <option value={0}>
+                                                Select item…
+                                            </option>
+                                            {inventoryItems.map((item) => (
+                                                <option
+                                                    key={item.id}
+                                                    value={item.id}
+                                                >
+                                                    {item.name}
+                                                </option>
+                                            ))}
+                                        </SelectNative>
+                                    </td>
+                                    <td className="w-[10%] py-2 pr-3 text-muted-foreground">
+                                        {selectedItem
+                                            ? selectedItem.quantity
+                                            : '—'}
+                                    </td>
+                                    <td className="w-[20%] py-2 pr-3">
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            value={row.quantity}
+                                            disabled={readOnly}
+                                            onChange={(e) =>
+                                                handleQtyChange(
+                                                    index,
+                                                    Math.max(
+                                                        1,
+                                                        parseInt(
+                                                            e.target.value ||
+                                                                '1',
+                                                            10,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </td>
+                                    <td className="py-2">
+                                        {!readOnly ? (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleRemove(index)
+                                                }
+                                                className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        ) : null}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+            {!readOnly ? (
+                <button
+                    type="button"
+                    onClick={handleAdd}
+                    className="inline-flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+                >
+                    <Plus className="h-4 w-4" />
+                    Add item
+                </button>
+            ) : null}
+        </div>
+    );
+}
+
 function StepNavigation({
     steps,
     currentStep,
@@ -293,13 +444,19 @@ function StepFooter({
     totalSteps,
     onPrevious,
     onNext,
+    onSaveStep,
+    onSubmitResults,
     readOnly,
+    isLastStep,
 }: {
     currentStep: number;
     totalSteps: number;
     onPrevious: () => void;
     onNext: () => void;
+    onSaveStep?: () => void;
+    onSubmitResults?: () => void;
     readOnly: boolean;
+    isLastStep: boolean;
 }) {
     if (readOnly) {
         return null;
@@ -316,18 +473,40 @@ function StepFooter({
                 <ChevronLeft className="h-4 w-4" />
                 Previous
             </button>
-            <span className="text-sm text-muted-foreground">
-                {currentStep + 1} of {totalSteps}
-            </span>
-            <button
-                type="button"
-                onClick={onNext}
-                disabled={currentStep === totalSteps - 1}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
-            >
-                Next
-                <ChevronRight className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                    {currentStep + 1} of {totalSteps}
+                </span>
+                {onSaveStep && !isLastStep ? (
+                    <button
+                        type="button"
+                        onClick={onSaveStep}
+                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                    >
+                        <Check className="h-4 w-4" />
+                        Save
+                    </button>
+                ) : null}
+            </div>
+            {isLastStep && onSubmitResults ? (
+                <button
+                    type="button"
+                    onClick={onSubmitResults}
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                >
+                    <Check className="h-4 w-4" />
+                    Submit results
+                </button>
+            ) : !isLastStep ? (
+                <button
+                    type="button"
+                    onClick={onNext}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                </button>
+            ) : null}
         </div>
     );
 }
@@ -336,6 +515,8 @@ export default function LabResultFields({
     form,
     values,
     onChange,
+    onSaveStep,
+    onSubmitResults,
     readOnly = false,
 }: Props) {
     if (!form.hasPending || form.steps.length === 0) {
@@ -377,12 +558,11 @@ export default function LabResultFields({
 
             <section className="space-y-4">
                 <h3 className="text-lg font-semibold">{step.name}</h3>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-4">
                     {step.tests.map((test) =>
                         test.kind === 'parameters' ? (
                             <div
                                 key={test.id}
-                                className="md:col-span-2 xl:col-span-3"
                             >
                                 <ParameterTable
                                     test={test}
@@ -406,33 +586,81 @@ export default function LabResultFields({
                                         });
                                     }}
                                 />
+                                <InventoryConsumptionRepeater
+                                    testId={test.id}
+                                    testName={test.name}
+                                    inventoryItems={form.inventoryItems ?? []}
+                                    rows={
+                                        values.inventoryConsumption[
+                                            String(test.id)
+                                        ] ?? []
+                                    }
+                                    readOnly={readOnly}
+                                    onChange={(rows) => {
+                                        onChange({
+                                            ...values,
+                                            inventoryConsumption: {
+                                                ...values.inventoryConsumption,
+                                                [String(test.id)]: rows,
+                                            },
+                                        });
+                                    }}
+                                />
                             </div>
-                        ) : (
-                            <ResultInput
-                                key={test.id}
-                                id={`line-${test.id}`}
-                                label={test.name}
-                                resultType={test.result_type ?? 'text'}
-                                options={test.options ?? []}
-                                unit={test.unit}
-                                value={
-                                    values.lines[String(test.id)] ??
-                                    test.result ??
-                                    ''
-                                }
-                                readOnly={readOnly}
-                                onChange={(value) =>
-                                    onChange({
-                                        ...values,
-                                        lines: {
-                                            ...values.lines,
-                                            [String(test.id)]: value,
-                                        },
-                                    })
-                                }
-                            />
-                        ),
+                        ) : null
                     )}
+                    {step.tests.filter((t) => t.kind === 'simple').length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {step.tests
+                                .filter((t) => t.kind === 'simple')
+                                .map((test) => (
+                                    <div key={test.id} className="space-y-3">
+                                        <ResultInput
+                                            id={`line-${test.id}`}
+                                            label={test.name}
+                                            resultType={test.result_type ?? 'text'}
+                                            options={test.options ?? []}
+                                            unit={test.unit}
+                                            value={
+                                                values.lines[String(test.id)] ??
+                                                test.result ??
+                                                ''
+                                            }
+                                            readOnly={readOnly}
+                                            onChange={(value) =>
+                                                onChange({
+                                                    ...values,
+                                                    lines: {
+                                                        ...values.lines,
+                                                        [String(test.id)]: value,
+                                                    },
+                                                })
+                                            }
+                                        />
+                                        <InventoryConsumptionRepeater
+                                            testId={test.id}
+                                            testName={test.name}
+                                            inventoryItems={form.inventoryItems ?? []}
+                                            rows={
+                                                values.inventoryConsumption[
+                                                    String(test.id)
+                                                ] ?? []
+                                            }
+                                            readOnly={readOnly}
+                                            onChange={(rows) => {
+                                                onChange({
+                                                    ...values,
+                                                    inventoryConsumption: {
+                                                        ...values.inventoryConsumption,
+                                                        [String(test.id)]: rows,
+                                                    },
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                        </div>
+                    ) : null}
                 </div>
             </section>
 
@@ -441,14 +669,17 @@ export default function LabResultFields({
                 totalSteps={totalSteps}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
+                onSaveStep={() => onSaveStep?.(currentStep, step.name)}
+                onSubmitResults={onSubmitResults}
                 readOnly={readOnly}
+                isLastStep={currentStep === totalSteps - 1}
             />
         </div>
     );
 }
 
 export function emptyResultValues(): Props['values'] {
-    return { lines: {}, testResults: {} };
+    return { lines: {}, testResults: {}, inventoryConsumption: {} };
 }
 
 export function buildResultPayload(values: Props['values']) {
@@ -466,8 +697,18 @@ export function buildResultPayload(values: Props['values']) {
         );
     }
 
+    // Keep inventory consumption keyed by test (price_list_id), filtering out invalid entries
+    const inventoryConsumption: Record<string, { lab_inventory_id: number; quantity: number }[]> = {};
+    for (const [testId, rows] of Object.entries(values.inventoryConsumption)) {
+        const filtered = rows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
+        if (filtered.length > 0) {
+            inventoryConsumption[testId] = filtered;
+        }
+    }
+
     return {
         lines: values.lines,
         testResults,
+        inventoryConsumption,
     };
 }

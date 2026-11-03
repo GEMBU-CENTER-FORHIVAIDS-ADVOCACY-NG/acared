@@ -25,7 +25,7 @@ return new class extends Migration
             $table->foreignIdFor(Method::class)->constrained()->cascadeOnDelete();
             $table->decimal('credit', 20)->default(0);
             $table->decimal('debit', 20)->default(0);
-            $table->decimal('balance', 20)->virtualAs('credit - debit');
+            $table->decimal('balance', 20)->default(0);
             $table->timestamps();
         });
     }

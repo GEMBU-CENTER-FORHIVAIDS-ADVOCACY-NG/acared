@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Category;
-use App\Models\Inventory;
 use App\Models\LabInventory;
 use App\Models\Laboratory;
 use App\Models\Line;
@@ -161,22 +160,6 @@ test('results can be submitted for a paid laboratory request', function () {
     $patient = laboratoryPatient($user);
     ['test' => $test] = laboratoryCatalog($user);
 
-    LabInventory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 100,
-        'min_qty' => 10,
-        'cost' => 500,
-    ]);
-
-    Inventory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 100,
-        'min_qty' => 10,
-        'cost' => 500,
-    ]);
-
     $laboratory = Laboratory::factory()->create([
         'team_id' => $user->currentTeam->getKey(),
         'patient_id' => $patient->slug,
@@ -208,135 +191,6 @@ test('results can be submitted for a paid laboratory request', function () {
 
     expect($laboratory->fresh()->status)->toBe('submitted')
         ->and($laboratory->lines()->first()->results)->toBe('Positive');
-});
-
-test('results submission fails when lab inventory does not exist for a test', function () {
-    $user = User::factory()->create();
-    $patient = laboratoryPatient($user);
-    ['test' => $test] = laboratoryCatalog($user);
-
-    // No LabInventory record for this test
-
-    $laboratory = Laboratory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'patient_id' => $patient->slug,
-        'doctor_id' => $user->getKey(),
-        'status' => 'paid',
-        'total' => 1500,
-    ]);
-
-    Line::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'patient_id' => $patient->slug,
-        'user_id' => $user->getKey(),
-        'lineable_type' => Laboratory::class,
-        'lineable_id' => $laboratory->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 1,
-        'unitPrice' => 1500,
-        'results' => null,
-    ]);
-
-    $this->actingAs($user)
-        ->post(laboratoryTeamUrl($user, '/'.$laboratory->getKey().'/results'), [
-            'lines' => [
-                (string) $test->getKey() => 'Positive',
-            ],
-            'testResults' => [],
-        ])
-        ->assertSessionHasErrors(['inventory.'.$test->getKey()]);
-
-    expect($laboratory->fresh()->status)->toBe('paid');
-});
-
-test('results submission fails when lab inventory has zero stock', function () {
-    $user = User::factory()->create();
-    $patient = laboratoryPatient($user);
-    ['test' => $test] = laboratoryCatalog($user);
-
-    LabInventory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 0,
-        'min_qty' => 10,
-        'cost' => 500,
-    ]);
-
-    $laboratory = Laboratory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'patient_id' => $patient->slug,
-        'doctor_id' => $user->getKey(),
-        'status' => 'paid',
-        'total' => 1500,
-    ]);
-
-    Line::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'patient_id' => $patient->slug,
-        'user_id' => $user->getKey(),
-        'lineable_type' => Laboratory::class,
-        'lineable_id' => $laboratory->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 1,
-        'unitPrice' => 1500,
-        'results' => null,
-    ]);
-
-    $this->actingAs($user)
-        ->post(laboratoryTeamUrl($user, '/'.$laboratory->getKey().'/results'), [
-            'lines' => [
-                (string) $test->getKey() => 'Positive',
-            ],
-            'testResults' => [],
-        ])
-        ->assertSessionHasErrors(['inventory.'.$test->getKey()]);
-
-    expect($laboratory->fresh()->status)->toBe('paid');
-});
-
-test('results submission warns when lab inventory is below minimum quantity', function () {
-    $user = User::factory()->create();
-    $patient = laboratoryPatient($user);
-    ['test' => $test] = laboratoryCatalog($user);
-
-    LabInventory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 5,
-        'min_qty' => 10,
-        'cost' => 500,
-    ]);
-
-    $laboratory = Laboratory::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'patient_id' => $patient->slug,
-        'doctor_id' => $user->getKey(),
-        'status' => 'paid',
-        'total' => 1500,
-    ]);
-
-    Line::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
-        'patient_id' => $patient->slug,
-        'user_id' => $user->getKey(),
-        'lineable_type' => Laboratory::class,
-        'lineable_id' => $laboratory->getKey(),
-        'price_list_id' => $test->getKey(),
-        'quantity' => 1,
-        'unitPrice' => 1500,
-        'results' => null,
-    ]);
-
-    $this->actingAs($user)
-        ->post(laboratoryTeamUrl($user, '/'.$laboratory->getKey().'/results'), [
-            'lines' => [
-                (string) $test->getKey() => 'Positive',
-            ],
-            'testResults' => [],
-        ])
-        ->assertSessionHasErrors(['inventory.'.$test->getKey()]);
-
-    expect($laboratory->fresh()->status)->toBe('paid');
 });
 
 test('the laboratory history lists team requests', function () {

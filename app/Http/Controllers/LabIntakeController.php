@@ -45,6 +45,8 @@ class LabIntakeController extends Controller
     {
         $filters = [
             'q' => trim((string) $request->query('q', '')),
+            'categoryId' => trim((string) $request->query('category_id', '')),
+            'subcategoryId' => trim((string) $request->query('subcategory_id', '')),
             'sort' => $this->sortBy($request),
             'direction' => $request->query('direction') === 'asc' ? 'asc' : 'desc',
             'perPage' => $this->perPage($request),
@@ -63,17 +65,27 @@ class LabIntakeController extends Controller
                         ->orWhereHas('parameter', fn (Builder $query) => $query->where('name', 'like', $like));
                 });
             })
+            ->when($filters['categoryId'] !== '', fn (Builder $query) => $query->where('category_id', $filters['categoryId']))
+            ->when($filters['subcategoryId'] !== '', fn (Builder $query) => $query->where('subcategory_id', $filters['subcategoryId']))
             ->with(['category', 'subCategory', 'parameter', 'inventories.drugForm', 'parameters'])
             ->orderBy($filters['sort'], $filters['direction'])
             ->paginate($filters['perPage'])
             ->withQueryString()
             ->through(fn (PriceList $item) => $this->listItem($item));
 
+        $summary = [
+            'categories' => $this->countWhere($request, 'is_category', true),
+            'subcategories' => $this->countWithSubcategory($request),
+            'items' => $this->countWhere($request, 'is_category', false),
+            'inventoryLinked' => $this->countWhere($request, 'is_inventory', true),
+        ];
+
         return Inertia::render($laboratoryOnly ? 'laboratories/intake/index' : 'price-lists/index', [
             'currencySymbol' => DashboardCurrency::symbol(),
             'items' => $items,
             'filters' => $filters,
             'formOptions' => $this->formOptions($request),
+            'summary' => $summary,
         ]);
     }
 
@@ -499,5 +511,58 @@ class LabIntakeController extends Controller
         $perPage = (int) $request->query('perPage', 25);
 
         return in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 25;
+    }
+
+    /**
+     * Count price list items matching a boolean column value, respecting the current filters.
+     */
+    private function countWhere(Request $request, string $column, bool $value): int
+    {
+        $query = $this->catalogQuery()->where($column, $value);
+
+        $this->applyCommonFilters($query, $request);
+
+        return (int) $query->count();
+    }
+
+    /**
+     * Count price list items that have a subcategory assigned, respecting the current filters.
+     */
+    private function countWithSubcategory(Request $request): int
+    {
+        $query = $this->catalogQuery()->whereNotNull('subcategory_id');
+
+        $this->applyCommonFilters($query, $request);
+
+        return (int) $query->count();
+    }
+
+    /**
+     * Apply common search and filter conditions to a price list query.
+     */
+    private function applyCommonFilters(Builder $query, Request $request): void
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+
+            $query->where(function (Builder $query) use ($like): void {
+                $query
+                    ->where('name', 'like', $like)
+                    ->orWhereHas('category', fn (Builder $q) => $q->where('name', 'like', $like))
+                    ->orWhereHas('subCategory', fn (Builder $q) => $q->where('name', 'like', $like));
+            });
+        }
+
+        $categoryId = trim((string) $request->query('category_id', ''));
+        if ($categoryId !== '') {
+            $query->where('category_id', $categoryId);
+        }
+
+        $subcategoryId = trim((string) $request->query('subcategory_id', ''));
+        if ($subcategoryId !== '') {
+            $query->where('subcategory_id', $subcategoryId);
+        }
     }
 }

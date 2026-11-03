@@ -36,6 +36,7 @@ export type ReceptionOption = {
 export type BillingOption = {
     id: number;
     label: string;
+    category: string | null;
 };
 
 export type DoctorOption = {

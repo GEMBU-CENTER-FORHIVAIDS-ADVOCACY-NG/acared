@@ -3,14 +3,17 @@ import {
     ArchiveX,
     CircleCheck,
     Clock,
+    Edit,
     Eye,
+    Filter,
     MoreHorizontal,
     PackageX,
     RotateCcw,
     Search,
     Trash2,
+    X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -43,6 +46,7 @@ import type { Team } from '@/types';
 import {
     create as createRoute,
     destroy as destroyRoute,
+    edit as editRoute,
     index as prescriptionsIndex,
     show as showRoute,
 } from '@/routes/pharmacy/prescriptions';
@@ -59,6 +63,17 @@ type Prescription = {
     createdAt: string | null;
 };
 
+function formatDateForInput(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function todayDate(): string {
+    return formatDateForInput(new Date());
+}
+
 const STATUS_STYLES: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
     paid: 'bg-sky-100 text-sky-700',
@@ -73,7 +88,6 @@ export default function PrescriptionsIndex({
     prescriptions,
     filters,
     summary,
-    periodOptions,
 }: {
     currencySymbol: string;
     prescriptions: {
@@ -83,8 +97,7 @@ export default function PrescriptionsIndex({
         per_page: number;
         total: number;
     };
-    filters: { q: string; status: string; perPage: number; period: string };
-    periodOptions: { value: string; label: string }[];
+    filters: { q: string; status: string; perPage: number; startDate: string; endDate: string };
     summary: {
         total: number;
         pending: number;
@@ -98,31 +111,41 @@ export default function PrescriptionsIndex({
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
-    const [period, setPeriod] = useState(filters.period);
+    const [startDate, setStartDate] = useState(filters.startDate || todayDate());
+    const [endDate, setEndDate] = useState(filters.endDate || todayDate());
     const [deleting, setDeleting] = useState<Prescription | null>(null);
     const [selected, setSelected] = useState<number[]>([]);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    function applyFilters(next: {
-        q?: string;
-        status?: string;
-        period?: string;
-        perPage?: number;
-        page?: number;
-    }) {
+    const applyFilters = useCallback(() => {
         router.get(
             prescriptionsIndex.url(teamSlug),
             {
-                q: (next.q ?? filters.q) || undefined,
-                status: next.status ?? filters.status,
-                period: next.period ?? filters.period,
-                perPage: next.perPage ?? filters.perPage,
-                page: next.page ?? 1,
+                q: search || undefined,
+                status,
+                start_date: startDate || undefined,
+                end_date: endDate || undefined,
+                page: 1,
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
-    }
+    }, [search, status, startDate, endDate, filters, teamSlug]);
+
+    const resetFilters = useCallback(() => {
+        setSearch('');
+        setStatus('all');
+        setStartDate(todayDate());
+        setEndDate(todayDate());
+        router.get(
+            prescriptionsIndex.url(teamSlug),
+            {
+                status: 'all',
+                page: 1,
+            },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }, [teamSlug]);
 
     function deletePrescription() {
         if (!deleting) {
@@ -186,7 +209,7 @@ export default function PrescriptionsIndex({
                     </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
                     {cards.map(({ label, value, icon: Icon }) => (
                         <Card key={label}>
                             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -206,33 +229,26 @@ export default function PrescriptionsIndex({
 
 
 
-                <div className="flex items-center gap-2">
-                    <form
-                        className="flex-1"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            applyFilters({ q: search });
-                        }}
-                    >
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                className="pl-10"
-                                value={search}
-                                placeholder="Search prescriptions..."
-                                onChange={(event) => setSearch(event.target.value)}
-                            />
-                        </div>
-                    </form>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[200px]">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            className="pl-10"
+                            value={search}
+                            placeholder="Search prescriptions..."
+                            onChange={(event) => setSearch(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    applyFilters();
+                                }
+                            }}
+                        />
+                    </div>
                     <SelectNative
-                        className="w-40 shrink-0"
+                        className="w-36 shrink-0"
                         value={status}
-                        onChange={(event) => {
-                            setStatus(event.target.value);
-                            applyFilters({
-                                status: event.target.value,
-                            });
-                        }}
+                        onChange={(event) => setStatus(event.target.value)}
                     >
                         <option value="all">All statuses</option>
                         <option value="pending">Pending</option>
@@ -241,6 +257,26 @@ export default function PrescriptionsIndex({
                         <option value="dispensed">Dispensed</option>
                         <option value="refunded">Refunded</option>
                     </SelectNative>
+                    <Input
+                        type="date"
+                        className="w-36 shrink-0"
+                        value={startDate}
+                        onChange={(event) => setStartDate(event.target.value)}
+                    />
+                    <Input
+                        type="date"
+                        className="w-36 shrink-0"
+                        value={endDate}
+                        onChange={(event) => setEndDate(event.target.value)}
+                    />
+                    <Button onClick={applyFilters} className="shrink-0">
+                        <Filter className="mr-2 h-4 w-4" />
+                        Filter
+                    </Button>
+                    <Button variant="outline" onClick={resetFilters} className="shrink-0">
+                        <X className="mr-2 h-4 w-4" />
+                        Reset
+                    </Button>
                 </div>
                 <Card>
                     <CardHeader>
@@ -415,6 +451,21 @@ export default function PrescriptionsIndex({
                                                                 >
                                                                     <Eye className="mr-2 h-4 w-4" />
                                                                     View
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link
+                                                                    href={editRoute.url(
+                                                                        {
+                                                                            current_team:
+                                                                                teamSlug,
+                                                                            prescription:
+                                                                                item.id,
+                                                                        },
+                                                                    )}
+                                                                >
+                                                                    <Edit className="mr-2 h-4 w-4" />
+                                                                    Edit
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem

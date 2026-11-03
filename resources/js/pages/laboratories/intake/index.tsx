@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
@@ -60,6 +60,12 @@ export type LabIntakePageProps = {
         subcategories: { id: number; name: string; categoryId: number }[];
         drugForms: { id: number; name: string }[];
         resultTypes: { value: string; label: string }[];
+    };
+    summary?: {
+        categories: number;
+        subcategories: number;
+        items: number;
+        inventoryLinked: number;
     };
     title?: string;
     description?: string;
@@ -139,6 +145,7 @@ export default function LabIntakeIndex({
     items,
     filters,
     formOptions,
+    summary,
     title = 'Lab intake',
     description = 'Manage laboratory catalog tests, parameters, and inventory links.',
     itemLabel = 'catalog item',
@@ -148,6 +155,8 @@ export default function LabIntakeIndex({
     const { currentTeam } = usePage<LayoutProps>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
+    const [filterCategoryId, setFilterCategoryId] = useState(filters.categoryId);
+    const [filterSubcategoryId, setFilterSubcategoryId] = useState(filters.subcategoryId);
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<LabIntakeListItem | null>(null);
     const [viewing, setViewing] = useState<LabIntakeListItem | null>(null);
@@ -179,6 +188,8 @@ export default function LabIntakeIndex({
             baseUrl(),
             {
                 q: next.q || undefined,
+                category_id: next.categoryId || undefined,
+                subcategory_id: next.subcategoryId || undefined,
                 sort: next.sort,
                 direction: next.direction,
                 perPage: next.perPage,
@@ -188,9 +199,27 @@ export default function LabIntakeIndex({
         );
     }
 
+    function generateUniqueSku() {
+        const existingSkus = new Set(
+            items.data
+                .map((item) => item.inventory?.sku)
+                .filter((sku): sku is string => !!sku),
+        );
+
+        let sku: string;
+        do {
+            sku = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+        } while (existingSkus.has(sku));
+
+        return sku;
+    }
+
     function openCreate() {
         setEditing(null);
-        setForm(EMPTY_FORM);
+        setForm({
+            ...EMPTY_FORM,
+            inventory_sku: generateUniqueSku(),
+        });
         setFormError(null);
         setFormOpen(true);
     }
@@ -328,12 +357,41 @@ export default function LabIntakeIndex({
                     <Button onClick={openCreate}>Add {itemLabel}</Button>
                 </div>
 
+                {summary && (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <StatCard
+                            title="Categories"
+                            value={summary.categories.toLocaleString()}
+                            description="Top-level categories"
+                        />
+                        <StatCard
+                            title="Subcategories"
+                            value={summary.subcategories.toLocaleString()}
+                            description="Items with a subcategory"
+                        />
+                        <StatCard
+                            title="Items"
+                            value={summary.items.toLocaleString()}
+                            description="Billable services and products"
+                        />
+                        <StatCard
+                            title="Inventory linked"
+                            value={summary.inventoryLinked.toLocaleString()}
+                            description="Items linked to inventory"
+                        />
+                    </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2">
                     <form
                         className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            applyFilters({ q: search });
+                            applyFilters({
+                                q: search,
+                                categoryId: filterCategoryId,
+                                subcategoryId: filterSubcategoryId,
+                            });
                         }}
                     >
                         <Input
@@ -342,6 +400,51 @@ export default function LabIntakeIndex({
                             placeholder="Search catalog..."
                             className="max-w-sm"
                         />
+                        <SelectNative
+                            value={filterCategoryId}
+                            onChange={(event) => {
+                                const categoryId = event.target.value;
+                                setFilterCategoryId(categoryId);
+                                setFilterSubcategoryId('');
+                                applyFilters({
+                                    categoryId,
+                                    subcategoryId: '',
+                                    q: search,
+                                });
+                            }}
+                        >
+                            <option value="">All categories</option>
+                            {formOptions.categories.map((category) => (
+                                <option key={category.id} value={String(category.id)}>
+                                    {category.name}
+                                </option>
+                            ))}
+                        </SelectNative>
+                        <SelectNative
+                            value={filterSubcategoryId}
+                            onChange={(event) => {
+                                const subcategoryId = event.target.value;
+                                setFilterSubcategoryId(subcategoryId);
+                                applyFilters({
+                                    categoryId: filterCategoryId,
+                                    subcategoryId,
+                                    q: search,
+                                });
+                            }}
+                        >
+                            <option value="">All subcategories</option>
+                            {(filterCategoryId
+                                ? formOptions.subcategories.filter(
+                                    (sc) =>
+                                        String(sc.categoryId) === filterCategoryId,
+                                )
+                                : formOptions.subcategories
+                            ).map((sub) => (
+                                <option key={sub.id} value={String(sub.id)}>
+                                    {sub.name}
+                                </option>
+                            ))}
+                        </SelectNative>
                         <Button type="submit" variant="secondary">
                             Search
                         </Button>
@@ -380,7 +483,7 @@ export default function LabIntakeIndex({
                                             <TableCell>
                                                 {item.categoryName ?? '—'}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="max-w-[200px] whitespace-normal break-words">
                                                 {item.subcategoryName ?? '—'}
                                             </TableCell>
                                             <TableCell>{item.name}</TableCell>
@@ -1039,5 +1142,27 @@ function Detail({
             <dt className="text-sm text-muted-foreground">{label}</dt>
             <dd className="break-words">{value || '—'}</dd>
         </div>
+    );
+}
+
+function StatCard({
+    title,
+    value,
+    description,
+}: {
+    title: string;
+    value: string;
+    description: string;
+}) {
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardDescription>{title}</CardDescription>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </CardContent>
+        </Card>
     );
 }

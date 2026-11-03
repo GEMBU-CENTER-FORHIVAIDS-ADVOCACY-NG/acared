@@ -116,7 +116,7 @@ class StockReportController extends Controller
     }
 
     /**
-     * @param  array{q: string, from: ?string, to: ?string, perPage: int}  $filters
+     * @param  array{q: string, from: ?string, to: ?string, perPage: int, group: string}  $filters
      * @return Builder<Stock>
      */
     private function query(string $report, array $filters): Builder
@@ -127,10 +127,12 @@ class StockReportController extends Controller
                 ->whereHas('priceList', fn (Builder $priceList) => $priceList->where('name', 'like', '%'.$filters['q'].'%'))
                 ->orWhereHas('drugForm', fn (Builder $drugForm) => $drugForm->where('name', 'like', '%'.$filters['q'].'%'))))
             ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
-            ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to));
+            ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
+            ->when($filters['group'] === 'positive', fn (Builder $builder) => $builder->where('quantity', '>', 0))
+            ->when($filters['group'] === 'negative', fn (Builder $builder) => $builder->where('quantity', '<', 0));
     }
 
-    /** @return array{q: string, from: ?string, to: ?string, perPage: int} */
+    /** @return array{q: string, from: ?string, to: ?string, perPage: int, group: string} */
     private function filters(Request $request): array
     {
         $validated = $request->validate([
@@ -138,6 +140,7 @@ class StockReportController extends Controller
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'perPage' => ['nullable', 'integer', Rule::in([10, 25, 50, 100])],
+            'group' => ['nullable', 'string', Rule::in(['positive', 'negative', 'all'])],
         ]);
         $perPage = (int) ($validated['perPage'] ?? 25);
 
@@ -146,6 +149,7 @@ class StockReportController extends Controller
             'from' => $validated['from'] ?? today()->toDateString(),
             'to' => $validated['to'] ?? today()->toDateString(),
             'perPage' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
+            'group' => $validated['group'] ?? 'all',
         ];
     }
 

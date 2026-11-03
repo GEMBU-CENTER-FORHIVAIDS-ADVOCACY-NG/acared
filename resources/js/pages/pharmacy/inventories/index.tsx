@@ -68,6 +68,7 @@ import { destroy as bulkDestroyRoute } from '@/routes/pharmacy/inventories/bulk'
 type Medication = {
     id: number;
     sku: string;
+    category: string | null;
     name: string;
     drugFormId: number;
     drugForm: string | null;
@@ -128,7 +129,7 @@ export default function PharmacyIndex({
         user: string | null;
         createdAt: string | null;
     }[];
-    filters: { q: string; status: string; perPage: number };
+    filters: { q: string; status: string; sort: string; direction: string; perPage: number };
     formOptions: {
         priceLists: { id: number; name: string }[];
         drugForms: { id: number; name: string }[];
@@ -169,6 +170,8 @@ export default function PharmacyIndex({
     function applyFilters(next: {
         q?: string;
         status?: string;
+        sort?: string;
+        direction?: string;
         perPage?: number;
         page?: number;
     }) {
@@ -177,10 +180,34 @@ export default function PharmacyIndex({
             {
                 q: (next.q ?? filters.q) || undefined,
                 status: next.status ?? filters.status,
+                sort: next.sort ?? filters.sort,
+                direction: next.direction ?? filters.direction,
                 perPage: next.perPage ?? filters.perPage,
                 page: next.page ?? 1,
             },
             { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
+
+    function toggleSort(column: string) {
+        applyFilters({
+            sort: column,
+            direction:
+                filters.sort === column && filters.direction === 'asc'
+                    ? 'desc'
+                    : 'asc',
+        });
+    }
+
+    function sortIndicator(column: string) {
+        if (filters.sort !== column) {
+            return null;
+        }
+
+        return (
+            <span className="ml-1 text-xs">
+                {filters.direction === 'asc' ? '▲' : '▼'}
+            </span>
         );
     }
 
@@ -564,17 +591,33 @@ export default function PharmacyIndex({
                                                 }
                                             />
                                         </TableHead>
+                                        <TableHead>SKU</TableHead>
+                                        <TableHead style={{ wordWrap: 'break-word' }}>
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center"
+                                                onClick={() => toggleSort('category')}
+                                            >
+                                                Category
+                                                {sortIndicator('category')}
+                                            </button>
+                                        </TableHead>
                                         <TableHead>Product</TableHead>
                                         <TableHead>Product form</TableHead>
-                                        <TableHead>SKU</TableHead>
                                         <TableHead>Min qty</TableHead>
-                                        <TableHead>Qty available</TableHead>
-                                        <TableHead>Price</TableHead>
+                                        <TableHead>
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center"
+                                                onClick={() => toggleSort('quantity')}
+                                            >
+                                                Qty available
+                                                {sortIndicator('quantity')}
+                                            </button>
+                                        </TableHead>
                                         <TableHead>Cost</TableHead>
                                         <TableHead>Value</TableHead>
-                                        <TableHead>Profit</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead>Expires at</TableHead>
                                         <TableHead className="text-right">
                                             Actions
                                         </TableHead>
@@ -584,7 +627,7 @@ export default function PharmacyIndex({
                                     {inventories.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={13}
+                                                colSpan={10}
                                                 className="py-8 text-center text-muted-foreground"
                                             >
                                                 No pharmacy stock found.
@@ -618,14 +661,17 @@ export default function PharmacyIndex({
                                                         }
                                                     />
                                                 </TableCell>
+                                                <TableCell>
+                                                    {item.sku}
+                                                </TableCell>
+                                                <TableCell style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                                                    {item.category ?? '—'}
+                                                </TableCell>
                                                 <TableCell className="font-medium">
                                                     {item.name}
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.drugForm ?? '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {item.sku}
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.minQty}
@@ -644,10 +690,6 @@ export default function PharmacyIndex({
                                                 </TableCell>
                                                 <TableCell>
                                                     {currencySymbol}{' '}
-                                                    {item.price.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {currencySymbol}{' '}
                                                     {item.cost.toLocaleString()}
                                                 </TableCell>
                                                 <TableCell>
@@ -655,18 +697,11 @@ export default function PharmacyIndex({
                                                     {item.value.toLocaleString()}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {currencySymbol}{' '}
-                                                    {item.profit.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell>
                                                     <span
                                                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${item.status === 'available' || item.status === 'stocked' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'}`}
                                                     >
                                                         {item.status}
                                                     </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {item.expiresAt ?? '—'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>

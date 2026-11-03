@@ -38,9 +38,8 @@ class PrescriptionController extends Controller
     {
         $filters = [
             'q' => trim((string) $request->query('q', '')),
-            'period' => DashboardDateRange::periodFromPageFilters([
-                DashboardDateRange::FILTER_FIELD => $request->query('period'),
-            ]),
+            'startDate' => '',
+            'endDate' => '',
             'status' => in_array($request->query('status'), ['pending', 'billed', 'paid', 'dispensed', 'refunded'], true)
                 ? $request->query('status')
                 : 'all',
@@ -49,9 +48,20 @@ class PrescriptionController extends Controller
                 : 25,
         ];
 
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        if (is_string($startDate) && $startDate !== '' && is_string($endDate) && $endDate !== '') {
+            $filters['startDate'] = $startDate;
+            $filters['endDate'] = $endDate;
+        } else {
+            [$startDate, $endDate] = DashboardDateRange::range('today');
+        }
+
         $prescriptions = Prescription::query()
             ->with(['patient', 'doctor'])
             ->withCount('lines')
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $like = '%'.$filters['q'].'%';
                 $query->where(function (Builder $query) use ($like): void {
@@ -70,17 +80,13 @@ class PrescriptionController extends Controller
             'currencySymbol' => DashboardCurrency::symbol(),
             'prescriptions' => $prescriptions,
             'filters' => $filters,
-            'topDrugs' => [],
-            'periodOptions' => collect(DashboardDateRange::FILTERS)
-                ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
-                ->values(),
             'summary' => [
-                'total' => Prescription::query()->count(),
-                'pending' => Prescription::query()->where('status', 'pending')->count(),
-                'billed' => Prescription::query()->where('status', 'billed')->count(),
-                'paid' => Prescription::query()->where('status', 'paid')->count(),
-                'dispensed' => Prescription::query()->where('status', 'dispensed')->count(),
-                'refunded' => Prescription::query()->where('status', 'refunded')->count(),
+                'total' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->count(),
+                'pending' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'pending')->count(),
+                'billed' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'billed')->count(),
+                'paid' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'paid')->count(),
+                'dispensed' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'dispensed')->count(),
+                'refunded' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'refunded')->count(),
             ],
         ]);
     }
@@ -212,6 +218,7 @@ class PrescriptionController extends Controller
                     'user_id' => $request->user()->getKey(),
                     'total' => $total,
                 ]);
+                $prescription->update(['status' => 'billed']);
             }
 
             return $prescription;
@@ -307,6 +314,9 @@ class PrescriptionController extends Controller
             $billing = $prescription->billings()->first();
             if ($billing) {
                 $billing->update(['total' => $total]);
+                if ($prescription->status === 'pending') {
+                    $prescription->update(['status' => 'billed']);
+                }
             } elseif ($total > 0) {
                 $prescription->billings()->create([
                     'team_id' => $teamId,
@@ -314,6 +324,7 @@ class PrescriptionController extends Controller
                     'user_id' => $request->user()->getKey(),
                     'total' => $total,
                 ]);
+                $prescription->update(['status' => 'billed']);
             }
         });
 
@@ -338,6 +349,7 @@ class PrescriptionController extends Controller
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.refund' => ['required', 'boolean'],
             'lines.*.line_id' => ['required', 'integer', Rule::exists('lines', 'id')->where('team_id', $teamId)],
+            'lines.*.quantity' => ['nullable', 'numeric', 'min:0.001'],
         ]);
 
         /** @var array<int, array<string, mixed>> $lines */
@@ -367,7 +379,9 @@ class PrescriptionController extends Controller
                     continue;
                 }
 
-                $refundTotal += (float) $line->quantity * (float) $line->unitPrice;
+                $refundQuantity = (float) ($lineData['quantity'] ?? $line->quantity);
+
+                $refundTotal += $refundQuantity * (float) $line->unitPrice;
 
                 $parentInventory = Inventory::query()->where('price_list_id', $line->price_list_id)->first();
                 $drugInventory = DrugInventory::query()->where('price_list_id', $line->price_list_id)->first();
@@ -382,7 +396,7 @@ class PrescriptionController extends Controller
                     'stockable_type' => Prescription::class,
                     'receivable_id' => $receiver->getKey(),
                     'receivable_type' => Patient::class,
-                    'quantity' => -1 * (float) $line->quantity,
+                    'quantity' => -1 * $refundQuantity,
                     'status' => 'Returned',
                 ]);
 
@@ -395,11 +409,11 @@ class PrescriptionController extends Controller
                         'stockable_type' => DrugInventory::class,
                         'receivable_id' => $receiver->getKey(),
                         'receivable_type' => Patient::class,
-                        'quantity' => (float) $line->quantity,
+                        'quantity' => $refundQuantity,
                         'status' => 'Returned',
                     ]);
 
-                    $nextQuantity = (float) $drugInventory->quantity + (float) $line->quantity;
+                    $nextQuantity = (float) $drugInventory->quantity + $refundQuantity;
                     $drugInventory->update([
                         'quantity' => $nextQuantity,
                         'status' => $nextQuantity <= (float) $drugInventory->min_qty ? 'low' : 'available',
@@ -414,7 +428,7 @@ class PrescriptionController extends Controller
                     'frequency' => $line->frequency,
                     'duration' => $line->duration,
                     'dosage' => $line->dosage,
-                    'quantity' => $line->quantity,
+                    'quantity' => $refundQuantity,
                     'patient_id' => $line->patient_id,
                     'user_id' => $line->user_id,
                 ]);
@@ -571,6 +585,9 @@ class PrescriptionController extends Controller
     {
         return [
             ...$this->present($prescription),
+            'patientGender' => $prescription->patient?->gender,
+            'patientAge' => $prescription->patient?->age,
+            'patientBirthDate' => $prescription->patient?->birth_date?->toIso8601String(),
             'lines' => $prescription->lines->map(fn (Line $line) => [
                 'id' => $line->getKey(),
                 'priceListId' => $line->price_list_id,
@@ -603,12 +620,8 @@ class PrescriptionController extends Controller
     private function pharmacyPriceLists(): Collection
     {
         return PriceList::query()
-            ->where('is_inventory', true)
             ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Pharmacy'))
-            ->where(function (Builder $query): void {
-                $query->whereHas('drugInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
-                    ->orWhereHas('inventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'));
-            })
+            ->whereHas('drugInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
             ->with('drugInventories.drugForm')
             ->orderBy('name')
             ->get()
@@ -700,10 +713,14 @@ class PrescriptionController extends Controller
             })
             ->orderBy('slug')
             ->limit(50)
-            ->get(['slug', 'fullName'])
+            ->with('category')
+            ->get(['slug', 'fullName', 'gender', 'birthDate', 'category_id'])
             ->map(fn (Patient $patient) => [
                 'slug' => $patient->slug,
                 'label' => "{$patient->slug} - {$patient->fullName}",
+                'gender' => $patient->gender,
+                'age' => $patient->age,
+                'category' => $patient->category?->name,
             ])->values();
 
         return response()->json($patients);

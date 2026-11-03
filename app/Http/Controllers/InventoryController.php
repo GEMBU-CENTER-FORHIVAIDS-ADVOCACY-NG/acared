@@ -11,6 +11,7 @@ use App\Models\Stock;
 use App\Models\User;
 use App\Service\DashboardCurrency;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +57,58 @@ class InventoryController extends Controller
         }, 'inventory-export.csv', ['Content-Type' => 'text/csv']);
     }
 
+    /**
+     * Export a physical stock taking sheet — includes system quantity and a blank
+     * counted quantity column for the user to fill in during the physical count.
+     */
+    public function exportStockTaking(Request $request): StreamedResponse
+    {
+        $items = Inventory::query()
+            ->with(['priceList', 'drugForm'])
+            ->orderBy('price_list_id')
+            ->get();
+        $teamName = $request->user()->currentTeam->name;
+
+        return response()->streamDownload(function () use ($items, $teamName): void {
+            $stream = fopen('php://output', 'w');
+            fputcsv($stream, ['Team', 'SKU', 'Product', 'Product form', 'System quantity', 'Counted quantity', 'Difference', 'Notes']);
+
+            foreach ($items as $item) {
+                fputcsv($stream, [
+                    $teamName,
+                    $item->sku,
+                    $item->priceList?->name,
+                    $item->drugForm?->name,
+                    $item->quantity,
+                    '', // Blank for physical count
+                    '', // Auto-calculated after count
+                    '', // Notes
+                ]);
+            }
+
+            fclose($stream);
+        }, 'physical-stock-taking.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Render a print-ready physical stock taking sheet.
+     */
+    public function printStockTaking(Request $request): Response
+    {
+        $items = Inventory::query()
+            ->with(['priceList', 'drugForm'])
+            ->orderBy('price_list_id')
+            ->get()
+            ->map(fn (Inventory $inventory) => $this->present($inventory));
+
+        return Inertia::render('inventory/stock/print', [
+            'teamName' => $request->user()->currentTeam->name,
+            'items' => $items,
+            'count' => $items->count(),
+            'printedAt' => now()->format('Y-m-d H:i'),
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $filters = [
@@ -63,13 +116,18 @@ class InventoryController extends Controller
             'status' => in_array($request->query('status'), ['low', 'stocked', 'available', 'expired', 'expiring'], true)
                 ? $request->query('status')
                 : 'all',
+            'categoryId' => $request->has('category_id') ? (int) $request->query('category_id') : null,
+            'subcategoryId' => $request->has('subcategory_id') ? (int) $request->query('subcategory_id') : null,
+            'sort' => in_array($request->query('sort', 'price_list_id'), ['price_list_id', 'quantity_asc', 'quantity_desc', 'category_asc', 'category_desc'], true)
+                ? $request->query('sort', 'price_list_id')
+                : 'price_list_id',
             'perPage' => in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
                 ? (int) $request->query('perPage', 25)
                 : 25,
         ];
 
         $inventories = Inventory::query()
-            ->with(['priceList', 'drugForm'])
+            ->with(['priceList', 'priceList.subCategory', 'drugForm'])
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $like = '%'.$filters['q'].'%';
                 $query->where(function (Builder $query) use ($like): void {
@@ -81,7 +139,19 @@ class InventoryController extends Controller
             ->when(in_array($filters['status'], ['low', 'stocked', 'available'], true), fn (Builder $query) => $query->where('status', $filters['status']))
             ->when($filters['status'] === 'expired', fn (Builder $query) => $query->whereNotNull('expires_at')->whereDate('expires_at', '<', today()))
             ->when($filters['status'] === 'expiring', fn (Builder $query) => $query->whereBetween('expires_at', [today(), today()->addDays(30)]))
-            ->orderBy('price_list_id')
+            ->when($filters['categoryId'], fn (Builder $query) => $query->whereHas('priceList', fn (Builder $q) => $q->where('category_id', $filters['categoryId'])))
+            ->when($filters['subcategoryId'], fn (Builder $query) => $query->whereHas('priceList', fn (Builder $q) => $q->where('subcategory_id', $filters['subcategoryId'])))
+            ->when($filters['sort'] === 'quantity_asc', fn (Builder $query) => $query->orderBy('quantity', 'asc'))
+            ->when($filters['sort'] === 'quantity_desc', fn (Builder $query) => $query->orderBy('quantity', 'desc'))
+            ->when($filters['sort'] === 'category_asc', fn (Builder $query) => $query->orderBy(
+                fn (QueryBuilder $q) => $q->select('pl2.name')->from('price_lists AS pl')->join('price_lists AS pl2', 'pl.subcategory_id', '=', 'pl2.id')->whereColumn('pl.id', 'inventories.price_list_id'),
+                'asc'
+            ))
+            ->when($filters['sort'] === 'category_desc', fn (Builder $query) => $query->orderBy(
+                fn (QueryBuilder $q) => $q->select('pl2.name')->from('price_lists AS pl')->join('price_lists AS pl2', 'pl.subcategory_id', '=', 'pl2.id')->whereColumn('pl.id', 'inventories.price_list_id'),
+                'desc'
+            ))
+            ->when($filters['sort'] === 'price_list_id', fn (Builder $query) => $query->orderBy('price_list_id'))
             ->paginate($filters['perPage'])
             ->withQueryString()
             ->through(fn (Inventory $inventory) => $this->present($inventory));
@@ -89,11 +159,20 @@ class InventoryController extends Controller
         return Inertia::render('inventory/stock/index', [
             'currencySymbol' => DashboardCurrency::symbol(),
             'inventories' => $inventories,
-            'filters' => $filters,
+            'filters' => [
+                'q' => $filters['q'],
+                'status' => $filters['status'],
+                'categoryId' => $filters['categoryId'],
+                'subcategoryId' => $filters['subcategoryId'],
+                'sort' => $filters['sort'],
+                'perPage' => $filters['perPage'],
+            ],
             'formOptions' => [
                 'priceLists' => PriceList::query()->where('is_inventory', true)->orderBy('name')->get(['id', 'name']),
                 'drugForms' => DrugForm::query()->orderBy('name')->get(['id', 'name']),
                 'users' => $request->user()->currentTeam->members()->orderBy('name')->get(['users.id', 'users.name']),
+                'categories' => PriceList::query()->where('is_category', true)->orderBy('name')->get(['id', 'name']),
+                'subcategories' => PriceList::query()->whereNotNull('subcategory_id')->orderBy('name')->get(['id', 'name', 'subcategory_id']),
             ],
             'summary' => [
                 'products' => Inventory::query()->count(),
@@ -197,9 +276,12 @@ class InventoryController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'integer', Rule::exists('inventories', 'id')->where('team_id', $teamId)],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+        ], [
+            'items.*.quantity.min' => 'Adjustment quantity must be greater than zero.',
+            'items.*.quantity.required' => 'Please enter a quantity for each item.',
         ]);
 
-        DB::transaction(function () use ($request, $data, $teamId): void {
+        $error = DB::transaction(function () use ($request, $data, $teamId): ?string {
             foreach ($data['items'] as $item) {
                 $inventory = Inventory::query()->lockForUpdate()->whereKey($item['id'])->firstOrFail();
                 $before = (float) $inventory->quantity;
@@ -209,7 +291,10 @@ class InventoryController extends Controller
                     'remove' => $before - $amount,
                     'set' => $amount,
                 };
-                abort_if($after < 0, 422, 'Stock quantity cannot be negative.');
+
+                if ($after < 0) {
+                    return 'Stock quantity cannot be negative.';
+                }
 
                 $inventory->update([
                     'quantity' => $after,
@@ -228,7 +313,13 @@ class InventoryController extends Controller
                     'status' => $data['reason'],
                 ]);
             }
+
+            return null;
         });
+
+        if ($error) {
+            return redirect()->back()->withErrors(['items.*.quantity' => $error])->withInput();
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Stock adjusted.']);
 
@@ -244,12 +335,19 @@ class InventoryController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'integer', Rule::exists('inventories', 'id')->where('team_id', $teamId)],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+        ], [
+            'items.*.quantity.min' => 'Transfer quantity must be greater than zero.',
+            'items.*.quantity.required' => 'Please enter a quantity for each item.',
+            'receiver.required' => 'Please select who will receive the transferred stock.',
         ]);
 
-        DB::transaction(function () use ($data): void {
+        $error = DB::transaction(function () use ($data): ?string {
             foreach ($data['items'] as $item) {
                 $inventory = Inventory::query()->lockForUpdate()->whereKey($item['id'])->firstOrFail();
-                abort_if((float) $item['quantity'] > (float) $inventory->quantity, 422, 'Transfer quantity cannot exceed available stock.');
+
+                if ((float) $item['quantity'] > (float) $inventory->quantity) {
+                    return 'Transfer quantity cannot exceed available stock.';
+                }
 
                 if ($data['location'] === 'lab') {
                     $this->transferToLab($inventory, (float) $item['quantity'], (int) $data['receiver']);
@@ -257,7 +355,13 @@ class InventoryController extends Controller
                     $this->transferToPharmacy($inventory, (float) $item['quantity'], (int) $data['receiver']);
                 }
             }
+
+            return null;
         });
+
+        if ($error) {
+            return redirect()->back()->withErrors(['items.*.quantity' => $error])->withInput();
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Stock transferred.']);
 
@@ -384,6 +488,7 @@ class InventoryController extends Controller
             'profit' => (float) $inventory->profit,
             'status' => $inventory->status,
             'expiresAt' => $inventory->expires_at?->toDateString(),
+            'subCategory' => $inventory->priceList?->subCategory?->name,
         ];
     }
 }

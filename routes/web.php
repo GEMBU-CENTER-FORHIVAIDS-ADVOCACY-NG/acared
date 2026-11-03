@@ -22,6 +22,7 @@ use App\Http\Controllers\LabInventoryController;
 use App\Http\Controllers\LaboratoryController;
 use App\Http\Controllers\LaboratoryTestsReportController;
 use App\Http\Controllers\NursingController;
+use App\Http\Controllers\NursingHistoryController;
 use App\Http\Controllers\OperationalReportController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientImportExportController;
@@ -30,6 +31,8 @@ use App\Http\Controllers\Pharmacy\DrugCatalogImportController;
 use App\Http\Controllers\Pharmacy\DrugFormController;
 use App\Http\Controllers\Pharmacy\DrugInventoryController;
 use App\Http\Controllers\Pharmacy\PrescriptionController;
+use App\Http\Controllers\PresentPregnancyController;
+use App\Http\Controllers\PreviousPregnancyController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\ReportCatalogController;
@@ -163,6 +166,9 @@ Route::prefix('{current_team}')
             Route::delete('laboratories/{laboratory}', [LaboratoryController::class, 'destroy'])->name('laboratories.destroy');
         });
 
+        // Laboratory JSON endpoint for modal display (accessible without 'view laboratories' permission)
+        Route::get('laboratories/{laboratory}/json', [LaboratoryController::class, 'showJson'])->name('laboratories.show.json');
+
         // Lab Inventories
         Route::middleware('permission:viewAny labinventory')->group(function () {
             Route::get('lab-inventories', [LabInventoryController::class, 'index'])->name('lab-inventories.index');
@@ -235,6 +241,8 @@ Route::prefix('{current_team}')
 
             Route::get('inventory/stock', [InventoryController::class, 'index'])->name('inventory.stock.index');
             Route::get('inventory/stock/export', [InventoryController::class, 'export'])->name('inventory.stock.export');
+            Route::get('inventory/stock/export-stock-taking', [InventoryController::class, 'exportStockTaking'])->name('inventory.stock.export-stock-taking');
+            Route::get('inventory/stock/print', [InventoryController::class, 'printStockTaking'])->name('inventory.stock.print');
             Route::post('inventory/stock/import', [InventoryImportController::class, 'import'])->name('inventory.stock.import');
             Route::post('inventory/stock', [InventoryController::class, 'store'])->name('inventory.stock.store');
             Route::post('inventory/stock/adjust', [InventoryController::class, 'adjust'])->name('inventory.stock.adjust');
@@ -272,9 +280,30 @@ Route::prefix('{current_team}')
                 ->name('nursing.records.start');
             Route::patch('nursing/records/{nursing}/end', [NursingController::class, 'end'])
                 ->name('nursing.records.end');
+            Route::patch('nursing/records/{nursing}/transfer', [NursingController::class, 'transfer'])
+                ->name('nursing.records.transfer');
             Route::post('nursing/records/{nursing}/records/{type}', [ConsultationRecordController::class, 'storeForNursing'])->name('nursing.records.records.store');
             Route::patch('nursing/records/{nursing}/records/{type}/{record}', [ConsultationRecordController::class, 'updateForNursing'])->name('nursing.records.records.update');
             Route::delete('nursing/records/{nursing}/records/{type}/{record}', [ConsultationRecordController::class, 'destroyForNursing'])->name('nursing.records.records.destroy');
+
+            // Nursing Histories
+            Route::get('nursing/records/{nursing}/histories', [NursingHistoryController::class, 'index'])->name('nursing.records.histories.index');
+            Route::post('nursing/records/{nursing}/histories', [NursingHistoryController::class, 'store'])->name('nursing.records.histories.store');
+            Route::patch('nursing/records/{nursing}/histories/{history}', [NursingHistoryController::class, 'update'])->name('nursing.records.histories.update');
+            Route::delete('nursing/records/{nursing}/histories/{history}', [NursingHistoryController::class, 'destroy'])->name('nursing.records.histories.destroy');
+
+            // Present Pregnancy
+            Route::get('nursing/records/{nursing}/present-pregnancy', [PresentPregnancyController::class, 'index'])->name('nursing.records.present-pregnancy.index');
+            Route::post('nursing/records/{nursing}/present-pregnancy', [PresentPregnancyController::class, 'store'])->name('nursing.records.present-pregnancy.store');
+            Route::patch('nursing/records/{nursing}/present-pregnancy/{presentPregnancy}', [PresentPregnancyController::class, 'update'])->name('nursing.records.present-pregnancy.update');
+            Route::delete('nursing/records/{nursing}/present-pregnancy/{presentPregnancy}', [PresentPregnancyController::class, 'destroy'])->name('nursing.records.present-pregnancy.destroy');
+
+            // Previous Pregnancy
+            Route::get('nursing/records/{nursing}/previous-pregnancy', [PreviousPregnancyController::class, 'index'])->name('nursing.records.previous-pregnancy.index');
+            Route::post('nursing/records/{nursing}/previous-pregnancy', [PreviousPregnancyController::class, 'store'])->name('nursing.records.previous-pregnancy.store');
+            Route::patch('nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}', [PreviousPregnancyController::class, 'update'])->name('nursing.records.previous-pregnancy.update');
+            Route::delete('nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}', [PreviousPregnancyController::class, 'destroy'])->name('nursing.records.previous-pregnancy.destroy');
+
             Route::post('nursing/records', [NursingController::class, 'store'])->name('nursing.records.store');
             Route::delete('nursing/records/bulk', [NursingController::class, 'bulkDestroy'])->name('nursing.records.bulk.destroy');
             Route::patch('nursing/records/{nursing}', [NursingController::class, 'update'])->name('nursing.records.update');
@@ -306,6 +335,8 @@ Route::prefix('{current_team}')
                 ->name('consultations.start');
             Route::patch('consultations/{consultation}/end', [ConsultationController::class, 'end'])
                 ->name('consultations.end');
+            Route::patch('consultations/{consultation}/transfer', [ConsultationController::class, 'transfer'])
+                ->name('consultations.transfer');
 
             Route::post('consultations/{consultation}/records/{type}', [ConsultationRecordController::class, 'store'])
                 ->name('consultations.records.store');

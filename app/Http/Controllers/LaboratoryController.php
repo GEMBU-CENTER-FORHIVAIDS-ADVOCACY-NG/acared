@@ -65,8 +65,11 @@ class LaboratoryController extends Controller
             ])->validate();
         }
 
+        [$dateStart, $dateEnd] = $this->dateRange($dateFilter);
+
         $paidOptions = Laboratory::query()
             ->where('status', 'paid')
+            ->whereBetween('created_at', [$dateStart, $dateEnd])
             ->with('patient')
             ->orderByDesc('created_at')
             ->get()
@@ -309,15 +312,7 @@ class LaboratoryController extends Controller
     {
         abort_unless($laboratory->status === 'paid', 422, 'Only paid laboratory requests can receive new results.');
 
-        // Validate inventory availability before submitting results
-        $inventoryErrors = $request->validateInventoryAvailability();
-        if (! empty($inventoryErrors)) {
-            return redirect()->back()
-                ->withErrors($inventoryErrors)
-                ->withInput();
-        }
-
-        $this->persistResults($request, $laboratory, deductInventory: true);
+        $this->persistResults($request, $laboratory);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Results submitted successfully.']);
 
@@ -334,14 +329,11 @@ class LaboratoryController extends Controller
     {
         abort_unless(in_array($laboratory->status, ['paid', 'submitted'], true), 422);
 
-        $this->persistResults($request, $laboratory, deductInventory: false);
+        $this->persistResults($request, $laboratory);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Results updated successfully.']);
 
-        return to_route('laboratories.show', [
-            'current_team' => $current_team,
-            'laboratory' => $laboratory->getKey(),
-        ]);
+        return back();
     }
 
     /**
@@ -392,7 +384,7 @@ class LaboratoryController extends Controller
     /**
      * Persist simple and parameterised test results.
      */
-    private function persistResults(Request $request, Laboratory $laboratory, bool $deductInventory): void
+    private function persistResults(Request $request, Laboratory $laboratory): void
     {
         $data = $request->validate([
             'lines' => ['nullable', 'array'],
@@ -401,13 +393,17 @@ class LaboratoryController extends Controller
             'testResults.*' => ['nullable', 'array'],
             'testResults.*.*.price_list_id' => ['required_with:testResults', 'integer'],
             'testResults.*.*.result' => ['nullable', 'string'],
+            'inventoryConsumption' => ['nullable', 'array'],
+            'inventoryConsumption.*' => ['array'],
+            'inventoryConsumption.*.*.lab_inventory_id' => ['required_with:inventoryConsumption', 'integer', Rule::exists('lab_inventories', 'id')],
+            'inventoryConsumption.*.*.quantity' => ['required_with:inventoryConsumption', 'numeric', 'min:1'],
         ]);
 
         $patient = Patient::query()->where('slug', $laboratory->patient_id)->first();
         $userId = $request->user()->getKey();
         $teamId = $request->user()->currentTeam->getKey();
 
-        DB::transaction(function () use ($data, $laboratory, $patient, $userId, $teamId, $deductInventory): void {
+        DB::transaction(function () use ($data, $laboratory, $patient, $userId, $teamId): void {
             foreach (($data['lines'] ?? []) as $priceListId => $result) {
                 if ($result === null || $result === '') {
                     continue;
@@ -427,10 +423,6 @@ class LaboratoryController extends Controller
                     'user_id' => $userId,
                     'results' => is_scalar($result) ? (string) $result : json_encode($result),
                 ]);
-
-                if ($deductInventory && $patient) {
-                    $this->deductLineInventory($line, $patient);
-                }
             }
 
             foreach (($data['testResults'] ?? []) as $parentPriceListId => $rows) {
@@ -467,15 +459,65 @@ class LaboratoryController extends Controller
                     'user_id' => $userId,
                     'results' => 'See parameters',
                 ]);
+            }
 
-                if ($deductInventory && $patient) {
-                    $labInventory = LabInventory::query()->where('price_list_id', $line->price_list_id)->first();
+            // Process explicit inventory consumption entries, grouped by test (price_list_id)
+            $inventoryConsumption = $data['inventoryConsumption'] ?? [];
+            if (! empty($inventoryConsumption)) {
+                // Collect all lab inventory IDs across all tests
+                $labInventoryIds = collect($inventoryConsumption)
+                    ->flatten(1)
+                    ->pluck('lab_inventory_id')
+                    ->unique()
+                    ->values()
+                    ->all();
 
-                    if ($labInventory) {
+                $labInventories = LabInventory::query()
+                    ->with('priceList')
+                    ->whereKey($labInventoryIds)
+                    ->get()
+                    ->keyBy('id');
+
+                // Process each test's consumption
+                foreach ($inventoryConsumption as $priceListId => $consumptionRows) {
+                    if (! is_array($consumptionRows)) {
+                        continue;
+                    }
+
+                    $line = Line::query()
+                        ->where('lineable_type', Laboratory::class)
+                        ->where('lineable_id', $laboratory->getKey())
+                        ->where('price_list_id', (int) $priceListId)
+                        ->first();
+
+                    $totalInventoryCost = 0.0;
+
+                    foreach ($consumptionRows as $consumption) {
+                        $labInventory = $labInventories->get($consumption['lab_inventory_id']);
+
+                        if (! $labInventory) {
+                            continue;
+                        }
+
+                        $quantity = (int) $consumption['quantity'];
+
+                        // Calculate cost: quantity × unit cost of the inventory item
+                        $itemCost = $quantity * ($labInventory->cost ?? 0);
+                        $totalInventoryCost += $itemCost;
+
                         app(InventoryUsageService::class)->use(
                             $labInventory,
-                            patientId: $patient->id,
+                            quantity: $quantity,
+                            stockStatus: 'Used',
+                            patientId: $patient?->id,
                         );
+                    }
+
+                    // Update the line with the total inventory cost for this test
+                    if ($line && $totalInventoryCost > 0) {
+                        $line->update([
+                            'unitCost' => $line->unitCost + $totalInventoryCost,
+                        ]);
                     }
                 }
             }
@@ -493,25 +535,9 @@ class LaboratoryController extends Controller
     }
 
     /**
-     * Deduct inventory for every lab stock row linked to a simple test line.
-     */
-    private function deductLineInventory(Line $line, Patient $patient): void
-    {
-        LabInventory::query()
-            ->where('price_list_id', $line->price_list_id)
-            ->get()
-            ->each(function (LabInventory $lab) use ($patient): void {
-                app(InventoryUsageService::class)->use(
-                    $lab,
-                    patientId: $patient->id,
-                );
-            });
-    }
-
-    /**
      * Build the result entry / view structure for a laboratory request.
      *
-     * @return array{steps: list<array{name: string, tests: list<array<string, mixed>>}>, hasPending: bool}
+     * @return array{steps: list<array{name: string, tests: list<array<string, mixed>>}>, hasPending: bool, inventoryItems: list<array<string, mixed>>}
      */
     private function resultForm(Laboratory $laboratory, bool $pendingOnly): array
     {
@@ -523,6 +549,14 @@ class LaboratoryController extends Controller
             ->get();
 
         $tests = $lines->map(fn (Line $line) => $line->priceList)->filter()->unique('id')->values();
+
+        // Load all lab inventory items so user can select any item for any test
+        $allInventoryItems = LabInventory::with('priceList')->get()->map(fn (LabInventory $inv) => [
+            'id' => $inv->id,
+            'sku' => $inv->sku,
+            'name' => $inv->priceList->name ?? $inv->sku,
+            'quantity' => (float) $inv->quantity,
+        ])->values()->all();
 
         $steps = [];
 
@@ -601,6 +635,7 @@ class LaboratoryController extends Controller
         return [
             'steps' => $steps,
             'hasPending' => $steps !== [],
+            'inventoryItems' => $allInventoryItems,
         ];
     }
 
@@ -658,16 +693,15 @@ class LaboratoryController extends Controller
     private function laboratoryTests(): Collection
     {
         return PriceList::query()
-            ->with(['labInventories', 'drugInventories', 'inventories'])
             ->whereNull('parameter_id')
             ->where('is_category', false)
+            ->where('is_inventory', false)
             ->where(function (Builder $query): void {
                 $query
                     ->whereHas('subCategory.category', fn (Builder $query): Builder => $query->where('name', 'Laboratory'))
                     ->orWhereHas('category', fn (Builder $query): Builder => $query->where('name', 'Laboratory'))
                     ->orWhereHas('subCategory', fn (Builder $query): Builder => $query->where('name', 'Laboratory'));
             })
-            ->whereHas('labInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
             ->orderBy('name')
             ->get();
     }
@@ -881,6 +915,31 @@ class LaboratoryController extends Controller
                 'name' => trim($patient->slug.' '.$patient->fullName),
             ])
             ->values();
+    }
+
+    /**
+     * Return laboratory show data as JSON for modal display.
+     */
+    public function showJson(Request $request, string $current_team, Laboratory $laboratory): JsonResponse
+    {
+        $laboratory->load(['patient', 'doctor', 'team']);
+
+        return response()->json([
+            'laboratory' => [
+                'id' => $laboratory->getKey(),
+                'patientId' => $laboratory->patient_id,
+                'patientName' => $laboratory->patient?->fullName,
+                'gender' => $laboratory->patient?->gender,
+                'age' => $laboratory->patient?->age,
+                'doctorName' => $laboratory->doctor?->name,
+                'status' => $laboratory->status,
+                'total' => (float) $laboratory->total,
+                'createdAt' => $laboratory->created_at?->toIso8601String(),
+                'facilityName' => $laboratory->team?->name,
+                'facilityAddress' => $laboratory->team?->address,
+            ],
+            'resultForm' => $this->resultForm($laboratory, pendingOnly: false),
+        ]);
     }
 
     /**

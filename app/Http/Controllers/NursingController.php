@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
 use App\Models\Billing;
+use App\Models\History;
 use App\Models\Nursing;
 use App\Models\Patient;
+use App\Models\PresentPregnancy;
+use App\Models\PreviousPregnancy;
 use App\Models\User;
 use App\Service\ClinicalRecordData;
 use App\Service\ConsultationSlotGrid;
@@ -36,6 +40,9 @@ class NursingController extends Controller
         'treatments',
         'laboratories',
         'prescriptions',
+        'history',
+        'present-pregnancy',
+        'previous-pregnancy',
     ];
 
     public function __construct(private readonly ClinicalRecordData $clinicalRecords) {}
@@ -45,13 +52,193 @@ class NursingController extends Controller
      */
     public function view(Request $request, string $current_team, Nursing $nursing, string $section = 'overview'): Response
     {
-        $nursing->load(['patient', 'nurse', 'billing']);
+        $this->authorizeNurseAccess($request, $nursing);
+
+        $nursing->load(['patient.category', 'nurse', 'billing']);
 
         $section = in_array($section, self::SECTIONS, true) ? $section : 'overview';
         $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
             ? (int) $request->query('perPage', 25)
             : 25;
         $page = max(1, (int) $request->query('page', 1));
+
+        if ($section === 'history') {
+            $histories = History::query()
+                ->where('patient_id', $nursing->patient_id)
+                ->with('nurse')
+                ->latest()
+                ->paginate(10)
+                ->withQueryString()
+                ->through(fn (History $history): array => [
+                    'id' => $history->getKey(),
+                    'familyHistory' => $history->family_history ?? [],
+                    'socialHistory' => $history->social_history,
+                    'surgicalHistory' => $history->surgical_history ?? [],
+                    'nurseName' => $history->nurse?->name,
+                    'canEdit' => (int) $history->nurse_id === (int) $request->user()->getKey(),
+                    'createdAt' => $history->created_at?->toIso8601String(),
+                ]);
+
+            return Inertia::render('nursing/records/view', [
+                'section' => $section,
+                'nursing' => [
+                    'id' => $nursing->getKey(),
+                    'patientId' => $nursing->patient_id,
+                    'patientName' => $nursing->patient?->fullName,
+                    'nurseName' => $nursing->nurse?->name,
+                    'billingId' => $nursing->billing_id,
+                    'billingStatus' => $nursing->billing?->status,
+                    'purpose' => $nursing->purpose,
+                    'status' => $nursing->status,
+                    'createdAt' => $nursing->created_at?->toIso8601String(),
+                ],
+                'detail' => [
+                    'birthDate' => $nursing->patient?->birthDate,
+                    'gender' => $nursing->patient?->gender,
+                    'age' => $nursing->patient?->age,
+                    'category' => $nursing->patient?->category?->name,
+                    'nurseName' => $nursing->nurse?->name,
+                    'billingStatus' => $nursing->billing?->status,
+                    'purpose' => $nursing->purpose,
+                    'status' => $nursing->status,
+                    'createdAt' => $nursing->created_at?->toIso8601String(),
+                ],
+                'records' => [],
+                'histories' => $histories,
+                'presentPregnancies' => [],
+                'previousPregnancies' => [],
+                'options' => [],
+                'currencySymbol' => DashboardCurrency::symbol(),
+                'pagination' => null,
+                'doctorOptions' => $this->doctorOptions($request),
+                'nurseOptions' => $this->nurseOptions($request),
+            ]);
+        }
+
+        if ($section === 'present-pregnancy') {
+            $presentPregnancies = PresentPregnancy::query()
+                ->where('patient_id', $nursing->patient_id)
+                ->with('nurse')
+                ->latest('date')
+                ->paginate(10)
+                ->withQueryString()
+                ->through(fn (PresentPregnancy $record): array => [
+                    'id' => $record->getKey(),
+                    'date' => $record->date?->toIso8601String(),
+                    'bp' => $record->bp,
+                    'gA' => $record->g_a,
+                    'weight' => $record->weight,
+                    'lmp' => $record->lmp?->toIso8601String(),
+                    'edd' => $record->edd?->toIso8601String(),
+                    'sfh' => $record->sfh,
+                    'lie' => $record->lie,
+                    'position' => $record->position,
+                    'fhr' => $record->fhr,
+                    'hb' => $record->hb,
+                    'oedema' => $record->oedema,
+                    'nurseName' => $record->nurse?->name,
+                    'canEdit' => (int) $record->nurse_id === (int) $request->user()->getKey(),
+                    'createdAt' => $record->created_at?->toIso8601String(),
+                ]);
+
+            return Inertia::render('nursing/records/view', [
+                'section' => $section,
+                'nursing' => [
+                    'id' => $nursing->getKey(),
+                    'patientId' => $nursing->patient_id,
+                    'patientName' => $nursing->patient?->fullName,
+                    'nurseName' => $nursing->nurse?->name,
+                    'billingId' => $nursing->billing_id,
+                    'billingStatus' => $nursing->billing?->status,
+                    'purpose' => $nursing->purpose,
+                    'status' => $nursing->status,
+                    'createdAt' => $nursing->created_at?->toIso8601String(),
+                ],
+                'detail' => [
+                    'birthDate' => $nursing->patient?->birthDate,
+                    'gender' => $nursing->patient?->gender,
+                    'age' => $nursing->patient?->age,
+                    'category' => $nursing->patient?->category?->name,
+                    'nurseName' => $nursing->nurse?->name,
+                    'billingStatus' => $nursing->billing?->status,
+                    'purpose' => $nursing->purpose,
+                    'status' => $nursing->status,
+                    'createdAt' => $nursing->created_at?->toIso8601String(),
+                ],
+                'records' => [],
+                'histories' => [],
+                'presentPregnancies' => $presentPregnancies,
+                'previousPregnancies' => [],
+                'options' => [],
+                'currencySymbol' => DashboardCurrency::symbol(),
+                'pagination' => null,
+                'doctorOptions' => $this->doctorOptions($request),
+                'nurseOptions' => $this->nurseOptions($request),
+            ]);
+        }
+
+        if ($section === 'previous-pregnancy') {
+            $previousPregnancies = PreviousPregnancy::query()
+                ->where('patient_id', $nursing->patient_id)
+                ->with('nurse')
+                ->latest('year')
+                ->paginate(10)
+                ->withQueryString()
+                ->through(fn (PreviousPregnancy $record): array => [
+                    'id' => $record->getKey(),
+                    'year' => $record->year,
+                    'ga' => $record->ga,
+                    'durationOfPregnancy' => $record->duration_of_pregnancy,
+                    'durationOfLabour' => $record->duration_of_labour,
+                    'abortion' => $record->abortion,
+                    'iufd' => $record->iufd,
+                    'aph' => $record->aph,
+                    'pph' => $record->pph,
+                    'sex' => $record->sex,
+                    'weight' => $record->weight,
+                    'modeOfDelivery' => $record->mode_of_delivery,
+                    'ageLife' => $record->age_life,
+                    'ageDeath' => $record->age_death,
+                    'nurseName' => $record->nurse?->name,
+                    'canEdit' => (int) $record->nurse_id === (int) $request->user()->getKey(),
+                    'createdAt' => $record->created_at?->toIso8601String(),
+                ]);
+
+            return Inertia::render('nursing/records/view', [
+                'section' => $section,
+                'nursing' => [
+                    'id' => $nursing->getKey(),
+                    'patientId' => $nursing->patient_id,
+                    'patientName' => $nursing->patient?->fullName,
+                    'nurseName' => $nursing->nurse?->name,
+                    'billingId' => $nursing->billing_id,
+                    'billingStatus' => $nursing->billing?->status,
+                    'purpose' => $nursing->purpose,
+                    'status' => $nursing->status,
+                    'createdAt' => $nursing->created_at?->toIso8601String(),
+                ],
+                'detail' => [
+                    'birthDate' => $nursing->patient?->birthDate,
+                    'gender' => $nursing->patient?->gender,
+                    'age' => $nursing->patient?->age,
+                    'category' => $nursing->patient?->category?->name,
+                    'nurseName' => $nursing->nurse?->name,
+                    'billingStatus' => $nursing->billing?->status,
+                    'purpose' => $nursing->purpose,
+                    'status' => $nursing->status,
+                    'createdAt' => $nursing->created_at?->toIso8601String(),
+                ],
+                'records' => [],
+                'histories' => [],
+                'presentPregnancies' => [],
+                'previousPregnancies' => $previousPregnancies,
+                'options' => [],
+                'currencySymbol' => DashboardCurrency::symbol(),
+                'pagination' => null,
+                'doctorOptions' => $this->doctorOptions($request),
+                'nurseOptions' => $this->nurseOptions($request),
+            ]);
+        }
 
         $records = $section !== 'overview'
             ? [$section => $this->clinicalRecords->recordsPaginated($nursing->patient_id, $section, $page, $perPage)]
@@ -81,6 +268,9 @@ class NursingController extends Controller
                 'createdAt' => $nursing->created_at?->toIso8601String(),
             ],
             'records' => $records,
+            'histories' => [],
+            'presentPregnancies' => [],
+            'previousPregnancies' => [],
             'options' => $this->clinicalRecords->options(),
             'currencySymbol' => DashboardCurrency::symbol(),
             'pagination' => $section !== 'overview'
@@ -89,6 +279,8 @@ class NursingController extends Controller
                     'perPage' => $perPage,
                 ]
                 : null,
+            'doctorOptions' => $this->doctorOptions($request),
+            'nurseOptions' => $this->nurseOptions($request),
         ]);
     }
 
@@ -97,6 +289,8 @@ class NursingController extends Controller
      */
     public function start(Request $request, string $current_team, Nursing $nursing): RedirectResponse
     {
+        $this->authorizeNurseAccess($request, $nursing);
+
         if ($nursing->status !== 'in_progress') {
             $nursing->update(['status' => 'in_progress']);
             $nursing->billing?->update(['status' => 'started']);
@@ -115,12 +309,64 @@ class NursingController extends Controller
      */
     public function end(Request $request, string $current_team, Nursing $nursing): RedirectResponse
     {
+        $this->authorizeNurseAccess($request, $nursing);
+
         $nursing->update(['status' => 'completed']);
         $nursing->billing?->update(['status' => 'completed']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'ANC appointment completed.']);
 
         return to_route('nursing.records.index', $request->user()->currentTeam->slug);
+    }
+
+    /**
+     * Transfer the nursing record to another nurse or doctor.
+     */
+    public function transfer(Request $request, string $current_team, Nursing $nursing): RedirectResponse
+    {
+        $this->authorizeNurseAccess($request, $nursing);
+
+        $transferTo = $request->input('transferTo');
+        $staffIds = User::query()
+            ->whereHas('teams', fn ($query) => $query->whereKey($request->user()->currentTeam->getKey()))
+            ->pluck('id')
+            ->all();
+
+        $rules = [
+            'transferTo' => ['required', Rule::in(['doctor', 'nurse'])],
+            'doctor_id' => $transferTo === 'doctor' ? ['required', 'integer', Rule::in($staffIds)] : ['nullable', 'integer'],
+            'nurse_id' => $transferTo === 'nurse' ? ['required', 'integer', Rule::in($staffIds)] : ['nullable', 'integer'],
+        ];
+
+        $validated = $request->validate($rules);
+
+        if ($transferTo === 'nurse') {
+            $nursing->update([
+                'nurse_id' => $validated['nurse_id'],
+            ]);
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient transferred to nurse.']);
+        } else {
+            // Transfer from nursing to doctor creates a new appointment
+            $nursing->update(['status' => 'transferred']);
+
+            Appointment::create([
+                'team_id' => $nursing->team_id,
+                'billing_id' => $nursing->billing_id,
+                'patient_id' => $nursing->patient_id,
+                'doctor_id' => $validated['doctor_id'],
+                'starts_at' => $nursing->starts_at,
+                'ends_at' => $nursing->ends_at,
+                'status' => 'scheduled',
+            ]);
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient transferred to doctor.']);
+        }
+
+        return to_route('nursing.records.view', [
+            'current_team' => $request->user()->currentTeam->slug,
+            'nursing' => $nursing->getKey(),
+        ]);
     }
 
     /**
@@ -146,6 +392,7 @@ class NursingController extends Controller
         $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true) ? (int) $request->query('perPage', 25) : 25;
 
         $records = Nursing::query()->with(['patient', 'nurse'])
+            ->when($this->currentUserIsNurse($request), fn (Builder $query) => $query->where('nurse_id', $request->user()->getKey()))
             ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
             ->when($nurseId > 0, fn (Builder $query) => $query->where('nurse_id', $nurseId))
             ->orderByDesc('created_at')
@@ -183,6 +430,7 @@ class NursingController extends Controller
     {
         $team = $request->user()->currentTeam;
         $date = trim((string) $request->query('date', ''));
+        $user = $request->user();
 
         return Inertia::render('nursing/records/index', [
             'patients' => Patient::query()
@@ -204,6 +452,7 @@ class NursingController extends Controller
                 ]),
             'dailyTimeline' => $this->dailyTimelineEvents($date),
             'sidebar' => $this->sidebar($date),
+            'currentUserIsNurse' => $user->hasRole('Nurse'),
         ]);
     }
 
@@ -247,8 +496,10 @@ class NursingController extends Controller
     {
         $now = CarbonImmutable::now();
         $filterDate = $date !== '' ? $date : $now->toDateString();
+        $user = request()->user();
 
         return Nursing::query()
+            ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
             ->whereIn('status', ['scheduled', 'in_progress', 'completed'])
             ->whereDate('starts_at', $filterDate)
             ->with('patient')
@@ -280,10 +531,12 @@ class NursingController extends Controller
         $now = CarbonImmutable::now();
         $monthStart = $now->startOfMonth();
         $monthEnd = $now->endOfMonth();
+        $user = request()->user();
 
         $monthNursings = Nursing::query()
-            ->when($selectedDate !== '', fn ($query) => $query->whereDate('starts_at', $selectedDate))
-            ->when($selectedDate === '', fn ($query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
+            ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
+            ->when($selectedDate !== '', fn (Builder $query) => $query->whereDate('starts_at', $selectedDate))
+            ->when($selectedDate === '', fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
             ->get(['id', 'starts_at', 'status']);
 
         $byDay = $monthNursings->groupBy(fn (Nursing $nursing) => $nursing->starts_at?->format('Y-m-d') ?: 'unknown');
@@ -334,6 +587,7 @@ class NursingController extends Controller
                 'completed' => $monthNursings->where('status', 'completed')->count(),
             ],
             'upcoming' => Nursing::query()
+                ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
                 ->whereIn('status', ['scheduled', 'in_progress'])
                 ->with(['patient', 'nurse'])
                 ->where('starts_at', '>=', $now->startOfDay())
@@ -358,13 +612,34 @@ class NursingController extends Controller
      */
     private function busyPeriods(CarbonImmutable $date): array
     {
+        $user = request()->user();
+
         return Nursing::query()
+            ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
             ->whereDate('starts_at', $date->toDateString())
             ->get(['starts_at', 'ends_at'])
             ->map(fn (Nursing $nursing) => [
                 'start' => $nursing->starts_at,
                 'end' => $nursing->ends_at,
             ])
+            ->all();
+    }
+
+    /**
+     * Get the doctors available to the current team.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function doctorOptions(Request $request): array
+    {
+        $teamId = $request->user()->currentTeam->getKey();
+
+        return User::query()
+            ->whereHas('teams', fn (Builder $query) => $query->whereKey($teamId))
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Consultant'))
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => ['id' => $user->getKey(), 'name' => $user->name])
             ->all();
     }
 
@@ -401,5 +676,23 @@ class NursingController extends Controller
         abort_unless($billing->patient_id === $data['patient_id'], 422, 'Select a billing record for the chosen patient.');
 
         return $data;
+    }
+
+    /**
+     * Determine if the current user is a nurse who should see only their own appointments.
+     */
+    private function currentUserIsNurse(Request $request): bool
+    {
+        return $request->user()->hasRole('Nurse');
+    }
+
+    /**
+     * Authorize that a nurse can only access their own nursing records.
+     */
+    private function authorizeNurseAccess(Request $request, Nursing $nursing): void
+    {
+        if ($this->currentUserIsNurse($request) && $nursing->nurse_id !== $request->user()->getKey()) {
+            abort(403, 'You do not have permission to access this nursing record.');
+        }
     }
 }

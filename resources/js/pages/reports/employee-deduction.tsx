@@ -4,7 +4,6 @@ import { FinancialReportLayout } from '@/components/financial-report-layout';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { useReportPrint } from '@/hooks/use-report-print';
-import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -37,8 +36,6 @@ type PatientDeduction = {
 };
 type Filters = {
     q: string;
-    from: string;
-    to: string;
     perPage: number;
     page?: number;
 };
@@ -64,16 +61,12 @@ export default function EmployeeDeductionReport({
     const team = usePage().props.currentTeam?.slug ?? '';
     const { printRef, handlePrint } = useReportPrint();
     const [search, setSearch] = useState(filters.q);
-    const [from, setFrom] = useState(filters.from);
-    const [to, setTo] = useState(filters.to);
     const visit = (patch: Partial<Filters>) => {
         const next = { ...filters, ...patch };
         router.get(
             employeeDeduction.url(),
             {
                 q: next.q || undefined,
-                from: next.from || undefined,
-                to: next.to || undefined,
                 perPage: next.perPage,
                 page: next.page || undefined,
             },
@@ -90,7 +83,7 @@ export default function EmployeeDeductionReport({
                         <Heading
                             variant="small"
                             title="Employee deduction report"
-                            description="Wallet deductions for employees with negative balances updated in the selected period."
+                            description="Wallet deductions for all employees with negative balances."
                         />
                         <div className="flex gap-2">
                             <Button
@@ -102,7 +95,7 @@ export default function EmployeeDeductionReport({
                             <Button variant="outline" asChild>
                                 <a
                                     href={exportReport.url(team, {
-                                        query: { ...filters, q: search },
+                                        query: { q: search, perPage: filters.perPage },
                                     })}
                                 >
                                     Export CSV
@@ -147,34 +140,10 @@ export default function EmployeeDeductionReport({
                             Search
                         </Button>
                     </form>
-                    <div className="space-y-1">
-                        <Label htmlFor="employee-deduction-from">From</Label>
-                        <Input
-                            id="employee-deduction-from"
-                            type="date"
-                            value={from}
-                            onChange={(event) => setFrom(event.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="employee-deduction-to">To</Label>
-                        <Input
-                            id="employee-deduction-to"
-                            type="date"
-                            value={to}
-                            onChange={(event) => setTo(event.target.value)}
-                        />
-                    </div>
-                    <Button
-                        variant="secondary"
-                        onClick={() => visit({ from, to, page: 1 })}
-                    >
-                        Apply dates
-                    </Button>
                 </div>
                 <div ref={printRef} className="report-print-container">
                     <h2 className="mb-3 text-lg font-semibold">
-                        Employee Deduction Report from {formatReportDate(from)} to {formatReportDate(to)}
+                        Employee Deduction Report
                     </h2>
                     <div className="rounded-lg border bg-card">
                     <Table>
@@ -213,7 +182,7 @@ export default function EmployeeDeductionReport({
                                         colSpan={4}
                                         className="py-10 text-center text-muted-foreground"
                                     >
-                                        No employee deductions found for this period.
+                                        No employee deductions found.
                                     </TableCell>
                                 </TableRow>
                             )}

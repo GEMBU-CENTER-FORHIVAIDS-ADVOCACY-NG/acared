@@ -34,8 +34,8 @@ class LaboratoryTestsReportController extends Controller
                         ->orWhere('subcategories.name', 'like', $like);
                 });
             })
-            ->when($filters['from'] !== null, fn (Builder $q) => $q->whereColumn('lines.created_at', '>=', "$filters[from] 00:00:00"))
-            ->when($filters['to'] !== null, fn (Builder $q) => $q->whereColumn('lines.created_at', '<=', "$filters[to] 23:59:59"))
+            ->when($filters['from'] !== null, fn (Builder $q) => $q->where('lines.created_at', '>=', "$filters[from] 00:00:00"))
+            ->when($filters['to'] !== null, fn (Builder $q) => $q->where('lines.created_at', '<=', "$filters[to] 23:59:59"))
             ->selectRaw('price_lists.id as price_list_id')
             ->selectRaw('price_lists.name as item_name')
             ->selectRaw('subcategories.id as subcategory_id')
@@ -87,8 +87,8 @@ class LaboratoryTestsReportController extends Controller
                         ->orWhere('subcategories.name', 'like', $like);
                 });
             })
-            ->when($filters['from'] !== null, fn (Builder $q) => $q->whereColumn('lines.created_at', '>=', "$filters[from] 00:00:00"))
-            ->when($filters['to'] !== null, fn (Builder $q) => $q->whereColumn('lines.created_at', '<=', "$filters[to] 23:59:59"))
+            ->when($filters['from'] !== null, fn (Builder $q) => $q->where('lines.created_at', '>=', "$filters[from] 00:00:00"))
+            ->when($filters['to'] !== null, fn (Builder $q) => $q->where('lines.created_at', '<=', "$filters[to] 23:59:59"))
             ->selectRaw('price_lists.id as price_list_id')
             ->selectRaw('price_lists.name as item_name')
             ->selectRaw('subcategories.id as subcategory_id')
@@ -135,8 +135,8 @@ class LaboratoryTestsReportController extends Controller
             ->where('lineable_type', Laboratory::class)
             ->whereIn('lineable_id', $laboratoryIds)
             ->join('price_lists', 'price_list_id', '=', 'price_lists.id')
-            ->when($filters['from'] !== null, fn (Builder $q) => $q->whereColumn('lines.created_at', '>=', "$filters[from] 00:00:00"))
-            ->when($filters['to'] !== null, fn (Builder $q) => $q->whereColumn('lines.created_at', '<=', "$filters[to] 23:59:59"))
+            ->when($filters['from'] !== null, fn (Builder $q) => $q->where('lines.created_at', '>=', "$filters[from] 00:00:00"))
+            ->when($filters['to'] !== null, fn (Builder $q) => $q->where('lines.created_at', '<=', "$filters[to] 23:59:59"))
             ->selectRaw('COUNT(DISTINCT price_lists.id) as testTypes')
             ->selectRaw('COUNT(*) as totalTests')
             ->selectRaw('SUM(lines.quantity * lines.unitPrice) as totalRevenue')

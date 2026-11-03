@@ -1,7 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Banknote, Coins, CreditCard, UserMinus } from 'lucide-react';
+import { Banknote, Coins, CreditCard, Plus, UserMinus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
+import FloatingCalculator from '@/components/floating-calculator';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,11 @@ type NewPatientRow = {
 };
 
 type NewLineRow = {
+    price_list_id: string;
+    unitPrice: string;
+};
+
+type ServiceLineRow = {
     price_list_id: string;
     unitPrice: string;
 };
@@ -164,12 +170,30 @@ export default function BillingIndex({
     const [newOpen, setNewOpen] = useState(false);
     const [itemsOpen, setItemsOpen] = useState(false);
     const [existingPatientId, setExistingPatientId] = useState('');
+    const [selectedPatientLabel, setSelectedPatientLabel] = useState('');
     const [patient, setPatient] = useState<NewPatientRow>(emptyPatient());
     const [lines, setLines] = useState<NewLineRow[]>([
         { price_list_id: '', unitPrice: '' },
     ]);
     const [newProcessing, setNewProcessing] = useState(false);
     const [newError, setNewError] = useState<string | null>(null);
+
+    // Service billing modal state
+    const [serviceOpen, setServiceOpen] = useState(false);
+    const [serviceExistingPatientId, setServiceExistingPatientId] = useState('');
+    const [serviceSelectedPatientLabel, setServiceSelectedPatientLabel] = useState('');
+    const [serviceLines, setServiceLines] = useState<ServiceLineRow[]>([
+        { price_list_id: '', unitPrice: '' },
+    ]);
+    const [serviceProcessing, setServiceProcessing] = useState(false);
+    const [serviceError, setServiceError] = useState<string | null>(null);
+    const [servicePatientSearchQuery, setServicePatientSearchQuery] = useState('');
+    const [servicePatientSearchResults, setServicePatientSearchResults] = useState<BillingPatientOption[]>([]);
+    const [servicePatientSearchOpen, setServicePatientSearchOpen] = useState(false);
+    const [servicePatientSearchLoading, setServicePatientSearchLoading] = useState(false);
+    const servicePatientSearchInputRef = useRef<HTMLInputElement>(null);
+    const servicePatientSearchContainerRef = useRef<HTMLDivElement>(null);
+    const serviceDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Server-side patient search state
     const [patientSearchQuery, setPatientSearchQuery] = useState('');
@@ -198,19 +222,29 @@ export default function BillingIndex({
         [lines],
     );
 
+    const serviceTotal = useMemo(
+        () =>
+            serviceLines.reduce((sum, line) => sum + (Number(line.unitPrice) || 0), 0),
+        [serviceLines],
+    );
+
     // Debounced search for patients using fetch to avoid Inertia JSON response error
-    const searchPatients = useCallback((query: string) => {
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
+    const searchPatients = useCallback((query: string, isService = false) => {
+        const timerRef = isService ? serviceDebounceTimerRef : debounceTimerRef;
+        const setResults = isService ? setServicePatientSearchResults : setPatientSearchResults;
+        const setLoading = isService ? setServicePatientSearchLoading : setPatientSearchLoading;
+
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
         }
 
         if (!query.trim()) {
-            setPatientSearchResults([]);
+            setResults([]);
             return;
         }
 
-        setPatientSearchLoading(true);
-        debounceTimerRef.current = setTimeout(() => {
+        setLoading(true);
+        timerRef.current = setTimeout(() => {
             const url = BillingController.searchPatients.url(teamSlug, { query: { q: query } });
             fetch(url, {
                 headers: {
@@ -219,11 +253,11 @@ export default function BillingIndex({
             })
                 .then((res) => res.json())
                 .then((results) => {
-                    setPatientSearchResults(results);
-                    setPatientSearchLoading(false);
+                    setResults(results);
+                    setLoading(false);
                 })
                 .catch(() => {
-                    setPatientSearchLoading(false);
+                    setLoading(false);
                 });
         }, 300);
     }, [teamSlug]);
@@ -247,11 +281,33 @@ export default function BillingIndex({
         return () => document.removeEventListener('mousedown', handleClick);
     }, [patientSearchOpen]);
 
+    // Close service patient dropdown on outside click
+    useEffect(() => {
+        if (!servicePatientSearchOpen) {
+            return;
+        }
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                servicePatientSearchContainerRef.current &&
+                !servicePatientSearchContainerRef.current.contains(event.target as Node)
+            ) {
+                setServicePatientSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [servicePatientSearchOpen]);
+
     // Cleanup debounce timer
     useEffect(() => {
         return () => {
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
+            }
+            if (serviceDebounceTimerRef.current) {
+                clearTimeout(serviceDebounceTimerRef.current);
             }
         };
     }, []);
@@ -344,13 +400,7 @@ export default function BillingIndex({
         return found?.label ?? patientSlug;
     }, [walletPatientSearchResults]);
 
-    const selectedPatientLabel = useMemo(() => {
-        if (!existingPatientId) {
-            return '';
-        }
-        const found = patientSearchResults.find((p) => p.slug === existingPatientId);
-        return found?.label ?? existingPatientId;
-    }, [existingPatientId, patientSearchResults]);
+    const displayPatientLabel = existingPatientId ? selectedPatientLabel : '';
 
     const stateLgas = useMemo(
         () =>
@@ -475,6 +525,16 @@ export default function BillingIndex({
     }
 
     function openNewBilling() {
+        setServiceExistingPatientId('');
+        setServicePatientSearchQuery('');
+        setServicePatientSearchResults([]);
+        setServicePatientSearchOpen(false);
+        setServiceLines([{ price_list_id: '', unitPrice: '' }]);
+        setServiceError(null);
+        setServiceOpen(true);
+    }
+
+    function openPatientRegistration() {
         setPatient(emptyPatient());
         setExistingPatientId('');
         setPatientSearchQuery('');
@@ -504,6 +564,25 @@ export default function BillingIndex({
         });
     }
 
+    function updateServiceLine(index: number, patch: Partial<ServiceLineRow>) {
+        setServiceLines((current) =>
+            current.map((row, rowIndex) =>
+                rowIndex === index ? { ...row, ...patch } : row,
+            ),
+        );
+    }
+
+    function chooseService(index: number, value: string) {
+        const service = newBillingOptions.services.find(
+            (item) => String(item.id) === value,
+        );
+
+        updateServiceLine(index, {
+            price_list_id: value,
+            unitPrice: service ? String(service.price) : '',
+        });
+    }
+
     function submitNewBilling() {
         if (!existingPatientId && !patient.firstName) {
             setNewError('Choose a patient or fill in their details.');
@@ -528,6 +607,7 @@ export default function BillingIndex({
         setNewError(null);
 
         const payload = {
+            source: 'patient_registration',
             existing_patient_id: existingPatientId || null,
             billings: [{ lines: linePayload, total: newTotal }],
             ...(existingPatientId ? {} : patient),
@@ -541,6 +621,46 @@ export default function BillingIndex({
                 ),
             onSuccess: () => setNewOpen(false),
             onFinish: () => setNewProcessing(false),
+        });
+    }
+
+    function submitServiceBilling() {
+        if (!serviceExistingPatientId) {
+            setServiceError('Please select an existing patient.');
+
+            return;
+        }
+
+        const linePayload = serviceLines
+            .filter((line) => line.price_list_id !== '')
+            .map((line) => ({
+                price_list_id: Number(line.price_list_id),
+                unitPrice: Number(line.unitPrice) || 0,
+            }));
+
+        if (linePayload.length === 0) {
+            setServiceError('Add at least one service.');
+
+            return;
+        }
+
+        setServiceProcessing(true);
+        setServiceError(null);
+
+        const payload = {
+            source: 'new_billing',
+            existing_patient_id: serviceExistingPatientId,
+            billings: [{ lines: linePayload, total: serviceTotal }],
+        };
+
+        router.post(BillingController.newBilling.url(teamSlug), payload, {
+            preserveScroll: true,
+            onError: (errors: Record<string, string>) =>
+                setServiceError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
+            onSuccess: () => setServiceOpen(false),
+            onFinish: () => setServiceProcessing(false),
         });
     }
 
@@ -575,6 +695,8 @@ export default function BillingIndex({
         <>
             <Head title="Billings" />
 
+            <FloatingCalculator />
+
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
                 <div className="space-y-3">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -590,6 +712,13 @@ export default function BillingIndex({
                                 onClick={openNewBilling}
                             >
                                 New Billing
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={openPatientRegistration}
+                            >
+                                Patient Registration
                             </Button>
                             <Button asChild variant="secondary">
                                 <Link href={history(teamSlug).url}>History</Link>
@@ -1194,9 +1323,9 @@ export default function BillingIndex({
             <Sheet open={newOpen} onOpenChange={setNewOpen}>
                 <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
-                        <SheetTitle>New Billing</SheetTitle>
+                        <SheetTitle>Patient Registration</SheetTitle>
                         <SheetDescription>
-                            Raise invoices for a patient and add billing lines.
+                            Register a new patient and add billing lines.
                         </SheetDescription>
                     </SheetHeader>
 
@@ -1211,7 +1340,7 @@ export default function BillingIndex({
                                     data-test="new-billing-patient"
                                     ref={patientSearchInputRef}
                                     placeholder="Search patient by name, code, or phone…"
-                                    value={existingPatientId ? selectedPatientLabel : patientSearchQuery}
+                                    value={displayPatientLabel || patientSearchQuery}
                                     readOnly={!!existingPatientId}
                                     onClick={() => {
                                         if (!existingPatientId) {
@@ -1221,6 +1350,7 @@ export default function BillingIndex({
                                     onChange={(event) => {
                                         const value = event.target.value;
                                         setExistingPatientId('');
+                                        setSelectedPatientLabel('');
                                         setPatientSearchQuery(value);
                                         searchPatients(value);
                                         setPatientSearchOpen(true);
@@ -1243,6 +1373,7 @@ export default function BillingIndex({
                                             className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
                                             onClick={() => {
                                                 setExistingPatientId('');
+                                                setSelectedPatientLabel('');
                                                 setPatientSearchQuery('');
                                                 setPatientSearchResults([]);
                                                 setPatientSearchOpen(false);
@@ -1257,6 +1388,28 @@ export default function BillingIndex({
                                                 className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
                                                 onClick={() => {
                                                     setExistingPatientId(option.slug);
+                                                    setSelectedPatientLabel(option.label);
+                                                    setPatient({
+                                                        art: option.art ?? '',
+                                                        slugOther: option.slugOther ?? '',
+                                                        category_id: option.category_id ?? '',
+                                                        firstName: option.firstName ?? '',
+                                                        middleName: option.middleName ?? '',
+                                                        lastName: option.lastName ?? '',
+                                                        gender: option.gender ?? 'Male',
+                                                        birthDate: option.birthDate ?? '',
+                                                        email: option.email ?? '',
+                                                        phone: option.phone ?? '',
+                                                        mobile: option.mobile ?? '',
+                                                        country_id: option.country_id ?? '',
+                                                        state_id: option.state_id ?? '',
+                                                        lga_id: option.lga_id ?? '',
+                                                        address: option.address ?? '',
+                                                        kinFullName: option.kinFullName ?? '',
+                                                        kinPhone: option.kinPhone ?? '',
+                                                        kinEmail: option.kinEmail ?? '',
+                                                        relation: option.relation ?? '',
+                                                    });
                                                     setPatientSearchQuery('');
                                                     setPatientSearchResults([]);
                                                     setPatientSearchOpen(false);
@@ -1270,179 +1423,189 @@ export default function BillingIndex({
                             </div>
                         </div>
 
-                        {!existingPatientId ? (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>First name</Label>
-                                    <Input
-                                        value={patient.firstName}
-                                        data-test="new-billing-first-name"
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                firstName: event.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Last name</Label>
-                                    <Input
-                                        value={patient.lastName}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                lastName: event.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Gender</Label>
-                                    <SelectNative
-                                        value={patient.gender}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                gender: event.target.value,
-                                            })
-                                        }
-                                    >
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                    </SelectNative>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Birth date</Label>
-                                    <Input
-                                        type="date"
-                                        value={patient.birthDate}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                birthDate: event.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Category</Label>
-                                    <SelectNative
-                                        value={patient.category_id}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                category_id: event.target.value,
-                                            })
-                                        }
-                                    >
-                                        <option value="">Select…</option>
-                                        {newBillingOptions.categories.map(
-                                            (category) => (
-                                                <option
-                                                    key={category.id}
-                                                    value={category.id}
-                                                >
-                                                    {category.name}
-                                                </option>
-                                            ),
-                                        )}
-                                    </SelectNative>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Phone</Label>
-                                    <Input
-                                        value={patient.phone}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                phone: event.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Country</Label>
-                                    <SelectNative
-                                        value={patient.country_id}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                country_id: event.target.value,
-                                            })
-                                        }
-                                    >
-                                        <option value="">Select…</option>
-                                        {newBillingOptions.countries.map(
-                                            (country) => (
-                                                <option
-                                                    key={country.id}
-                                                    value={country.id}
-                                                >
-                                                    {country.name}
-                                                </option>
-                                            ),
-                                        )}
-                                    </SelectNative>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>State</Label>
-                                    <SelectNative
-                                        value={patient.state_id}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                state_id: event.target.value,
-                                                lga_id: '',
-                                            })
-                                        }
-                                    >
-                                        <option value="">Select…</option>
-                                        {newBillingOptions.states.map(
-                                            (state) => (
-                                                <option
-                                                    key={state.id}
-                                                    value={state.id}
-                                                >
-                                                    {state.name}
-                                                </option>
-                                            ),
-                                        )}
-                                    </SelectNative>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>LGA</Label>
-                                    <SelectNative
-                                        value={patient.lga_id}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                lga_id: event.target.value,
-                                            })
-                                        }
-                                    >
-                                        <option value="">Select…</option>
-                                        {stateLgas.map((lga) => (
-                                            <option key={lga.id} value={lga.id}>
-                                                {lga.name}
-                                            </option>
-                                        ))}
-                                    </SelectNative>
-                                </div>
-                                <div className="space-y-2 sm:col-span-2">
-                                    <Label>Address</Label>
-                                    <Input
-                                        value={patient.address}
-                                        onChange={(event) =>
-                                            setPatient({
-                                                ...patient,
-                                                address: event.target.value,
-                                            })
-                                        }
-                                    />
-                                </div>
+                        {existingPatientId && (
+                            <div className="space-y-2">
+                                <Label>Hospital number</Label>
+                                <Input
+                                    value={existingPatientId}
+                                    onChange={(event) =>
+                                        setExistingPatientId(event.target.value)
+                                    }
+                                />
                             </div>
-                        ) : null}
+                        )}
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>First name</Label>
+                                <Input
+                                    value={patient.firstName}
+                                    data-test="new-billing-first-name"
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            firstName: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Last name</Label>
+                                <Input
+                                    value={patient.lastName}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            lastName: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Gender</Label>
+                                <SelectNative
+                                    value={patient.gender}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            gender: event.target.value,
+                                        })
+                                    }
+                                >
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </SelectNative>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Birth date</Label>
+                                <Input
+                                    type="date"
+                                    value={patient.birthDate}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            birthDate: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Category</Label>
+                                <SelectNative
+                                    value={patient.category_id}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            category_id: event.target.value,
+                                        })
+                                    }
+                                >
+                                    <option value="">Select…</option>
+                                    {newBillingOptions.categories.map(
+                                        (category) => (
+                                            <option
+                                                key={category.id}
+                                                value={category.id}
+                                            >
+                                                {category.name}
+                                            </option>
+                                        ),
+                                    )}
+                                </SelectNative>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Phone</Label>
+                                <Input
+                                    value={patient.phone}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            phone: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Country</Label>
+                                <SelectNative
+                                    value={patient.country_id}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            country_id: event.target.value,
+                                        })
+                                    }
+                                >
+                                    <option value="">Select…</option>
+                                    {newBillingOptions.countries.map(
+                                        (country) => (
+                                            <option
+                                                key={country.id}
+                                                value={country.id}
+                                            >
+                                                {country.name}
+                                            </option>
+                                        ),
+                                    )}
+                                </SelectNative>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>State</Label>
+                                <SelectNative
+                                    value={patient.state_id}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            state_id: event.target.value,
+                                            lga_id: '',
+                                        })
+                                    }
+                                >
+                                    <option value="">Select…</option>
+                                    {newBillingOptions.states.map(
+                                        (state) => (
+                                            <option
+                                                key={state.id}
+                                                value={state.id}
+                                            >
+                                                {state.name}
+                                            </option>
+                                        ),
+                                    )}
+                                </SelectNative>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>LGA</Label>
+                                <SelectNative
+                                    value={patient.lga_id}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            lga_id: event.target.value,
+                                        })
+                                    }
+                                >
+                                    <option value="">Select…</option>
+                                    {stateLgas.map((lga) => (
+                                        <option key={lga.id} value={lga.id}>
+                                            {lga.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label>Address</Label>
+                                <Input
+                                    value={patient.address}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            address: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                        </div>
 
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -1548,6 +1711,206 @@ export default function BillingIndex({
                                 type="button"
                                 variant="ghost"
                                 onClick={() => setNewOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+            {/* Service Billing Modal - Treatment-like UI */}
+            <Sheet open={serviceOpen} onOpenChange={setServiceOpen}>
+                <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+                    <SheetHeader>
+                        <SheetTitle>New Billing</SheetTitle>
+                        <SheetDescription>
+                            Raise invoices for a patient and add services.
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    <div className="space-y-4 px-4 pb-6">
+                        {/* Patient Search */}
+                        <div className="space-y-2" ref={servicePatientSearchContainerRef}>
+                            <Label htmlFor="service-existing-patient">
+                                Existing patient
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    id="service-existing-patient"
+                                    data-test="new-billing-patient"
+                                    ref={servicePatientSearchInputRef}
+                                    placeholder="Search patient by name, code, or phone…"
+                                    value={serviceExistingPatientId ? serviceSelectedPatientLabel : servicePatientSearchQuery}
+                                    readOnly={!!serviceExistingPatientId}
+                                    onClick={() => {
+                                        if (!serviceExistingPatientId) {
+                                            setServicePatientSearchOpen(true);
+                                        }
+                                    }}
+                                    onChange={(event) => {
+                                        const value = event.target.value;
+                                        setServiceExistingPatientId('');
+                                        setServiceSelectedPatientLabel('');
+                                        setServicePatientSearchQuery(value);
+                                        searchPatients(value, true);
+                                        setServicePatientSearchOpen(true);
+                                    }}
+                                />
+                                {servicePatientSearchOpen && !serviceExistingPatientId && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        {servicePatientSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!servicePatientSearchLoading && servicePatientSearchResults.length === 0 && servicePatientSearchQuery.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients found
+                                            </div>
+                                        )}
+                                        {servicePatientSearchResults.map((option) => (
+                                            <button
+                                                key={option.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setServiceExistingPatientId(option.slug);
+                                                    setServiceSelectedPatientLabel(option.label);
+                                                    setServicePatientSearchQuery('');
+                                                    setServicePatientSearchResults([]);
+                                                    setServicePatientSearchOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+
+                        {/* Services Table - Treatment-like UI */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label>Services</Label>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() =>
+                                        setServiceLines([
+                                            ...serviceLines,
+                                            { price_list_id: '', unitPrice: '' },
+                                        ])
+                                    }
+                                >
+                                    <Plus className="mr-1 h-4 w-4" />
+                                    Add service
+                                </Button>
+                            </div>
+
+                            {serviceLines.length > 0 ? (
+                                <div className="rounded-lg border">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                    Service
+                                                </th>
+                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
+                                                    Price
+                                                </th>
+                                                <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {serviceLines.map((line, index) => (
+                                                <tr key={index}>
+                                                    <td className="px-4 py-2">
+                                                        <SelectNative
+                                                            value={line.price_list_id}
+                                                            placeholder="Select service…"
+                                                            onChange={(event) =>
+                                                                chooseService(
+                                                                    index,
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="">Select service…</option>
+                                                            {newBillingOptions.services.map(
+                                                                (service) => (
+                                                                    <option
+                                                                        key={service.id}
+                                                                        value={String(service.id)}
+                                                                    >
+                                                                        {service.name}
+                                                                    </option>
+                                                                ),
+                                                            )}
+                                                        </SelectNative>
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <Input
+                                                            value={line.unitPrice}
+                                                            readOnly
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        {serviceLines.length > 1 ? (
+                                                            <button
+                                                                type="button"
+                                                                className="text-muted-foreground hover:text-red-600"
+                                                                onClick={() =>
+                                                                    setServiceLines((current) =>
+                                                                        current.filter(
+                                                                            (_, i) => i !== index,
+                                                                        ),
+                                                                    )
+                                                                }
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        ) : null}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : null}
+
+                            <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                                <span className="text-sm text-muted-foreground">
+                                    Total
+                                </span>
+                                <span className="text-sm font-semibold tabular-nums">
+                                    {currencySymbol} {serviceTotal.toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+
+                        {serviceError ? (
+                            <p className="text-sm text-destructive">
+                                {serviceError}
+                            </p>
+                        ) : null}
+
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                onClick={submitServiceBilling}
+                                disabled={serviceProcessing}
+                                data-test="submit-new-billing"
+                            >
+                                {serviceProcessing ? 'Saving...' : 'Create billing'}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setServiceOpen(false)}
                             >
                                 Cancel
                             </Button>

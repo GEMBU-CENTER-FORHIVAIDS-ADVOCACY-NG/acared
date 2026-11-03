@@ -35,6 +35,7 @@ type Filters = {
     from: string | null;
     to: string | null;
     perPage: number;
+    group: string;
     page?: number;
 };
 type Paginator = {
@@ -275,6 +276,7 @@ function StockReport({
                 from: next.from || undefined,
                 to: next.to || undefined,
                 perPage: next.perPage,
+                group: next.group || undefined,
                 page: next.page || undefined,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -369,6 +371,25 @@ function StockReport({
                             }
                         />
                     </div>
+                    {report.key === 'correction' && (
+                        <div className="space-y-1">
+                            <Label>Quantity</Label>
+                            <select
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                value={filters.group ?? 'all'}
+                                onChange={(event) =>
+                                    visit({
+                                        group: event.target.value,
+                                        page: 1,
+                                    })
+                                }
+                            >
+                                <option value="all">All</option>
+                                <option value="positive">Positive only</option>
+                                <option value="negative">Negative only</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
                 <div ref={printRef} className="report-print-container">
                     <h2 className="mb-3 text-lg font-semibold">
@@ -389,34 +410,95 @@ function StockReport({
                                 </TableHeader>
                                 <TableBody>
                                     {rows.data.length ? (
-                                        rows.data.map((row) => (
-                                            <TableRow key={row.id}>
-                                                <TableCell className="font-medium">
-                                                    {row.item}
-                                                </TableCell>
-                                                <TableCell
-                                                    className={
-                                                        row.quantity < 0
-                                                            ? 'text-destructive'
-                                                            : 'text-emerald-600 dark:text-emerald-400'
-                                                    }
-                                                >
-                                                    {Math.abs(
-                                                        row.quantity,
-                                                    ).toLocaleString()}
-                                                </TableCell>
-                                                <TableCell>{row.stockType}</TableCell>
-                                                <TableCell>
-                                                    {row.receivedBy ?? '—'}
-                                                </TableCell>
-                                                <TableCell>{row.user ?? '—'}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant="secondary" className="capitalize">
-                                                        {row.status}
-                                                    </Badge>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                        report.key === 'correction' ? (
+                                            <>
+                                                {(() => {
+                                                    const positiveRows = rows.data.filter((r) => r.quantity > 0);
+                                                    const negativeRows = rows.data.filter((r) => r.quantity <= 0);
+                                                    return (
+                                                        <>
+                                                            {positiveRows.length > 0 && (
+                                                                <TableRow className="bg-muted/50">
+                                                                    <TableCell colSpan={6} className="font-semibold text-foreground">
+                                                                        Positive Stock
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            )}
+                                                            {positiveRows.map((row) => (
+                                                                <TableRow key={row.id}>
+                                                                    <TableCell className="font-medium">
+                                                                        {row.item}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-emerald-600 dark:text-emerald-400">
+                                                                        {Math.abs(row.quantity).toLocaleString()}
+                                                                    </TableCell>
+                                                                    <TableCell>{row.stockType}</TableCell>
+                                                                    <TableCell>{row.receivedBy ?? '—'}</TableCell>
+                                                                    <TableCell>{row.user ?? '—'}</TableCell>
+                                                                    <TableCell>
+                                                                        <Badge variant="secondary" className="capitalize">
+                                                                            {row.status}
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                            {negativeRows.length > 0 && (
+                                                                <TableRow className="bg-muted/50">
+                                                                    <TableCell colSpan={6} className="font-semibold text-foreground">
+                                                                        Negative Stock
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            )}
+                                                            {negativeRows.map((row) => (
+                                                                <TableRow key={row.id}>
+                                                                    <TableCell className="font-medium">
+                                                                        {row.item}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-destructive">
+                                                                        {'-'}{Math.abs(row.quantity).toLocaleString()}
+                                                                    </TableCell>
+                                                                    <TableCell>{row.stockType}</TableCell>
+                                                                    <TableCell>{row.receivedBy ?? '—'}</TableCell>
+                                                                    <TableCell>{row.user ?? '—'}</TableCell>
+                                                                    <TableCell>
+                                                                        <Badge variant="secondary" className="capitalize">
+                                                                            {row.status}
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </>
+                                                    );
+                                                })()}
+                                            </>
+                                        ) : (
+                                            rows.data.map((row) => (
+                                                <TableRow key={row.id}>
+                                                    <TableCell className="font-medium">
+                                                        {row.item}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className={
+                                                            row.quantity < 0
+                                                                ? 'text-destructive'
+                                                                : 'text-emerald-600 dark:text-emerald-400'
+                                                        }
+                                                    >
+                                                        {Math.abs(row.quantity).toLocaleString()}
+                                                    </TableCell>
+                                                    <TableCell>{row.stockType}</TableCell>
+                                                    <TableCell>
+                                                        {row.receivedBy ?? '—'}
+                                                    </TableCell>
+                                                    <TableCell>{row.user ?? '—'}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="secondary" className="capitalize">
+                                                            {row.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )
                                     ) : (
                                         <TableRow>
                                             <TableCell

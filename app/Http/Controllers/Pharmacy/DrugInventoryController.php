@@ -23,6 +23,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class DrugInventoryController extends Controller
 {
     /**
+     * The columns that may be used to sort the list.
+     */
+    private const SORTABLE_COLUMNS = [
+        'sku', 'category', 'name', 'drug_form', 'min_qty', 'quantity', 'cost', 'value', 'profit', 'status', 'expires_at', 'created_at',
+    ];
+
+    /**
      * Export the medication stock records of the current team.
      */
     public function export(Request $request): StreamedResponse
@@ -71,13 +78,15 @@ class DrugInventoryController extends Controller
             'status' => in_array($request->query('status'), ['low', 'stocked', 'available', 'expired', 'expiring'], true)
                 ? $request->query('status')
                 : 'all',
+            'sort' => $this->sortBy($request),
+            'direction' => $request->query('direction') === 'asc' ? 'asc' : 'desc',
             'perPage' => in_array((int) $request->query('perPage', 25), [10, 25, 50, 100, 0], true)
                 ? (int) $request->query('perPage', 25)
                 : 25,
         ];
 
         $inventories = DrugInventory::query()
-            ->with(['priceList', 'drugForm'])
+            ->with(['priceList.subCategory', 'drugForm'])
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $like = '%'.$filters['q'].'%';
                 $query->where(function (Builder $query) use ($like): void {
@@ -89,7 +98,24 @@ class DrugInventoryController extends Controller
             ->when(in_array($filters['status'], ['low', 'stocked', 'available'], true), fn (Builder $query) => $query->where('status', $filters['status']))
             ->when($filters['status'] === 'expired', fn (Builder $query) => $query->whereNotNull('expires_at')->whereDate('expires_at', '<', today()))
             ->when($filters['status'] === 'expiring', fn (Builder $query) => $query->whereBetween('expires_at', [today(), today()->addDays(30)]))
-            ->orderBy('price_list_id')
+            ->when($filters['sort'] === 'category', function (Builder $query) use ($filters): void {
+                $query->join('price_lists', 'drug_inventories.price_list_id', '=', 'price_lists.id')
+                    ->join('price_lists as sub_categories', 'price_lists.subcategory_id', '=', 'sub_categories.id')
+                    ->orderBy('sub_categories.name', $filters['direction'])
+                    ->select('drug_inventories.*');
+            }, function (Builder $query) use ($filters): void {
+                $column = match ($filters['sort']) {
+                    'name' => 'price_lists.name',
+                    'drug_form' => 'drug_forms.name',
+                    default => $filters['sort'],
+                };
+
+                if ($column === 'price_lists.name' || $column === 'drug_forms.name') {
+                    $query->orderBy($column, $filters['direction']);
+                } else {
+                    $query->orderBy($filters['sort'], $filters['direction']);
+                }
+            })
             ->paginate($filters['perPage'] > 0 ? $filters['perPage'] : 100)
             ->withQueryString()
             ->through(fn (DrugInventory $inventory) => $this->present($inventory));
@@ -351,6 +377,7 @@ class DrugInventoryController extends Controller
         return [
             'id' => $inventory->getKey(),
             'sku' => $inventory->sku,
+            'category' => $inventory->priceList?->subCategory?->name,
             'name' => $inventory->priceList->name ?? 'Medication',
             'drugFormId' => $inventory->drug_form_id,
             'drugForm' => $inventory->drugForm?->name,
@@ -387,5 +414,15 @@ class DrugInventoryController extends Controller
                 'user' => $stock->user?->name,
                 'createdAt' => $stock->created_at?->toIso8601String(),
             ]);
+    }
+
+    /**
+     * Get the validated sort column.
+     */
+    private function sortBy(Request $request): string
+    {
+        $sort = (string) $request->query('sort', 'created_at');
+
+        return in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : 'created_at';
     }
 }

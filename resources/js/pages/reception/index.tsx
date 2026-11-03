@@ -1,13 +1,10 @@
-import { Head, router, usePage } from '@inertiajs/react';
-import Calendar, { plugins } from '@fullcalendar/react/all';
-import formaThemePlugin from '@fullcalendar/react/themes/forma';
-import '@fullcalendar/react/skeleton.css';
-import '@fullcalendar/react/themes/forma/theme.css';
-import '@fullcalendar/react/themes/forma/palettes/blue.css';
-import { AlertCircle, CalendarPlus } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { AlertCircle, CalendarPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import ReceptionController from '@/actions/App/Http/Controllers/ReceptionController';
+import ConsultationDayTimeline from '@/components/consultation-day-timeline';
 import Heading from '@/components/heading';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -22,25 +19,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { index as nursingRecordsIndex } from '@/routes/nursing/records';
 import { index } from '@/routes/reception';
-import { card as patientCard } from '@/routes/reception/patient';
 import type {
     BillingOption,
+    ConsultationDailyTimelineEvent,
+    ConsultationSidebar,
     DoctorOption,
     NurseOption,
     ReceptionAppointment,
-    ReceptionFilters,
-    ReceptionOption,
     ReceptionStats,
     Team,
 } from '@/types';
@@ -79,38 +67,41 @@ const EMPTY_APPOINTMENT = {
 
 const EMPTY_TRANSFER = {
     patient_id: '',
+    transferTo: 'doctor' as 'doctor' | 'nurse',
     doctor_id: '',
+    nurse_id: '',
 };
 
 export default function ReceptionIndex({
     stats,
     appointments,
     nursingAppointments,
-    filters,
-    dateFilterOptions,
     doctorOptions,
     nurseOptions,
     billingOptions,
     vitalSigns,
+    dailyTimeline,
+    sidebar,
 }: {
     stats: ReceptionStats;
     appointments: ReceptionAppointment[];
     nursingAppointments: ReceptionAppointment[];
-    filters: ReceptionFilters;
-    dateFilterOptions: ReceptionOption[];
     doctorOptions: DoctorOption[];
     nurseOptions: NurseOption[];
     billingOptions: BillingOption[];
     vitalSigns: VitalSignOption[];
+    dailyTimeline: ConsultationDailyTimelineEvent[];
+    sidebar: ConsultationSidebar;
 }) {
     const page = usePage<LayoutProps>();
     const teamSlug = page.props.currentTeam?.slug ?? '';
 
-    const [appointmentOpen, setAppointmentOpen] = useState(false);
     const [appointmentForm, setAppointmentForm] = useState(EMPTY_APPOINTMENT);
     const [staffType, setStaffType] = useState<'doctor' | 'nurse'>('doctor');
+    const [formVisible, setFormVisible] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
     const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER);
+    const [transferFromType, setTransferFromType] = useState<'appointment' | 'nursing' | null>(null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -137,21 +128,17 @@ export default function ReceptionIndex({
         },
     ];
 
-    const events = appointments
-        .filter((appointment) => appointment.startsAt && appointment.endsAt)
-        .map((appointment) => ({
-            id: String(appointment.id),
-            title: `${appointment.patientId} - ${appointment.patientName ?? 'Unknown patient'}`,
-            start: appointment.startsAt as string,
-            end: appointment.endsAt as string,
-            backgroundColor: `${appointment.color}1a`,
-            borderColor: appointment.color,
-            textColor: '#111827',
-        }));
+    const STATUS_BADGE: Record<string, string> = {
+        warning: 'bg-amber-100 text-amber-800',
+        info: 'bg-sky-100 text-sky-800',
+        success: 'bg-emerald-100 text-emerald-800',
+        danger: 'bg-rose-100 text-rose-800',
+        gray: 'bg-muted text-muted-foreground',
+    };
 
-    function applyDateFilter(dateFilter: string) {
+    function applyDate(date: string) {
         router.get(
-            index.url(teamSlug, { query: { dateFilter } }),
+            index.url(teamSlug, { query: { date } }),
             {},
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -164,7 +151,14 @@ export default function ReceptionIndex({
         });
         setStaffType('doctor');
         setError(null);
-        setAppointmentOpen(true);
+        setFormVisible(true);
+    }
+
+    function resetForm() {
+        setAppointmentForm(EMPTY_APPOINTMENT);
+        setStaffType('doctor');
+        setError(null);
+        setFormVisible(false);
     }
 
     function submitAppointment() {
@@ -209,8 +203,7 @@ export default function ReceptionIndex({
                     setError(
                         Object.values(errors)[0] ?? 'Something went wrong.',
                     ),
-                onSuccess: (page) => {
-                    setAppointmentOpen(false);
+                onSuccess: () => {
                     setAppointmentForm(EMPTY_APPOINTMENT);
                     // If not redirected to patient card (e.g., nurse appointment
                     // was handled differently), navigate to nursing records
@@ -225,6 +218,22 @@ export default function ReceptionIndex({
 
     function openTransfer() {
         setTransferForm(EMPTY_TRANSFER);
+        setError(null);
+        setTransferOpen(true);
+    }
+
+    function openTransferWithPatient(patientId: string) {
+        // Determine if the patient comes from an appointment or nursing record
+        const fromNursing = nursingAppointments.some(
+            (a) => a.patientId === patientId
+        );
+        setTransferFromType(fromNursing ? 'nursing' : 'appointment');
+        setTransferForm({
+            patient_id: patientId,
+            transferTo: fromNursing ? 'doctor' : 'doctor',
+            doctor_id: '',
+            nurse_id: '',
+        });
         setError(null);
         setTransferOpen(true);
     }
@@ -262,26 +271,13 @@ export default function ReceptionIndex({
                         description="Triage overview and appointment scheduling."
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                        <SelectNative
-                            value={filters.dateFilter}
-                            onChange={(event) =>
-                                applyDateFilter(event.target.value)
-                            }
-                            className="w-[180px]"
-                            data-test="reception-date-filter"
-                        >
-                            {dateFilterOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </SelectNative>
                         <Button variant="secondary" onClick={openTransfer}>
                             Transfer patient
                         </Button>
                         <Button
                             onClick={() => openSchedule()}
                             data-test="open-schedule-appointment"
+                            disabled={formVisible}
                         >
                             <CalendarPlus className="mr-2 size-4" />
                             Schedule appointment
@@ -291,7 +287,7 @@ export default function ReceptionIndex({
 
                 <div>
                     <p className="mb-3 text-sm font-medium text-muted-foreground">
-                        Triage Overview — {filters.dateFilterLabel}
+                        Triage Overview
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {statCards.map((card) => (
@@ -314,347 +310,401 @@ export default function ReceptionIndex({
                     </div>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Reception appointment calendar</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Calendar
-                            plugins={[...plugins, formaThemePlugin]}
-                            initialView="timeGridDay"
-                            headerToolbar={{
-                                start: 'title',
-                                center: '',
-                                end: 'dayGridMonth,timeGridWeek,timeGridDay today prev,next',
-                            }}
-                            slotDuration="00:30:00"
-                            slotMinTime="08:00:00"
-                            slotMaxTime="18:00:00"
-                            slotMinHeight={56}
-                            displayEventTime={false}
-                            displayEventEnd={false}
-                            events={events}
-                            slotDuration="00:10:00"
-                            selectable
-                            dateClick={(info) =>
-                                openSchedule(formatDateTimeLocal(info.date))
-                            }
-                            eventClick={(info) =>
-                                info.event.start
-                                    ? openSchedule(
-                                          formatDateTimeLocal(info.event.start),
-                                      )
-                                    : openSchedule()
-                            }
-                            height="auto"
-                        />
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Schedule Appointment Slide-Over */}
-            <Sheet open={appointmentOpen} onOpenChange={setAppointmentOpen}>
-                <SheetContent
-                    side="right"
-                    className="w-full sm:max-w-lg md:max-w-xl p-0 gap-0 flex flex-col h-full bg-background"
-                >
-                    <SheetHeader className="p-6 border-b shrink-0 bg-muted/10 pr-12">
-                        <SheetTitle className="text-lg font-semibold flex items-center gap-2">
-                            <CalendarPlus className="size-5 text-primary" />
-                            Schedule appointment
-                        </SheetTitle>
-                        <SheetDescription className="text-sm text-muted-foreground">
-                            Select a billing record and a doctor or nurse.
-                            Appointments are scheduled for 10 minutes.
-                        </SheetDescription>
-                    </SheetHeader>
-
-                    <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                        <div className="space-y-2">
-                            <Label htmlFor="appointment-billing">
-                                Patient (Billing) <span className="text-destructive">*</span>
-                            </Label>
-                            <SelectNative
-                                id="appointment-billing"
-                                placeholder="Select patient (billing)"
-                                value={appointmentForm.billing_id}
-                                onChange={(event) =>
-                                    setAppointmentForm((current) => ({
-                                        ...current,
-                                        billing_id: event.target.value,
-                                        vital_signs: event.target.value
-                                            ? vitalSigns.map((vitalSign) => ({
-                                                  price_list_id: String(
-                                                      vitalSign.id,
-                                                  ),
-                                                  results: '',
-                                              }))
-                                            : [],
-                                    }))
-                                }
-                                data-test="appointment-billing"
-                            >
-                                <option value="">Select patient (billing)</option>
-                                {billingOptions.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </SelectNative>
-                            {billingOptions.length === 0 ? (
-                                <p className="text-xs text-amber-600 dark:text-amber-400">
-                                    No billings currently available for scheduling.
-                                </p>
-                            ) : null}
-                        </div>
-
-                        <div className="space-y-3 rounded-lg border bg-card p-4">
-                            <Label>
-                                Staff member
-                            </Label>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setStaffType('doctor');
-                                        setAppointmentForm((current) => ({
-                                            ...current,
-                                            doctor_id: '',
-                                            nurse_id: '',
-                                        }));
-                                    }}
-                                    className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                                        staffType === 'doctor'
-                                            ? 'border-primary bg-primary/10 text-primary'
-                                            : 'border-border bg-background text-muted-foreground hover:bg-muted'
-                                    }`}
-                                >
-                                    Doctor
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setStaffType('nurse');
-                                        setAppointmentForm((current) => ({
-                                            ...current,
-                                            doctor_id: '',
-                                            nurse_id: '',
-                                        }));
-                                    }}
-                                    className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                                        staffType === 'nurse'
-                                            ? 'border-primary bg-primary/10 text-primary'
-                                            : 'border-border bg-background text-muted-foreground hover:bg-muted'
-                                    }`}
-                                >
-                                    Nurse
-                                </button>
-                            </div>
-                            {staffType === 'doctor' ? (
-                                <SelectNative
-                                    id="appointment-doctor"
-                                    placeholder="Select a doctor"
-                                    value={appointmentForm.doctor_id}
-                                    onChange={(event) =>
-                                        setAppointmentForm((current) => ({
-                                            ...current,
-                                            doctor_id: event.target.value,
-                                        }))
-                                    }
-                                    data-test="appointment-doctor"
-                                >
-                                    <option value="">Select a doctor</option>
-                                    {doctorOptions.map((option) => (
-                                        <option key={option.id} value={option.id}>
-                                            {option.name}
-                                        </option>
-                                    ))}
-                                </SelectNative>
-                            ) : (
-                                <SelectNative
-                                    id="appointment-nurse"
-                                    placeholder="Select a nurse"
-                                    value={appointmentForm.nurse_id}
-                                    onChange={(event) =>
-                                        setAppointmentForm((current) => ({
-                                            ...current,
-                                            nurse_id: event.target.value,
-                                        }))
-                                    }
-                                    data-test="appointment-nurse"
-                                >
-                                    <option value="">Select a nurse</option>
-                                    {nurseOptions.map((option) => (
-                                        <option key={option.id} value={option.id}>
-                                            {option.name}
-                                        </option>
-                                    ))}
-                                </SelectNative>
-                            )}
-                            {staffType === 'nurse' && (
-                                <p className="text-xs text-muted-foreground">
-                                    Nurse appointments will redirect to the
-                                    maternity page after scheduling.
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="appointment-start">
-                                Appointment date and time <span className="text-destructive">*</span>
-                            </Label>
-                            <Input
-                                id="appointment-start"
-                                type="datetime-local"
-                                value={appointmentForm.starts_at}
-                                onChange={(event) =>
-                                    setAppointmentForm((current) => ({
-                                        ...current,
-                                        starts_at: event.target.value,
-                                    }))
-                                }
-                                data-test="appointment-start"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Default consultation slot is 10 minutes.
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="appointment-purpose">Purpose</Label>
-                            <Textarea
-                                id="appointment-purpose"
-                                rows={3}
-                                placeholder="Consultation purpose, notes, or patient complaints..."
-                                value={appointmentForm.purpose}
-                                onChange={(event) =>
-                                    setAppointmentForm((current) => ({
-                                        ...current,
-                                        purpose: event.target.value,
-                                    }))
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>
+                                {sidebar.calendarLabel}'s schedule
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ConsultationDayTimeline
+                                events={dailyTimeline}
+                                onEventClick={(event) =>
+                                    openTransferWithPatient(event.patientId)
                                 }
                             />
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        {appointmentForm.billing_id && vitalSigns.length > 0 ? (
-                            <section
-                                className="space-y-3 rounded-lg border bg-card p-4"
-                                aria-labelledby="appointment-vital-signs"
-                            >
-                                <div>
-                                    <h3
-                                        id="appointment-vital-signs"
-                                        className="text-sm font-medium"
-                                    >
-                                        Vital signs triage
-                                    </h3>
+                    <Card className="flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                            <CardTitle className="text-base">
+                                {formVisible ? 'Schedule appointment' : sidebar.calendarLabel}
+                            </CardTitle>
+                            {formVisible && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={resetForm}
+                                >
+                                    <X className="size-4" />
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-y-auto">
+                            {formVisible ? (
+                                <div className="space-y-4">
                                     <p className="text-xs text-muted-foreground">
-                                        Enter results for vital signs (optional).
+                                        Select a billing record and a doctor or nurse.
+                                        Appointments are scheduled for 10 minutes.
                                     </p>
-                                </div>
-                                <div className="space-y-3">
-                                    {appointmentForm.vital_signs.map(
-                                        (vitalSign, index) => {
-                                            const option = vitalSigns.find(
-                                                (item) =>
-                                                    String(item.id) ===
-                                                    vitalSign.price_list_id,
-                                            );
 
-                                            return (
-                                                <div
-                                                    key={
-                                                        vitalSign.price_list_id
-                                                    }
-                                                    className="grid gap-2 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center bg-background"
+                                    <div className="space-y-2">
+                                        <Label htmlFor="appointment-billing">
+                                            Patient (Billing) <span className="text-destructive">*</span>
+                                        </Label>
+                                        <SelectNative
+                                            id="appointment-billing"
+                                            placeholder="Select patient (billing)"
+                                            value={appointmentForm.billing_id}
+                                            onChange={(event) =>
+                                                setAppointmentForm((current) => ({
+                                                    ...current,
+                                                    billing_id: event.target.value,
+                                                    vital_signs: event.target.value
+                                                        ? vitalSigns.map((vitalSign) => ({
+                                                              price_list_id: String(
+                                                                  vitalSign.id,
+                                                              ),
+                                                              results: '',
+                                                          }))
+                                                        : [],
+                                                }))
+                                            }
+                                            data-test="appointment-billing"
+                                        >
+                                            <option value="">Select patient (billing)</option>
+                                            {billingOptions.map((option) => (
+                                                <option key={option.id} value={option.id}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </SelectNative>
+                                        {appointmentForm.billing_id && (
+                                            (() => {
+                                                const selectedBilling = billingOptions.find(
+                                                    (opt) => String(opt.id) === appointmentForm.billing_id,
+                                                );
+                                                return selectedBilling?.category ? (
+                                                    <Badge variant="secondary" className="mt-1.5">
+                                                        {selectedBilling.category}
+                                                    </Badge>
+                                                ) : null;
+                                            })()
+                                        )}
+                                        {billingOptions.length === 0 ? (
+                                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                                                No billings currently available for scheduling.
+                                            </p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="space-y-3 rounded-lg border bg-card p-3">
+                                        <Label>Staff member</Label>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setStaffType('doctor');
+                                                    setAppointmentForm((current) => ({
+                                                        ...current,
+                                                        doctor_id: '',
+                                                        nurse_id: '',
+                                                    }));
+                                                }}
+                                                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                                                    staffType === 'doctor'
+                                                        ? 'border-primary bg-primary/10 text-primary'
+                                                        : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                                                }`}
+                                            >
+                                                Doctor
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setStaffType('nurse');
+                                                    setAppointmentForm((current) => ({
+                                                        ...current,
+                                                        doctor_id: '',
+                                                        nurse_id: '',
+                                                    }));
+                                                }}
+                                                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                                                    staffType === 'nurse'
+                                                        ? 'border-primary bg-primary/10 text-primary'
+                                                        : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                                                }`}
+                                            >
+                                                Nurse
+                                            </button>
+                                        </div>
+                                        {staffType === 'doctor' ? (
+                                            <SelectNative
+                                                id="appointment-doctor"
+                                                placeholder="Select a doctor"
+                                                value={appointmentForm.doctor_id}
+                                                onChange={(event) =>
+                                                    setAppointmentForm((current) => ({
+                                                        ...current,
+                                                        doctor_id: event.target.value,
+                                                    }))
+                                                }
+                                                data-test="appointment-doctor"
+                                            >
+                                                <option value="">Select a doctor</option>
+                                                {doctorOptions.map((option) => (
+                                                    <option key={option.id} value={option.id}>
+                                                        {option.name}
+                                                    </option>
+                                                ))}
+                                            </SelectNative>
+                                        ) : (
+                                            <SelectNative
+                                                id="appointment-nurse"
+                                                placeholder="Select a nurse"
+                                                value={appointmentForm.nurse_id}
+                                                onChange={(event) =>
+                                                    setAppointmentForm((current) => ({
+                                                        ...current,
+                                                        nurse_id: event.target.value,
+                                                    }))
+                                                }
+                                                data-test="appointment-nurse"
+                                            >
+                                                <option value="">Select a nurse</option>
+                                                {nurseOptions.map((option) => (
+                                                    <option key={option.id} value={option.id}>
+                                                        {option.name}
+                                                    </option>
+                                                ))}
+                                            </SelectNative>
+                                        )}
+                                        {staffType === 'nurse' && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Nurse appointments will redirect to the maternity page after scheduling.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="appointment-start">
+                                            Appointment date and time <span className="text-destructive">*</span>
+                                        </Label>
+                                        <Input
+                                            id="appointment-start"
+                                            type="datetime-local"
+                                            value={appointmentForm.starts_at}
+                                            onChange={(event) =>
+                                                setAppointmentForm((current) => ({
+                                                    ...current,
+                                                    starts_at: event.target.value,
+                                                }))
+                                            }
+                                            data-test="appointment-start"
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Default consultation slot is 10 minutes.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="appointment-purpose">Purpose</Label>
+                                        <Textarea
+                                            id="appointment-purpose"
+                                            rows={2}
+                                            placeholder="Consultation purpose, notes, or patient complaints..."
+                                            value={appointmentForm.purpose}
+                                            onChange={(event) =>
+                                                setAppointmentForm((current) => ({
+                                                    ...current,
+                                                    purpose: event.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+
+                                    {appointmentForm.billing_id && vitalSigns.length > 0 ? (
+                                        <section
+                                            className="space-y-3 rounded-lg border bg-card p-3"
+                                            aria-labelledby="appointment-vital-signs"
+                                        >
+                                            <div>
+                                                <h3
+                                                    id="appointment-vital-signs"
+                                                    className="text-sm font-medium"
                                                 >
-                                                    <div className="space-y-0.5">
-                                                        <Label
-                                                            htmlFor={`vital-result-${vitalSign.price_list_id}`}
-                                                            className="text-xs font-medium"
-                                                        >
-                                                            {option?.name ??
-                                                                'Vital sign'}
-                                                        </Label>
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            Unit:{' '}
-                                                            {option?.uom ||
-                                                                'Not specified'}
-                                                        </p>
-                                                    </div>
-                                                    <Input
-                                                        id={`vital-result-${vitalSign.price_list_id}`}
-                                                        value={
-                                                            vitalSign.results
-                                                        }
-                                                        onChange={(event) =>
-                                                            setAppointmentForm(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    vital_signs:
-                                                                        current.vital_signs.map(
-                                                                            (
-                                                                                item,
-                                                                                itemIndex,
-                                                                            ) =>
-                                                                                itemIndex ===
-                                                                                index
-                                                                                    ? {
-                                                                                          ...item,
-                                                                                          results:
-                                                                                              event
-                                                                                                  .target
-                                                                                                  .value,
-                                                                                      }
-                                                                                    : item,
-                                                                        ),
-                                                                }),
-                                                            )
-                                                        }
-                                                        placeholder="Result"
-                                                        className="h-8 text-xs"
-                                                    />
-                                                </div>
-                                            );
-                                        },
-                                    )}
+                                                    Vital signs triage
+                                                </h3>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Enter results for vital signs (optional).
+                                                </p>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {appointmentForm.vital_signs.map(
+                                                    (vitalSign, index) => {
+                                                        const option = vitalSigns.find(
+                                                            (item) =>
+                                                                String(item.id) ===
+                                                                vitalSign.price_list_id,
+                                                        );
+
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    vitalSign.price_list_id
+                                                                }
+                                                                className="grid gap-2 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center bg-background"
+                                                            >
+                                                                <div className="space-y-0.5">
+                                                                    <Label
+                                                                        htmlFor={`vital-result-${vitalSign.price_list_id}`}
+                                                                        className="text-xs font-medium"
+                                                                    >
+                                                                        {option?.name ??
+                                                                            'Vital sign'}
+                                                                    </Label>
+                                                                    <p className="text-[11px] text-muted-foreground">
+                                                                        Unit:{' '}
+                                                                        {option?.uom ||
+                                                                            'Not specified'}
+                                                                    </p>
+                                                                </div>
+                                                                <Input
+                                                                    id={`vital-result-${vitalSign.price_list_id}`}
+                                                                    value={
+                                                                        vitalSign.results
+                                                                    }
+                                                                    onChange={(event) =>
+                                                                        setAppointmentForm(
+                                                                            (current) => ({
+                                                                                ...current,
+                                                                                vital_signs:
+                                                                                    current.vital_signs.map(
+                                                                                        (
+                                                                                            item,
+                                                                                            itemIndex,
+                                                                                        ) =>
+                                                                                            itemIndex ===
+                                                                                            index
+                                                                                                ? {
+                                                                                                      ...item,
+                                                                                                      results:
+                                                                                                          event
+                                                                                                              .target
+                                                                                                              .value,
+                                                                                                  }
+                                                                                                : item,
+                                                                                    ),
+                                                                            }),
+                                                                        )
+                                                                    }
+                                                                    placeholder="Result"
+                                                                    className="h-8 text-xs"
+                                                                />
+                                                            </div>
+                                                        );
+                                                    },
+                                                )}
+                                            </div>
+                                        </section>
+                                    ) : null}
+
+                                    {error ? (
+                                        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                                            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                                            <span>{error}</span>
+                                        </div>
+                                    ) : null}
+
+                                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={resetForm}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={submitAppointment}
+                                            disabled={
+                                                processing ||
+                                                !appointmentForm.billing_id ||
+                                                !appointmentForm.starts_at
+                                            }
+                                            data-test="submit-appointment"
+                                        >
+                                            {processing
+                                                ? 'Scheduling...'
+                                                : 'Schedule'}
+                                        </Button>
+                                    </div>
                                 </div>
-                            </section>
-                        ) : null}
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                                        {sidebar.weekdays.map((day) => (
+                                            <span
+                                                key={day}
+                                                className="text-muted-foreground"
+                                            >
+                                                {day}
+                                            </span>
+                                        ))}
+                                        {sidebar.days.map((day) => (
+                                            <span
+                                                key={day.date}
+                                                onClick={() => {
+                                                    if (day.inMonth) {
+                                                        applyDate(day.date);
+                                                    }
+                                                }}
+                                                className={`flex h-8 cursor-default items-center justify-center rounded-md ${
+                                                    day.isToday
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : day.hasAppointments
+                                                          ? 'bg-muted font-medium'
+                                                          : ''
+                                                } ${day.inMonth ? 'cursor-pointer hover:bg-accent' : 'opacity-40'} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                                            >
+                                                {day.day}
+                                            </span>
+                                        ))}
+                                    </div>
 
-                        {error ? (
-                            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                                <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                                <span>{error}</span>
-                            </div>
-                        ) : null}
-                    </div>
+                                    <div>
+                                        <p className="mb-2 text-sm font-medium">
+                                            Today&apos;s slots
+                                        </p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {sidebar.timeSlots.map((slot) => (
+                                                <span
+                                                    key={slot.label}
+                                                    className={`rounded px-2 py-0.5 text-xs ${
+                                                        slot.status === 'available'
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : slot.status === 'booked'
+                                                              ? 'bg-rose-100 text-rose-800'
+                                                              : STATUS_BADGE.gray
+                                                    }`}
+                                                >
+                                                    {slot.label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                    <SheetFooter className="p-4 sm:p-6 border-t shrink-0 bg-muted/20 flex flex-row items-center justify-end gap-3">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setAppointmentOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={submitAppointment}
-                            disabled={
-                                processing ||
-                                !appointmentForm.billing_id ||
-                                !appointmentForm.starts_at
-                            }
-                            data-test="submit-appointment"
-                        >
-                            {processing
-                                ? 'Scheduling...'
-                                : 'Schedule appointment'}
-                        </Button>
-                    </SheetFooter>
-                </SheetContent>
-            </Sheet>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
 
             {/* Transfer Patient Dialog */}
             <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
@@ -662,8 +712,9 @@ export default function ReceptionIndex({
                     <DialogHeader>
                         <DialogTitle>Transfer patient</DialogTitle>
                         <DialogDescription>
-                            Reassign the latest active appointment to another
-                            doctor.
+                            {transferForm.patient_id
+                                ? `Transfer ${transferForm.patient_id} to another ${transferForm.transferTo}.`
+                                : 'Select a patient and reassign their appointment to another staff member.'}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -704,26 +755,83 @@ export default function ReceptionIndex({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="transfer-doctor">To doctor</Label>
+                            <Label htmlFor="transfer-to-type">
+                                Transfer to
+                            </Label>
                             <SelectNative
-                                id="transfer-doctor"
-                                value={transferForm.doctor_id}
+                                id="transfer-to-type"
+                                value={transferForm.transferTo}
                                 onChange={(event) =>
                                     setTransferForm((current) => ({
                                         ...current,
-                                        doctor_id: event.target.value,
+                                        transferTo: event.target.value as
+                                            | 'doctor'
+                                            | 'nurse',
+                                        doctor_id: '',
+                                        nurse_id: '',
                                     }))
                                 }
-                                data-test="transfer-doctor"
                             >
-                                <option value="">Select a doctor</option>
-                                {doctorOptions.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {option.name}
-                                    </option>
-                                ))}
+                                <option value="doctor">Doctor</option>
+                                <option value="nurse">Nurse</option>
                             </SelectNative>
                         </div>
+
+                        {transferForm.transferTo === 'doctor' ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="transfer-doctor">
+                                    To doctor
+                                </Label>
+                                <SelectNative
+                                    id="transfer-doctor"
+                                    value={transferForm.doctor_id}
+                                    onChange={(event) =>
+                                        setTransferForm((current) => ({
+                                            ...current,
+                                            doctor_id: event.target.value,
+                                        }))
+                                    }
+                                    data-test="transfer-doctor"
+                                >
+                                    <option value="">Select a doctor</option>
+                                    {doctorOptions.map((option) => (
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label htmlFor="transfer-nurse">
+                                    To nurse
+                                </Label>
+                                <SelectNative
+                                    id="transfer-nurse"
+                                    value={transferForm.nurse_id}
+                                    onChange={(event) =>
+                                        setTransferForm((current) => ({
+                                            ...current,
+                                            nurse_id: event.target.value,
+                                        }))
+                                    }
+                                    data-test="transfer-nurse"
+                                >
+                                    <option value="">Select a nurse</option>
+                                    {nurseOptions.map((option) => (
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
+                                            {option.name}
+                                        </option>
+                                    ))}
+                                </SelectNative>
+                            </div>
+                        )}
 
                         {error ? (
                             <p className="text-sm text-destructive">{error}</p>

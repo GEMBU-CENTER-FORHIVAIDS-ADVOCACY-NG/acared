@@ -2,7 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Consultation;
+use App\Models\Country;
+use App\Models\Lga;
+use App\Models\Nursing;
+use App\Models\PriceList;
+use App\Models\State;
 use App\Models\User;
 use App\Service\ClinicalRecordData;
 use App\Service\ConsultationSlotGrid;
@@ -13,6 +19,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -60,6 +67,7 @@ class ConsultationController extends Controller
 
         $consultations = Consultation::query()
             ->with(['patient', 'doctor'])
+            ->when($this->currentUserIsConsultant($request), fn (Builder $query) => $query->where('doctor_id', $request->user()->getKey()))
             ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
             ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
             ->when($date !== '', fn (Builder $query) => $query->whereDate('starts_at', $date))
@@ -81,8 +89,9 @@ class ConsultationController extends Controller
                 ->all(),
             'doctorOptions' => $this->doctorOptions($request),
             'events' => $this->events(),
-            'dailyTimeline' => $this->dailyTimelineEvents($date),
-            'sidebar' => $this->sidebar($date),
+            'dailyTimeline' => $this->dailyTimelineEvents($date, $status, $doctorId),
+            'sidebar' => $this->sidebar($date, $status, $doctorId),
+            'newBillingOptions' => $this->newBillingOptions(),
         ]);
     }
 
@@ -101,6 +110,7 @@ class ConsultationController extends Controller
 
         $consultations = Consultation::query()
             ->with(['patient', 'doctor'])
+            ->when($this->currentUserIsConsultant($request), fn (Builder $query) => $query->where('doctor_id', $request->user()->getKey()))
             ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
             ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
             ->orderByDesc('starts_at')
@@ -127,9 +137,9 @@ class ConsultationController extends Controller
      */
     public function view(Request $request, string $current_team, Consultation $consultation, string $section = 'overview'): Response
     {
-        $consultation->load(['patient', 'doctor']);
+        $this->authorizeConsultantAccess($request, $consultation);
 
-        $section = $this->normaliseSection($section);
+        $consultation->load(['patient.category', 'doctor']);
         $perPage = in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true)
             ? (int) $request->query('perPage', 25)
             : 25;
@@ -152,15 +162,20 @@ class ConsultationController extends Controller
                     'perPage' => $perPage,
                 ]
                 : null,
+            'doctorOptions' => $this->doctorOptions($request),
+            'nurseOptions' => $this->nurseOptions($request),
+            'newBillingOptions' => $this->newBillingOptions(),
         ]);
     }
 
     /**
      * Show a consultation with all clinical records on a single page.
      */
-    public function viewAll(string $current_team, Consultation $consultation): Response
+    public function viewAll(Request $request, string $current_team, Consultation $consultation): Response
     {
-        $consultation->load(['patient', 'doctor']);
+        $this->authorizeConsultantAccess($request, $consultation);
+
+        $consultation->load(['patient.category', 'doctor']);
 
         return Inertia::render('consultations/view-all', [
             'consultation' => $this->consultationItem($consultation),
@@ -176,6 +191,8 @@ class ConsultationController extends Controller
      */
     public function start(Request $request, string $current_team, Consultation $consultation): RedirectResponse
     {
+        $this->authorizeConsultantAccess($request, $consultation);
+
         if ($consultation->status !== 'started') {
             $consultation->update(['status' => 'started']);
             $consultation->billing?->update(['status' => 'started']);
@@ -194,12 +211,65 @@ class ConsultationController extends Controller
      */
     public function end(Request $request, string $current_team, Consultation $consultation): RedirectResponse
     {
+        $this->authorizeConsultantAccess($request, $consultation);
+
         $consultation->update(['status' => 'completed']);
         $consultation->billing?->update(['status' => 'completed']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Consultation completed.']);
 
         return to_route('consultations.index', $request->user()->currentTeam->slug);
+    }
+
+    /**
+     * Transfer the consultation to another doctor or nurse.
+     */
+    public function transfer(Request $request, string $current_team, Consultation $consultation): RedirectResponse
+    {
+        $this->authorizeConsultantAccess($request, $consultation);
+
+        $transferTo = $request->input('transferTo');
+        $doctorIds = User::query()
+            ->whereHas('teams', fn ($query) => $query->whereKey($request->user()->currentTeam->getKey()))
+            ->pluck('id')
+            ->all();
+        $nurseIds = $doctorIds; // Same team members can be doctors or nurses
+
+        $rules = [
+            'transferTo' => ['required', Rule::in(['doctor', 'nurse'])],
+            'doctor_id' => $transferTo === 'doctor' ? ['required', 'integer', Rule::in($doctorIds)] : ['nullable', 'integer'],
+            'nurse_id' => $transferTo === 'nurse' ? ['required', 'integer', Rule::in($nurseIds)] : ['nullable', 'integer'],
+        ];
+
+        $validated = $request->validate($rules);
+
+        if ($transferTo === 'doctor') {
+            $consultation->update([
+                'doctor_id' => $validated['doctor_id'],
+            ]);
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient transferred to doctor.']);
+        } else {
+            // Transfer from consultation to nurse creates a new nursing record
+            $consultation->update(['status' => 'transferred']);
+
+            Nursing::create([
+                'team_id' => $consultation->team_id,
+                'billing_id' => $consultation->billing_id,
+                'patient_id' => $consultation->patient_id,
+                'nurse_id' => $validated['nurse_id'],
+                'starts_at' => $consultation->starts_at,
+                'ends_at' => $consultation->ends_at,
+                'status' => 'scheduled',
+            ]);
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient transferred to nurse.']);
+        }
+
+        return to_route('consultations.view', [
+            'current_team' => $request->user()->currentTeam->slug,
+            'consultation' => $consultation->getKey(),
+        ]);
     }
 
     /**
@@ -217,7 +287,10 @@ class ConsultationController extends Controller
      */
     private function events(): array
     {
+        $user = request()->user();
+
         return Consultation::query()
+            ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
             ->whereIn('status', ['scheduled', 'started'])
             ->with('patient')
             ->orderBy('starts_at')
@@ -246,28 +319,44 @@ class ConsultationController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function dailyTimelineEvents(string $date = ''): array
+    private function dailyTimelineEvents(string $date = '', string $status = '', int $doctorId = 0): array
     {
         $now = CarbonImmutable::now();
         $filterDate = $date !== '' ? $date : $now->toDateString();
+        $user = request()->user();
 
-        return Consultation::query()
-            ->whereIn('status', ['scheduled', 'started', 'completed'])
+        $consultations = Consultation::query()
+            ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
+            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
+            ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
             ->whereDate('starts_at', $filterDate)
-            ->with('patient')
+            ->with(['patient.category'])
             ->orderBy('starts_at')
-            ->get()
+            ->get();
+
+        // Get count of prior consultations per patient to determine new vs revisit
+        $patientConsultationCounts = Consultation::query()
+            ->select('patient_id', \DB::raw('count(*) as cnt'))
+            ->groupBy('patient_id')
+            ->pluck('cnt', 'patient_id');
+
+        return $consultations
             ->map(fn (Consultation $consultation) => [
                 'id' => $consultation->getKey(),
                 'title' => $consultation->patient_id.' - '.($consultation->patient->fullName ?? 'Unknown patient'),
+                'patientId' => $consultation->patient_id,
                 'startsAt' => $consultation->starts_at?->format('g:i A'),
                 'endsAt' => $consultation->ends_at?->format('g:i A') ?? null,
                 'status' => $consultation->status,
+                'visitType' => ($patientConsultationCounts->get($consultation->patient_id) ?? 0) <= 1 ? 'new' : 'revisit',
                 'color' => $consultation->calendarColor(),
                 'url' => route('consultations.view', [
                     'current_team' => request()->user()->currentTeam->slug,
                     'consultation' => $consultation->getKey(),
                 ]),
+                'birthDate' => $consultation->patient?->birthDate?->format('Y-m-d'),
+                'age' => $consultation->patient?->age,
+                'categoryName' => $consultation->patient?->category?->name,
             ])
             ->values()
             ->all();
@@ -278,13 +367,17 @@ class ConsultationController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function sidebar(string $selectedDate = ''): array
+    private function sidebar(string $selectedDate = '', string $status = '', int $doctorId = 0): array
     {
         $now = CarbonImmutable::now();
         $monthStart = $now->startOfMonth();
         $monthEnd = $now->endOfMonth();
+        $user = request()->user();
 
         $monthConsultations = Consultation::query()
+            ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
+            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
+            ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
             ->when($selectedDate !== '', fn (Builder $query) => $query->whereDate('starts_at', $selectedDate))
             ->when($selectedDate === '', fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
             ->get(['id', 'starts_at', 'status']);
@@ -341,6 +434,7 @@ class ConsultationController extends Controller
                 'completed' => $monthConsultations->where('status', 'completed')->count(),
             ],
             'upcoming' => Consultation::query()
+                ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
                 ->whereIn('status', ['scheduled', 'started'])
                 ->with(['patient', 'doctor'])
                 ->where('starts_at', '>=', $now->startOfDay())
@@ -365,7 +459,10 @@ class ConsultationController extends Controller
      */
     private function busyPeriods(CarbonImmutable $date): array
     {
+        $user = request()->user();
+
         return Consultation::query()
+            ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
             ->whereDate('starts_at', $date->toDateString())
             ->get(['starts_at', 'ends_at'])
             ->map(fn (Consultation $consultation) => [
@@ -387,6 +484,24 @@ class ConsultationController extends Controller
         return User::query()
             ->whereHas('teams', fn (Builder $query) => $query->whereKey($teamId))
             ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Consultant'))
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => ['id' => $user->getKey(), 'name' => $user->name])
+            ->all();
+    }
+
+    /**
+     * Get the nurses available to the current team.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function nurseOptions(Request $request): array
+    {
+        $teamId = $request->user()->currentTeam->getKey();
+
+        return User::query()
+            ->whereHas('teams', fn (Builder $query) => $query->whereKey($teamId))
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Nurse'))
             ->orderBy('name')
             ->get()
             ->map(fn (User $user) => ['id' => $user->getKey(), 'name' => $user->name])
@@ -425,6 +540,7 @@ class ConsultationController extends Controller
             'birthDate' => $consultation->patient?->birthDate,
             'gender' => $consultation->patient?->gender,
             'age' => $consultation->patient?->age,
+            'category' => $consultation->patient?->category?->name,
             'startsAt' => $consultation->starts_at?->toIso8601String(),
             'endsAt' => $consultation->ends_at?->toIso8601String(),
             'doctorName' => $consultation->doctor?->name,
@@ -441,5 +557,79 @@ class ConsultationController extends Controller
         $status = (string) $request->query('status', '');
 
         return array_key_exists($status, self::STATUS_FILTERS) ? $status : '';
+    }
+
+    /**
+     * Determine if the current user is a consultant who should see only their own appointments.
+     */
+    private function currentUserIsConsultant(Request $request): bool
+    {
+        return $request->user()->hasRole('Consultant');
+    }
+
+    /**
+     * Authorize that a consultant can only access their own consultations.
+     */
+    private function authorizeConsultantAccess(Request $request, Consultation $consultation): void
+    {
+        if ($this->currentUserIsConsultant($request) && $consultation->doctor_id !== $request->user()->getKey()) {
+            abort(403, 'You do not have permission to access this consultation.');
+        }
+    }
+
+    /**
+     * Get the options for creating a new billing from the consultation page.
+     *
+     * @return array{categories: array<int, array{id: int, name: string}>, countries: array<int, array{id: int, name: string}>, states: array<int, array{id: int, name: string}>, lgas: array<int, array{id: int, stateId: int, name: string}>, priceLists: array<int, array{id: int, name: string, price: float}>, services: array<int, array{id: int, name: string, price: float}>}
+     */
+    private function newBillingOptions(): array
+    {
+        return [
+            'categories' => Category::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->all(),
+            'countries' => Country::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->all(),
+            'states' => State::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->all(),
+            'lgas' => Lga::query()
+                ->orderBy('name')
+                ->get(['id', 'state_id', 'name'])
+                ->map(fn ($lga) => [
+                    'id' => $lga->getKey(),
+                    'stateId' => (int) $lga->state_id,
+                    'name' => $lga->name,
+                ])
+                ->all(),
+            'priceLists' => PriceList::query()
+                ->where('is_category', false)
+                ->whereHas('category', fn (Builder $query) => $query->whereRaw('LOWER(name) = ?', ['billing']))
+                ->orderBy('name')
+                ->get()
+                ->map(fn (PriceList $priceList) => [
+                    'id' => $priceList->getKey(),
+                    'name' => $priceList->name,
+                    'price' => (float) ($priceList->price ?? 0),
+                ])
+                ->all(),
+            'services' => PriceList::query()
+                ->whereHas('subCategory', fn (Builder $query) => $query->whereIn('name', [
+                    'Treatment',
+                    'Nursing Services',
+                    'Maternity Services',
+                    'Mortuary Services',
+                    'Surgery',
+                    'Ophthalmic Services',
+                    'Dental Services',
+                ]))
+                ->orderBy('name')
+                ->get(['id', 'name', 'price'])
+                ->all(),
+        ];
     }
 }

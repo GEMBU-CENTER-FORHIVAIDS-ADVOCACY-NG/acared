@@ -4,6 +4,8 @@ import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
 import { TreatmentViewModal } from '@/components/treatment-view-modal';
+import { PrescriptionViewModal } from '@/components/prescription-view-modal';
+import { LaboratoryViewModal } from '@/components/laboratory-view-modal';
 import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,6 +44,7 @@ type AdmissionDetail = {
     birthDate: string | null;
     gender: string | null;
     age: string | null;
+    category: string | null;
     wardName: string | null;
     bedName: string | null;
     doctorName: string | null;
@@ -100,6 +103,8 @@ export default function WardRoundView({
     const [error, setError] = useState<string | null>(null);
     const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
     const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
+    const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
+    const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
 
     const recordType = (
         section === 'overview' ? null : section
@@ -294,10 +299,17 @@ export default function WardRoundView({
                         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <DetailRow
                                 label="Date of birth"
-                                value={detail.birthDate}
+                                value={
+                                    detail.birthDate
+                                        ? new Date(
+                                              detail.birthDate,
+                                          ).toLocaleDateString()
+                                        : null
+                                }
                             />
                             <DetailRow label="Gender" value={detail.gender} />
                             <DetailRow label="Age" value={detail.age} />
+                            <DetailRow label="Category" value={detail.category} />
                             <DetailRow label="Ward" value={detail.wardName} />
                             <DetailRow label="Bed" value={detail.bedName} />
                             <DetailRow
@@ -366,6 +378,8 @@ export default function WardRoundView({
                                                 onDelete={() => destroy(record)}
                                                 onViewVitalSigns={(r) => setViewVitalSigns(r)}
                                                 onViewTreatment={(r) => setViewTreatment(r)}
+                                                onViewPrescription={(r) => setViewPrescription(r)}
+                                                onViewLaboratory={(id) => setViewLaboratory(id)}
                                             />
                                         ))}
                                     </div>
@@ -423,6 +437,28 @@ export default function WardRoundView({
                     }
                 }}
             />
+
+            <PrescriptionViewModal
+                record={viewPrescription}
+                open={viewPrescription !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewPrescription(null);
+                    }
+                }}
+                currencySymbol={currencySymbol}
+            />
+
+            <LaboratoryViewModal
+                laboratoryId={viewLaboratory}
+                teamSlug={teamSlug ?? ''}
+                open={viewLaboratory !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewLaboratory(null);
+                    }
+                }}
+            />
         </>
     );
 }
@@ -444,6 +480,8 @@ function RecordCard({
     onDelete,
     onViewVitalSigns,
     onViewTreatment,
+    onViewPrescription,
+    onViewLaboratory,
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
@@ -452,9 +490,9 @@ function RecordCard({
     onDelete: () => void;
     onViewVitalSigns: (record: ConsultationRecord) => void;
     onViewTreatment: (record: ConsultationRecord) => void;
+    onViewPrescription: (record: ConsultationRecord) => void;
+    onViewLaboratory: (id: number) => void;
 }) {
-    const { currentTeam } = usePage().props;
-    const teamSlug = currentTeam?.slug;
     const recordedBy = record.recordedByName ?? '—';
 
     return (
@@ -580,17 +618,22 @@ function RecordCard({
                         View
                     </Button>
                 ) : null}
-                {type === 'laboratories' && teamSlug ? (
+                {type === 'laboratories' ? (
                     <Button
                         size="sm"
                         variant="outline"
-                        asChild
+                        onClick={() => onViewLaboratory(record.id)}
                     >
-                        <Link
-                            href={`/${teamSlug}/laboratories/${record.id}`}
-                        >
-                            View
-                        </Link>
+                        View
+                    </Button>
+                ) : null}
+                {type === 'prescriptions' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewPrescription(record)}
+                    >
+                        View
                     </Button>
                 ) : null}
                 <Button

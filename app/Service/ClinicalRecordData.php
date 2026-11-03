@@ -152,8 +152,8 @@ class ClinicalRecordData
             'vitalPriceLists' => $this->priceListsInSubcategory('Vital sign'),
             'laboratoryTests' => PriceList::query()
                 ->whereNull('parameter_id')
+                ->where('is_inventory', false)
                 ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Laboratory'))
-                ->whereHas('labInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])
                 ->all(),
