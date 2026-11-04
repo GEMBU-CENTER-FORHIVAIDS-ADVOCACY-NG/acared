@@ -46,6 +46,7 @@ const EMPTY_LINE = {
     frequency: '',
     duration: '',
     dosage: '',
+    comment: '',
 };
 
 const EMPTY: ConsultationFormValues = {
@@ -105,6 +106,7 @@ function initialValues(
                           frequency: freq !== '' ? Number(freq).toFixed(2) : '',
                           duration: line.duration ?? '',
                           dosage: line.dosage ?? '',
+                          comment: line.comment ?? '',
                       };
                   })
                 : [{ ...EMPTY_LINE }],
@@ -403,8 +405,132 @@ export function ConsultationRecordForm({
                         </div>
                     ) : type === 'treatments' ? (
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label>Services</Label>
+                            {values.lines.length > 0 ? (
+                                <>
+                                    <div className="rounded-lg border">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted/50">
+                                                <tr>
+                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '50%' }}>
+                                                        Service
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '15%' }}>
+                                                        Price
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '15%' }}>
+                                                        Qty
+                                                    </th>
+                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '15%' }}>
+                                                        Total
+                                                    </th>
+                                                    <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {values.lines.map((line, index) => {
+                                                    const lineTotal = Number(line.quantity || 0) * Number(line.unitPrice || 0);
+                                                    return (
+                                                        <tr key={index}>
+                                                            <td className="px-4 py-2">
+                                                                <SelectNative
+                                                                    value={line.price_list_id}
+                                                                    placeholder="Select service…"
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'price_list_id',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {linePriceLists.map((item) => (
+                                                                        <option
+                                                                            key={item.id}
+                                                                            value={String(item.id)}
+                                                                        >
+                                                                            {item.name}
+                                                                        </option>
+                                                                    ))}
+                                                                </SelectNative>
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <Input
+                                                                    value={line.unitPrice}
+                                                                    readOnly
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    value={line.quantity}
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'quantity',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <span className="text-sm">
+                                                                    {lineTotal.toLocaleString()}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-2 text-center">
+                                                                {values.lines.length > 1 ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="text-muted-foreground hover:text-red-600"
+                                                                        onClick={() =>
+                                                                            setValues((current) => ({
+                                                                                ...current,
+                                                                                lines: current.lines.filter(
+                                                                                    (_, i) => i !== index,
+                                                                                ),
+                                                                            }))
+                                                                        }
+                                                                    >
+                                                                        ×
+                                                                    </button>
+                                                                ) : null}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setValues((current) => ({
+                                                    ...current,
+                                                    lines: [
+                                                        ...current.lines,
+                                                        { ...EMPTY_LINE },
+                                                    ],
+                                                }))
+                                            }
+                                        >
+                                            Add service
+                                        </Button>
+                                        <div className="text-right">
+                                            <p className="text-sm font-medium text-muted-foreground">
+                                                Total
+                                            </p>
+                                            <p className="text-lg font-bold">
+                                                {Number(values.total).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
                                 <Button
                                     type="button"
                                     size="sm"
@@ -421,77 +547,7 @@ export function ConsultationRecordForm({
                                 >
                                     Add service
                                 </Button>
-                            </div>
-
-                            {values.lines.length > 0 ? (
-                                <div className="rounded-lg border">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted/50">
-                                            <tr>
-                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
-                                                    Service
-                                                </th>
-                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
-                                                    Price
-                                                </th>
-                                                <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y">
-                                            {values.lines.map((line, index) => (
-                                                <tr key={index}>
-                                                    <td className="px-4 py-2">
-                                                        <SelectNative
-                                                            value={line.price_list_id}
-                                                            placeholder="Select service…"
-                                                            onChange={(event) =>
-                                                                setLine(
-                                                                    index,
-                                                                    'price_list_id',
-                                                                    event.target.value,
-                                                                )
-                                                            }
-                                                        >
-                                                            {linePriceLists.map((item) => (
-                                                                <option
-                                                                    key={item.id}
-                                                                    value={String(item.id)}
-                                                                >
-                                                                    {item.name}
-                                                                </option>
-                                                            ))}
-                                                        </SelectNative>
-                                                    </td>
-                                                    <td className="px-4 py-2">
-                                                        <Input
-                                                            value={line.unitPrice}
-                                                            readOnly
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-2 text-center">
-                                                        {values.lines.length > 1 ? (
-                                                            <button
-                                                                type="button"
-                                                                className="text-muted-foreground hover:text-red-600"
-                                                                onClick={() =>
-                                                                    setValues((current) => ({
-                                                                        ...current,
-                                                                        lines: current.lines.filter(
-                                                                            (_, i) => i !== index,
-                                                                        ),
-                                                                    }))
-                                                                }
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        ) : null}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : null}
+                            )}
                         </div>
                     ) : hasLines ? (
                         <div className="space-y-3">
@@ -532,130 +588,149 @@ export function ConsultationRecordForm({
                                         </thead>
                                         <tbody className="divide-y">
                                             {values.lines.map((line, index) => (
-                                                <tr key={index}>
-                                                    <td className="px-3 py-2 min-w-[300px]">
-                                                        <SelectNative
-                                                            value={line.price_list_id}
-                                                            placeholder={pharmacy ? 'Select drug…' : 'Select vital…'}
-                                                            onChange={(event) =>
-                                                                setLine(
-                                                                    index,
-                                                                    'price_list_id',
-                                                                    event.target.value,
-                                                                )
-                                                            }
-                                                        >
-                                                            {linePriceLists.map((item) => (
-                                                                <option
-                                                                    key={item.id}
-                                                                    value={String(item.id)}
-                                                                >
-                                                                    {item.name}
-                                                                </option>
-                                                            ))}
-                                                        </SelectNative>
-                                                    </td>
-                                                    {pharmacy ? (
-                                                        <>
-                                                            <td className="px-3 py-2">
-                                                                <SelectNative
-                                                                    value={line.frequency}
-                                                                    onChange={(event) =>
-                                                                        setLine(
-                                                                            index,
-                                                                            'frequency',
-                                                                            event.target.value,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <option value="1.00">OD</option>
-                                                                    <option value="2.00">BID</option>
-                                                                    <option value="3.00">TID</option>
-                                                                    <option value="4.00">QID</option>
-                                                                    <option value="5.00">5x D</option>
-                                                                </SelectNative>
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <Input
-                                                                    type="number"
-                                                                    value={line.duration}
-                                                                    onChange={(event) =>
-                                                                        setLine(
-                                                                            index,
-                                                                            'duration',
-                                                                            event.target.value,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <Input
-                                                                    type="number"
-                                                                    value={line.dosage}
-                                                                    onChange={(event) =>
-                                                                        setLine(
-                                                                            index,
-                                                                            'dosage',
-                                                                            event.target.value,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </td>
-                                                        </>
-                                                    ) : null}
-                                                    {type === 'vital-signs' ? (
-                                                        <td className="px-3 py-2">
-                                                            <Input
-                                                                value={line.results}
+                                                <>
+                                                    <tr key={index}>
+                                                        <td className="px-3 py-2 min-w-[300px]">
+                                                            <SelectNative
+                                                                value={line.price_list_id}
+                                                                placeholder={pharmacy ? 'Select drug…' : 'Select vital…'}
                                                                 onChange={(event) =>
                                                                     setLine(
                                                                         index,
-                                                                        'results',
+                                                                        'price_list_id',
+                                                                        event.target.value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                {linePriceLists.map((item) => (
+                                                                    <option
+                                                                        key={item.id}
+                                                                        value={String(item.id)}
+                                                                    >
+                                                                        {item.name}
+                                                                    </option>
+                                                                ))}
+                                                            </SelectNative>
+                                                        </td>
+                                                        {pharmacy ? (
+                                                            <>
+                                                                <td className="px-3 py-2">
+                                                                    <SelectNative
+                                                                        value={line.frequency}
+                                                                        onChange={(event) =>
+                                                                            setLine(
+                                                                                index,
+                                                                                'frequency',
+                                                                                event.target.value,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <option value="1.00">OD</option>
+                                                                        <option value="2.00">BID</option>
+                                                                        <option value="3.00">TID</option>
+                                                                        <option value="4.00">QID</option>
+                                                                        <option value="5.00">5x D</option>
+                                                                    </SelectNative>
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={line.duration}
+                                                                        onChange={(event) =>
+                                                                            setLine(
+                                                                                index,
+                                                                                'duration',
+                                                                                event.target.value,
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <Input
+                                                                        type="number"
+                                                                        value={line.dosage}
+                                                                        onChange={(event) =>
+                                                                            setLine(
+                                                                                index,
+                                                                                'dosage',
+                                                                                event.target.value,
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                            </>
+                                                        ) : null}
+                                                        {type === 'vital-signs' ? (
+                                                            <td className="px-3 py-2">
+                                                                <Input
+                                                                    value={line.results}
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'results',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </td>
+                                                        ) : null}
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                value={line.unitPrice}
+                                                                readOnly
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                value={line.quantity}
+                                                                readOnly={pharmacy}
+                                                                onChange={(event) =>
+                                                                    setLine(
+                                                                        index,
+                                                                        'quantity',
                                                                         event.target.value,
                                                                     )
                                                                 }
                                                             />
                                                         </td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            {values.lines.length > 1 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-muted-foreground hover:text-red-600"
+                                                                    onClick={() =>
+                                                                        setValues((current) => ({
+                                                                            ...current,
+                                                                            lines: current.lines.filter(
+                                                                                (_, i) => i !== index,
+                                                                            ),
+                                                                        }))
+                                                                    }
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            ) : null}
+                                                        </td>
+                                                    </tr>
+                                                    {pharmacy ? (
+                                                        <tr key={`${index}-comment`}>
+                                                            <td colSpan={8} className="px-3 py-2">
+                                                                <Input
+                                                                    value={line.comment}
+                                                                    onChange={(event) =>
+                                                                        setLine(
+                                                                            index,
+                                                                            'comment',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                    placeholder="Doctor's note…"
+                                                                />
+                                                            </td>
+                                                        </tr>
                                                     ) : null}
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            value={line.unitPrice}
-                                                            readOnly
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            type="number"
-                                                            value={line.quantity}
-                                                            readOnly={pharmacy}
-                                                            onChange={(event) =>
-                                                                setLine(
-                                                                    index,
-                                                                    'quantity',
-                                                                    event.target.value,
-                                                                )
-                                                            }
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2 text-center">
-                                                        {values.lines.length > 1 ? (
-                                                            <button
-                                                                type="button"
-                                                                className="text-muted-foreground hover:text-red-600"
-                                                                onClick={() =>
-                                                                    setValues((current) => ({
-                                                                        ...current,
-                                                                        lines: current.lines.filter(
-                                                                            (_, i) => i !== index,
-                                                                        ),
-                                                                    }))
-                                                                }
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        ) : null}
-                                                    </td>
-                                                </tr>
+                                                </>
                                             ))}
                                         </tbody>
                                         <tfoot className="bg-muted/50 font-semibold">

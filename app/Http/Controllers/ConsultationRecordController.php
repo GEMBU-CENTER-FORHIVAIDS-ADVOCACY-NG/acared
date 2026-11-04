@@ -258,6 +258,12 @@ class ConsultationRecordController extends Controller
                 $model->lines()->delete();
             }
 
+            // Remove pending/billed billings so they can be re-created with updated totals.
+            // Paid billings are preserved to avoid breaking payment records.
+            if ($config['billings'] && method_exists($model, 'billings')) {
+                $model->billings()->whereIn('status', ['billed', 'pending'])->delete();
+            }
+
             $this->syncLines($request, $model, $config, $data);
             $this->syncBillings($context, $model, $config, $data);
         });
@@ -382,6 +388,7 @@ class ConsultationRecordController extends Controller
                 'lines.*.frequency' => ['nullable', 'numeric'],
                 'lines.*.duration' => ['nullable', 'numeric'],
                 'lines.*.dosage' => ['nullable', 'numeric'],
+                'lines.*.comment' => ['nullable', 'string'],
                 'total' => ['nullable', 'numeric'],
                 'status' => ['nullable', 'string', Rule::in(['pending', 'paid', 'dispensed', 'completed', 'cancelled'])],
             ],
@@ -533,6 +540,7 @@ class ConsultationRecordController extends Controller
                 'frequency' => $line['frequency'] ?? null,
                 'duration' => $line['duration'] ?? null,
                 'dosage' => $line['dosage'] ?? null,
+                'comment' => $line['comment'] ?? null,
             ]);
         }
     }

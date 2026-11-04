@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -22,20 +23,27 @@ class WalletHistoryController extends Controller
 {
     public function index(Request $request): Response
     {
+        $fromValue = $this->parseDate($request->query('from'));
+        $toValue = $this->parseDate($request->query('to'));
+
         $filters = [
             'q' => trim((string) $request->query('q', '')),
-            'from' => $request->query('from'),
-            'to' => $request->query('to'),
+            'from' => $fromValue ? Carbon::parse($fromValue)->toDateString() : Carbon::today()->toDateString(),
+            'to' => $toValue ? Carbon::parse($toValue)->toDateString() : Carbon::today()->toDateString(),
             'perPage' => in_array((int) $request->query('perPage', 25), [10, 25, 50, 100], true) ? (int) $request->query('perPage', 25) : 25,
         ];
         $teamId = $request->user()->currentTeam->getKey();
+
+        $fromDateTime = Carbon::parse($filters['from'])->startOfDay()->toDateTimeString();
+        $toDateTime = Carbon::parse($filters['to'])->endOfDay()->toDateTimeString();
+
         $query = WalletHistory::query()
             ->when($filters['q'] !== '', fn (Builder $builder) => $builder->where(fn (Builder $builder) => $builder
                 ->where('patient_id', 'like', '%'.$filters['q'].'%')
                 ->orWhereHas('patient', fn (Builder $patient) => $patient->where('fullName', 'like', '%'.$filters['q'].'%'))
                 ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', '%'.$filters['q'].'%'))))
-            ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
-            ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to));
+            ->where('created_at', '>=', $fromDateTime)
+            ->where('created_at', '<=', $toDateTime);
 
         $stats = [
             'total_credit' => (float) $query->sum('credit'),
@@ -50,8 +58,8 @@ class WalletHistoryController extends Controller
                 ->where('patient_id', 'like', '%'.$filters['q'].'%')
                 ->orWhereHas('patient', fn (Builder $patient) => $patient->where('fullName', 'like', '%'.$filters['q'].'%'))
                 ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', '%'.$filters['q'].'%'))))
-            ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
-            ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
+            ->where('created_at', '>=', $fromDateTime)
+            ->where('created_at', '<=', $toDateTime)
             ->latest()
             ->paginate($filters['perPage'])
             ->withQueryString()
@@ -332,5 +340,21 @@ class WalletHistoryController extends Controller
             'balance' => (float) $history->balance,
             'createdAt' => $history->created_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Parse an optional date query parameter.
+     */
+    private function parseDate(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateTimeString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

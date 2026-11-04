@@ -4,6 +4,7 @@ use App\Enums\TeamRole;
 use App\Models\Appointment;
 use App\Models\Billing;
 use App\Models\Category;
+use App\Models\Consultation;
 use App\Models\Patient;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -302,14 +303,27 @@ test('a patient can be transferred to another doctor', function () {
         'ends_at' => now()->addHour()->addMinutes(30),
     ]);
 
+    $consultation = Consultation::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'patient_id' => $patient->slug,
+        'doctor_id' => $firstDoctor->getKey(),
+        'billing_id' => $billing->getKey(),
+        'appointment_id' => $appointment->getKey(),
+        'status' => 'scheduled',
+        'starts_at' => now()->addHour(),
+        'ends_at' => now()->addHour()->addMinutes(30),
+    ]);
+
     $this->actingAs($user)
         ->patch(receptionTeamUrl($user, '/transfer'), [
             'patient_id' => $patient->slug,
+            'transferTo' => 'doctor',
             'doctor_id' => $secondDoctor->getKey(),
         ])
         ->assertRedirect(receptionTeamUrl($user));
 
-    expect($appointment->fresh()->doctor_id)->toBe($secondDoctor->getKey());
+    expect($appointment->fresh()->doctor_id)->toBe($secondDoctor->getKey())
+        ->and($consultation->fresh()->doctor_id)->toBe($secondDoctor->getKey());
 });
 
 test('transfer rejects a patient without an active appointment', function () {

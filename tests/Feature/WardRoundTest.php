@@ -50,6 +50,113 @@ test('a ward round view shows the admission and clinical records', function () {
         );
 });
 
+test('a pending patient can be admitted to the requested ward', function () {
+    $user = User::factory()->create();
+    $team = $user->currentTeam;
+    $ward = Ward::factory()->ward()->create(['team_id' => $team->getKey()]);
+    $bed = Ward::factory()->bed($ward)->create(['team_id' => $team->getKey(), 'status' => 'available']);
+
+    $patient = Patient::factory()->create([
+        'team_id' => $team->getKey(),
+        'category_id' => Category::factory()->create(['team_id' => $team->getKey()])->getKey(),
+    ]);
+
+    $admission = Admission::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => $patient->slug,
+        'ward_id' => $ward->getKey(),
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($user)
+        ->post(wardRoundUrl($user, '/'.$ward->getKey().'/admit'), [
+            'admission_id' => $admission->getKey(),
+            'ward_id' => $ward->getKey(),
+            'bed_id' => $bed->getKey(),
+            'notes' => 'Admitted to ward',
+        ])
+        ->assertRedirect(wardRoundUrl($user, '/'.$ward->getKey()));
+
+    $admission->refresh();
+    expect($admission->status)->toBe('admitted')
+        ->and((int) $admission->ward_id)->toBe($ward->getKey())
+        ->and((int) $admission->bed_id)->toBe($bed->getKey());
+
+    $bed->refresh();
+    expect($bed->status)->toBe('occupied');
+});
+
+test('a pending patient can be admitted to a different ward than requested', function () {
+    $user = User::factory()->create();
+    $team = $user->currentTeam;
+
+    // Create two wards with beds
+    $requestedWard = Ward::factory()->ward()->create(['team_id' => $team->getKey(), 'name' => 'General Ward']);
+    Ward::factory()->bed($requestedWard)->create(['team_id' => $team->getKey(), 'status' => 'available']);
+
+    $targetWard = Ward::factory()->ward()->create(['team_id' => $team->getKey(), 'name' => 'ICU']);
+    $targetBed = Ward::factory()->bed($targetWard)->create(['team_id' => $team->getKey(), 'status' => 'available']);
+
+    $patient = Patient::factory()->create([
+        'team_id' => $team->getKey(),
+        'category_id' => Category::factory()->create(['team_id' => $team->getKey()])->getKey(),
+    ]);
+
+    // Patient requested General Ward, but will be admitted to ICU
+    $admission = Admission::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => $patient->slug,
+        'ward_id' => $requestedWard->getKey(),
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($user)
+        ->post(wardRoundUrl($user, '/'.$requestedWard->getKey().'/admit'), [
+            'admission_id' => $admission->getKey(),
+            'ward_id' => $targetWard->getKey(),
+            'bed_id' => $targetBed->getKey(),
+            'notes' => 'Transferred to ICU',
+        ])
+        ->assertRedirect(wardRoundUrl($user, '/'.$targetWard->getKey()));
+
+    $admission->refresh();
+    expect($admission->status)->toBe('admitted')
+        ->and((int) $admission->ward_id)->toBe($targetWard->getKey())
+        ->and((int) $admission->bed_id)->toBe($targetBed->getKey())
+        ->and($admission->notes)->toBe('Transferred to ICU');
+
+    $targetBed->refresh();
+    expect($targetBed->status)->toBe('occupied');
+});
+
+test('admitting to an occupied bed is rejected', function () {
+    $user = User::factory()->create();
+    $team = $user->currentTeam;
+    $ward = Ward::factory()->ward()->create(['team_id' => $team->getKey()]);
+    $bed = Ward::factory()->bed($ward)->create(['team_id' => $team->getKey(), 'status' => 'occupied']);
+
+    $patient = Patient::factory()->create([
+        'team_id' => $team->getKey(),
+        'category_id' => Category::factory()->create(['team_id' => $team->getKey()])->getKey(),
+    ]);
+
+    $admission = Admission::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => $patient->slug,
+        'ward_id' => $ward->getKey(),
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($user)
+        ->post(wardRoundUrl($user, '/'.$ward->getKey().'/admit'), [
+            'admission_id' => $admission->getKey(),
+            'ward_id' => $ward->getKey(),
+            'bed_id' => $bed->getKey(),
+            'notes' => '',
+        ])
+        ->assertStatus(422);
+});
+
 test('clinical records can be managed during a ward round', function () {
     $user = User::factory()->create();
     $admission = wardRoundAdmission($user);

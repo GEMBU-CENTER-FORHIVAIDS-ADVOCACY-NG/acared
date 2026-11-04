@@ -189,3 +189,233 @@ test('a prescription line captures the inventory cost from the price list', func
         ->and((float) $line->unitCost)->toBe(200.0)
         ->and((float) $line->quantity)->toBe(6.0);
 });
+
+test('adding new drugs to a paid prescription creates a new billing for the new lines only', function () {
+    $user = User::factory()->create();
+    $teamId = $user->currentTeam->getKey();
+    $patient = prescriptionPatients($user, 1)->first();
+
+    $category = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Pharmacy',
+        'is_category' => true,
+        'category_id' => null,
+        'subcategory_id' => null,
+    ]);
+
+    $subcategory = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Analgesics',
+        'is_category' => false,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => null,
+    ]);
+
+    $drug1 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Paracetamol 500mg',
+        'price' => 100,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    $drug2 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Ibuprofen 400mg',
+        'price' => 200,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug1->getKey(),
+        'drug_form_id' => DrugForm::factory()->create(['team_id' => $teamId])->getKey(),
+    ]);
+
+    DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug2->getKey(),
+        'drug_form_id' => DrugForm::factory()->create(['team_id' => $teamId])->getKey(),
+    ]);
+
+    // Create a prescription with drug1
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription = Prescription::query()->where('patient_id', $patient->slug)->firstOrFail();
+    expect($prescription->status)->toBe('billed');
+    $originalBilling = $prescription->billings()->firstOrFail();
+    expect((float) $originalBilling->total)->toBe(100.0);
+
+    // Mark the billing and prescription as paid
+    $originalBilling->update(['status' => 'paid']);
+    $prescription->update(['status' => 'paid']);
+    $prescription->lines()->update(['paid' => true]);
+
+    // Now edit the prescription to add drug2
+    $this->actingAs($user)
+        ->patch(prescriptionTeamUrl($user, '/'.$prescription->getKey()), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'id' => $prescription->lines()->first()->getKey(),
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+                [
+                    'id' => null,
+                    'price_list_id' => $drug2->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription->refresh();
+    $billings = $prescription->billings()->orderBy('id')->get();
+
+    // Original billing should remain unchanged
+    expect((float) $billings[0]->total)->toBe(100.0);
+    expect($billings[0]->status)->toBe('paid');
+
+    // New billing should exist for the new drug only
+    expect((float) $billings[1]->total)->toBe(200.0);
+
+    // Prescription total should reflect both drugs
+    expect((float) $prescription->total)->toBe(300.0);
+
+    // The new line should not be marked as paid
+    $newLine = $prescription->lines()->where('price_list_id', $drug2->getKey())->firstOrFail();
+    expect($newLine->paid)->toBeFalse();
+});
+
+test('adding new drugs to a billed prescription updates the existing billing', function () {
+    $user = User::factory()->create();
+    $teamId = $user->currentTeam->getKey();
+    $patient = prescriptionPatients($user, 1)->first();
+
+    $category = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Pharmacy',
+        'is_category' => true,
+        'category_id' => null,
+        'subcategory_id' => null,
+    ]);
+
+    $subcategory = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Analgesics',
+        'is_category' => false,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => null,
+    ]);
+
+    $drug1 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Paracetamol 500mg',
+        'price' => 100,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    $drug2 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Ibuprofen 400mg',
+        'price' => 200,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug1->getKey(),
+        'drug_form_id' => DrugForm::factory()->create(['team_id' => $teamId])->getKey(),
+    ]);
+
+    DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug2->getKey(),
+        'drug_form_id' => DrugForm::factory()->create(['team_id' => $teamId])->getKey(),
+    ]);
+
+    // Create a prescription with drug1 — status will be 'billed'
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription = Prescription::query()->where('patient_id', $patient->slug)->firstOrFail();
+    expect($prescription->status)->toBe('billed');
+    $originalBilling = $prescription->billings()->firstOrFail();
+    expect((float) $originalBilling->total)->toBe(100.0);
+
+    // Edit the billed prescription to add drug2
+    $this->actingAs($user)
+        ->patch(prescriptionTeamUrl($user, '/'.$prescription->getKey()), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'id' => $prescription->lines()->first()->getKey(),
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+                [
+                    'id' => null,
+                    'price_list_id' => $drug2->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription->refresh();
+    $billings = $prescription->billings()->orderBy('id')->get();
+
+    // Only one billing should exist, updated with the new total
+    expect($billings->count())->toBe(1);
+    expect((float) $billings[0]->total)->toBe(300.0);
+
+    // Prescription total should reflect both drugs
+    expect((float) $prescription->total)->toBe(300.0);
+});

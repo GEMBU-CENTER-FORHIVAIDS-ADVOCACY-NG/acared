@@ -12,7 +12,6 @@ use App\Models\Prescription;
 use App\Models\PriceList;
 use App\Models\Stock;
 use App\Service\DashboardCurrency;
-use App\Service\DashboardDateRange;
 use App\Service\InventoryUsageService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -51,17 +50,31 @@ class PrescriptionController extends Controller
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 
-        if (is_string($startDate) && $startDate !== '' && is_string($endDate) && $endDate !== '') {
-            $filters['startDate'] = $startDate;
-            $filters['endDate'] = $endDate;
-        } else {
-            [$startDate, $endDate] = DashboardDateRange::range('today');
+        // Search query bypasses date filtering so it searches across all dates
+        $isSearching = $filters['q'] !== '';
+
+        // Default to today when no dates provided
+        if (! is_string($startDate) || $startDate === '') {
+            $startDate = (string) now()->startOfDay()->format('Y-m-d');
+        }
+        if (! is_string($endDate) || $endDate === '') {
+            $endDate = (string) now()->endOfDay()->format('Y-m-d');
         }
 
+        // Store date strings in filters for frontend display
+        $filters['startDate'] = (string) substr($startDate, 0, 10);
+        $filters['endDate'] = (string) substr($endDate, 0, 10);
+
+        // Only apply date filtering to the query when there's no search query
+        $hasDateFilter = ! $isSearching;
+
         $prescriptions = Prescription::query()
-            ->with(['patient', 'doctor'])
+            ->with(['patient.admissions', 'doctor'])
             ->withCount('lines')
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->when($hasDateFilter, function (Builder $query) use ($startDate, $endDate): void {
+                $query->whereDate('created_at', '>=', $startDate)
+                    ->whereDate('created_at', '<=', $endDate);
+            })
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $like = '%'.$filters['q'].'%';
                 $query->where(function (Builder $query) use ($like): void {
@@ -81,12 +94,12 @@ class PrescriptionController extends Controller
             'prescriptions' => $prescriptions,
             'filters' => $filters,
             'summary' => [
-                'total' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->count(),
-                'pending' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'pending')->count(),
-                'billed' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'billed')->count(),
-                'paid' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'paid')->count(),
-                'dispensed' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'dispensed')->count(),
-                'refunded' => Prescription::query()->whereBetween('created_at', [$startDate, $endDate])->where('status', 'refunded')->count(),
+                'total' => Prescription::query()->when($hasDateFilter, fn (Builder $query) => $query->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))->count(),
+                'pending' => Prescription::query()->when($hasDateFilter, fn (Builder $query) => $query->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))->where('status', 'pending')->count(),
+                'billed' => Prescription::query()->when($hasDateFilter, fn (Builder $query) => $query->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))->where('status', 'billed')->count(),
+                'paid' => Prescription::query()->when($hasDateFilter, fn (Builder $query) => $query->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))->where('status', 'paid')->count(),
+                'dispensed' => Prescription::query()->when($hasDateFilter, fn (Builder $query) => $query->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))->where('status', 'dispensed')->count(),
+                'refunded' => Prescription::query()->when($hasDateFilter, fn (Builder $query) => $query->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))->where('status', 'refunded')->count(),
             ],
         ]);
     }
@@ -263,6 +276,7 @@ class PrescriptionController extends Controller
             'lines.*.frequency' => ['nullable', 'numeric'],
             'lines.*.duration' => ['nullable', 'numeric'],
             'lines.*.dosage' => ['nullable', 'numeric'],
+            'lines.*.comment' => ['nullable', 'string'],
             'lines.*.quantity' => ['required', 'numeric', 'min:0'],
         ]);
 
@@ -270,13 +284,16 @@ class PrescriptionController extends Controller
             $prescription->update(['patient_id' => $data['patient_id']]);
 
             $keptIds = [];
+            $newLineIds = [];
             $total = 0.0;
+            $newLinesTotal = 0.0;
 
             foreach ($data['lines'] as $line) {
                 $priceList = PriceList::query()->whereKey($line['price_list_id'])->firstOrFail();
                 $quantity = (float) $line['quantity'];
                 $unitPrice = (float) $priceList->price;
-                $total += $quantity * $unitPrice;
+                $lineTotal = $quantity * $unitPrice;
+                $total += $lineTotal;
 
                 $attributes = [
                     'price_list_id' => $priceList->getKey(),
@@ -285,6 +302,7 @@ class PrescriptionController extends Controller
                     'frequency' => $line['frequency'] ?? null,
                     'duration' => $line['duration'] ?? null,
                     'dosage' => $line['dosage'] ?? null,
+                    'comment' => $line['comment'] ?? null,
                     'quantity' => $quantity,
                     'patient_id' => $data['patient_id'],
                 ];
@@ -305,26 +323,47 @@ class PrescriptionController extends Controller
                     'user_id' => $request->user()->getKey(),
                 ]);
                 $keptIds[] = $created->getKey();
+                $newLineIds[] = $created->getKey();
+                $newLinesTotal += $lineTotal;
             }
 
             $prescription->lines()->whereNotIn('id', $keptIds)->delete();
 
             $prescription->update(['total' => $total]);
 
-            $billing = $prescription->billings()->first();
-            if ($billing) {
-                $billing->update(['total' => $total]);
-                if ($prescription->status === 'pending') {
-                    $prescription->update(['status' => 'billed']);
-                }
-            } elseif ($total > 0) {
+            // If prescription is paid, create a new billing for only the newly added lines.
+            // If prescription is billed, add new lines to the existing billing.
+            if ($prescription->status === 'paid' && ! empty($newLineIds)) {
                 $prescription->billings()->create([
                     'team_id' => $teamId,
                     'patient_id' => $data['patient_id'],
                     'user_id' => $request->user()->getKey(),
-                    'total' => $total,
+                    'total' => $newLinesTotal,
                 ]);
-                $prescription->update(['status' => 'billed']);
+            } elseif ($prescription->status === 'paid') {
+                // No new lines added to a paid prescription — nothing to bill.
+            } elseif ($prescription->status === 'billed') {
+                // Update the existing billing with the new total including new lines.
+                $billing = $prescription->billings()->first();
+                if ($billing) {
+                    $billing->update(['total' => $total]);
+                }
+            } else {
+                $billing = $prescription->billings()->first();
+                if ($billing) {
+                    $billing->update(['total' => $total]);
+                    if ($prescription->status === 'pending') {
+                        $prescription->update(['status' => 'billed']);
+                    }
+                } elseif ($total > 0) {
+                    $prescription->billings()->create([
+                        'team_id' => $teamId,
+                        'patient_id' => $data['patient_id'],
+                        'user_id' => $request->user()->getKey(),
+                        'total' => $total,
+                    ]);
+                    $prescription->update(['status' => 'billed']);
+                }
             }
         });
 
@@ -573,6 +612,7 @@ class PrescriptionController extends Controller
             'status' => $prescription->status,
             'linesCount' => $prescription->lines_count ?? $prescription->lines()->count(),
             'createdAt' => $prescription->created_at?->toIso8601String(),
+            'isAdmitted' => $prescription->patient?->isAdmitted() ?? false,
         ];
     }
 
@@ -597,15 +637,17 @@ class PrescriptionController extends Controller
                 'frequency' => $line->frequency !== null ? (float) $line->frequency : null,
                 'duration' => $line->duration !== null ? (float) $line->duration : null,
                 'dosage' => $line->dosage !== null ? (float) $line->dosage : null,
+                'comment' => $line->comment,
                 'quantity' => (float) $line->quantity,
                 'totalPrice' => (float) $line->totalPrice,
+                'paid' => (bool) $line->paid,
             ])->values(),
             'billings' => $prescription->billings->map(fn (Billing $billing) => [
                 'id' => $billing->getKey(),
                 'total' => (float) $billing->total,
                 'status' => $billing->status,
             ])->values(),
-            'canEdit' => ! in_array($prescription->status, ['paid', 'dispensed', 'refunded'], true),
+            'canEdit' => ! in_array($prescription->status, ['dispensed', 'refunded'], true),
             'canRefund' => $prescription->status === 'dispensed',
             'canDispense' => $prescription->status === 'paid',
             'canDelete' => ! in_array($prescription->status, ['paid', 'dispensed', 'refunded'], true),

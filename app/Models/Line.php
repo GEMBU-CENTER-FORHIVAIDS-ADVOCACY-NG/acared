@@ -29,6 +29,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property float|null $frequency
  * @property float|null $duration
  * @property float|null $dosage
+ * @property string|null $comment
  * @property string|null $results
  * @property float|null $unitCost
  * @property float|null $totalPrice

@@ -4,6 +4,7 @@ import {
     Beaker,
     BookOpen,
     ChartBar,
+    ClipboardCheck,
     ClipboardList,
     FlaskConical,
     Heart,
@@ -14,6 +15,7 @@ import {
     Pill,
     ReceiptText,
     ScrollText,
+    ShoppingBag,
     Stethoscope,
     SwatchBook,
     Users,
@@ -56,6 +58,7 @@ import { index as pharmacyInventoriesIndex } from '@/routes/pharmacy/inventories
 import { index as pharmacyPrescriptionsIndex } from '@/routes/pharmacy/prescriptions';
 import { index as inventoryVendorsIndex } from '@/routes/vendors';
 import { index as inventoryStockIndex } from '@/routes/inventory/stock';
+import { index as productsIndex } from '@/routes/products';
 import { index as purchaseOrdersIndex } from '@/routes/purchase-orders';
 import { index as wardsIndex } from '@/routes/nursing/wards';
 import { index as walletHistoryIndex } from '@/routes/finance/wallet-history';
@@ -122,6 +125,13 @@ export function AppSidebar() {
                 ? consultationsHistory(page.props.currentTeam.slug)
                 : '/consultations/history',
             icon: ClipboardList,
+        },
+        {
+            title: 'Ward rounds',
+            href: page.props.currentTeam
+                ? wardRoundsIndex.url(page.props.currentTeam.slug)
+                : '/nursing/ward-rounds',
+            icon: ClipboardCheck,
         },
     ];
 
@@ -231,7 +241,7 @@ export function AppSidebar() {
             href: page.props.currentTeam
                 ? wardRoundsIndex.url(page.props.currentTeam.slug)
                 : '/nursing/ward-rounds',
-            icon: ClipboardList,
+            icon: ClipboardCheck,
         },
     ];
 
@@ -242,6 +252,13 @@ export function AppSidebar() {
                 ? inventoryStockIndex.url(page.props.currentTeam.slug)
                 : '/inventory/stock',
             icon: Package,
+        },
+        {
+            title: 'Products',
+            href: page.props.currentTeam
+                ? productsIndex.url(page.props.currentTeam.slug)
+                : '/products',
+            icon: ShoppingBag,
         },
         {
             title: 'Purchase Orders',

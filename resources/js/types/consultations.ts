@@ -50,6 +50,7 @@ export type ConsultationLine = {
     frequency: string | null;
     duration: string | null;
     dosage: string | null;
+    comment: string | null;
     price_list?: {
         id: number;
         name: string;
@@ -216,6 +217,7 @@ export type ConsultationFormValues = {
         frequency: string;
         duration: string;
         dosage: string;
+        comment: string;
     }[];
     total: string;
     status: string;

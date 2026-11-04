@@ -164,6 +164,7 @@ export type LabIntakeListItem = {
     parameterName: string | null;
     isCategory: boolean;
     isInventory: boolean;
+    sku: string | null;
     price: number;
     ranges: string | null;
     uom: string | null;
@@ -172,6 +173,7 @@ export type LabIntakeListItem = {
     options: { label: string }[] | string[] | null;
     categoryId: number | null;
     subcategoryId: number | null;
+    parameterId: number | null;
     parameters: {
         id: number;
         name: string;

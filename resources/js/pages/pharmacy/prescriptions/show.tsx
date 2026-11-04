@@ -49,8 +49,10 @@ type LineItem = {
     frequency: number | null;
     duration: number | null;
     dosage: number | null;
+    comment: string | null;
     quantity: number;
     totalPrice: number;
+    paid: boolean;
 };
 
 type Prescription = {
@@ -393,18 +395,20 @@ export default function PrescriptionShow({
                                         <TableHead>Frequency</TableHead>
                                         <TableHead>Duration</TableHead>
                                         <TableHead>Dosage</TableHead>
+                                        <TableHead>Comment</TableHead>
                                         <TableHead>Qty</TableHead>
                                         <TableHead>Unit price</TableHead>
                                         <TableHead className="text-right">
                                             Line total
                                         </TableHead>
+                                        <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {prescription.lines.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={7}
+                                                colSpan={9}
                                                 className="py-8 text-center text-muted-foreground"
                                             >
                                                 No drugs on this prescription.
@@ -420,10 +424,17 @@ export default function PrescriptionShow({
                                                     {line.frequency ?? '—'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {line.duration ?? '—'}
+                                                    {line.duration != null && line.duration !== ''
+                                                        ? Number(line.duration).toLocaleString()
+                                                        : '—'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {line.dosage ?? '—'}
+                                                    {line.dosage != null && line.dosage !== ''
+                                                        ? Number(line.dosage).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {line.comment ?? '—'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {line.quantity.toLocaleString()}
@@ -435,6 +446,11 @@ export default function PrescriptionShow({
                                                 <TableCell className="text-right">
                                                     {currencySymbol}{' '}
                                                     {line.totalPrice.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={line.paid ? 'default' : 'secondary'}>
+                                                        {line.paid ? 'Paid' : 'Billed'}
+                                                    </Badge>
                                                 </TableCell>
                                             </TableRow>
                                         ))

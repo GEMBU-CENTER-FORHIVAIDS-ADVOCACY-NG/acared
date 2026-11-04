@@ -6,6 +6,7 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\TransferAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\Billing;
+use App\Models\Consultation;
 use App\Models\Nursing;
 use App\Models\PriceList;
 use App\Models\Team;
@@ -119,6 +120,11 @@ class ReceptionController extends Controller
                     'doctor_id' => $data['doctor_id'],
                     'nurse_id' => null,
                 ]);
+
+                // Update the linked Consultation so the doctor sees the transferred patient
+                Consultation::query()
+                    ->where('appointment_id', $appointment->getKey())
+                    ->update(['doctor_id' => $data['doctor_id']]);
             } else {
                 $appointment->update([
                     'doctor_id' => null,
@@ -142,14 +148,25 @@ class ReceptionController extends Controller
             if ($transferTo === 'nurse') {
                 $nursing->update(['nurse_id' => $data['nurse_id']]);
             } else {
-                // Transfer from nursing to doctor creates a new appointment
+                // Transfer from nursing to doctor creates a new appointment and consultation
                 $nursing->update(['status' => 'transferred']);
 
-                Appointment::create([
+                $appointment = Appointment::create([
                     'team_id' => $nursing->team_id,
                     'billing_id' => $nursing->billing_id,
                     'patient_id' => $nursing->patient_id,
                     'doctor_id' => $data['doctor_id'],
+                    'starts_at' => $nursing->starts_at,
+                    'ends_at' => $nursing->ends_at,
+                    'status' => 'scheduled',
+                ]);
+
+                Consultation::create([
+                    'team_id' => $nursing->team_id,
+                    'billing_id' => $nursing->billing_id,
+                    'patient_id' => $nursing->patient_id,
+                    'doctor_id' => $data['doctor_id'],
+                    'appointment_id' => $appointment->getKey(),
                     'starts_at' => $nursing->starts_at,
                     'ends_at' => $nursing->ends_at,
                     'status' => 'scheduled',

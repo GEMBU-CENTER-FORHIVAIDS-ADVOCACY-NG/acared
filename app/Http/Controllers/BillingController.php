@@ -214,17 +214,23 @@ class BillingController extends Controller
     }
 
     /**
-     * List the paid billings for the current team.
+     * List all billings for the current team.
      */
     public function history(Request $request): Response
     {
+        $todayStart = Carbon::today()->toDateTimeString();
+        $todayEnd = Carbon::today()->endOfDay()->toDateTimeString();
+
+        $fromDate = $this->date($request->query('from')) ?? $todayStart;
+        $toDate = $this->date($request->query('to')) ?? $todayEnd;
+
         $filters = [
             'q' => trim((string) $request->query('q', '')),
             'sort' => $this->sortBy($request),
             'direction' => $request->query('direction') === 'asc' ? 'asc' : 'desc',
             'perPage' => $this->perPage($request),
-            'from' => $this->date($request->query('from')),
-            'to' => $this->date($request->query('to')),
+            'from' => Carbon::parse($fromDate)->toDateString(),
+            'to' => Carbon::parse($toDate)->toDateString(),
         ];
 
         $query = $this->filteredQuery($filters);
@@ -582,7 +588,7 @@ class BillingController extends Controller
      */
     private function filteredQuery(array $filters): Builder
     {
-        $query = Billing::query()->where('status', 'paid');
+        $query = Billing::query();
 
         if ($filters['q'] !== '') {
             $like = '%'.$filters['q'].'%';
@@ -595,11 +601,11 @@ class BillingController extends Controller
         }
 
         if ($filters['from'] !== null) {
-            $query->where('created_at', '>=', $filters['from']);
+            $query->where('created_at', '>=', Carbon::parse($filters['from'])->startOfDay()->toDateTimeString());
         }
 
         if ($filters['to'] !== null) {
-            $query->where('created_at', '<=', $filters['to']);
+            $query->where('created_at', '<=', Carbon::parse($filters['to'])->endOfDay()->toDateTimeString());
         }
 
         return $query;

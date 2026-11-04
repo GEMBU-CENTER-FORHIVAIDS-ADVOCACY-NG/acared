@@ -18,6 +18,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -61,6 +62,7 @@ type Prescription = {
     status: string;
     linesCount: number;
     createdAt: string | null;
+    isAdmitted: boolean;
 };
 
 function formatDateForInput(date: Date): string {
@@ -118,7 +120,7 @@ export default function PrescriptionsIndex({
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const applyFilters = useCallback(() => {
+    const applyFilters = useCallback((options?: { page?: number; perPage?: number }) => {
         router.get(
             prescriptionsIndex.url(teamSlug),
             {
@@ -126,11 +128,12 @@ export default function PrescriptionsIndex({
                 status,
                 start_date: startDate || undefined,
                 end_date: endDate || undefined,
-                page: 1,
+                page: options?.page ?? 1,
+                perPage: options?.perPage || undefined,
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
-    }, [search, status, startDate, endDate, filters, teamSlug]);
+    }, [search, status, startDate, endDate, teamSlug]);
 
     const resetFilters = useCallback(() => {
         setSearch('');
@@ -141,6 +144,8 @@ export default function PrescriptionsIndex({
             prescriptionsIndex.url(teamSlug),
             {
                 status: 'all',
+                start_date: todayDate(),
+                end_date: todayDate(),
                 page: 1,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -257,18 +262,26 @@ export default function PrescriptionsIndex({
                         <option value="dispensed">Dispensed</option>
                         <option value="refunded">Refunded</option>
                     </SelectNative>
-                    <Input
-                        type="date"
-                        className="w-36 shrink-0"
-                        value={startDate}
-                        onChange={(event) => setStartDate(event.target.value)}
-                    />
-                    <Input
-                        type="date"
-                        className="w-36 shrink-0"
-                        value={endDate}
-                        onChange={(event) => setEndDate(event.target.value)}
-                    />
+                    <div className="flex items-center gap-1">
+                        <label htmlFor="start-date" className="text-sm text-muted-foreground">From</label>
+                        <Input
+                            id="start-date"
+                            type="date"
+                            className="w-36 shrink-0"
+                            value={startDate}
+                            onChange={(event) => setStartDate(event.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <label htmlFor="end-date" className="text-sm text-muted-foreground">To</label>
+                        <Input
+                            id="end-date"
+                            type="date"
+                            className="w-36 shrink-0"
+                            value={endDate}
+                            onChange={(event) => setEndDate(event.target.value)}
+                        />
+                    </div>
                     <Button onClick={applyFilters} className="shrink-0">
                         <Filter className="mr-2 h-4 w-4" />
                         Filter
@@ -350,6 +363,7 @@ export default function PrescriptionsIndex({
                                         <TableHead>Hospital No.</TableHead>
                                         <TableHead>Patient</TableHead>
                                         <TableHead>Prescribed By</TableHead>
+                                        <TableHead>Type</TableHead>
                                         <TableHead>Items</TableHead>
                                         <TableHead>Total</TableHead>
                                         <TableHead>Status</TableHead>
@@ -363,7 +377,7 @@ export default function PrescriptionsIndex({
                                     {prescriptions.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={9}
+                                                colSpan={10}
                                                 className="py-8 text-center text-muted-foreground"
                                             >
                                                 No prescriptions found.
@@ -405,6 +419,11 @@ export default function PrescriptionsIndex({
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.doctorName ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={item.isAdmitted ? 'default' : 'secondary'}>
+                                                        {item.isAdmitted ? 'On Admission' : 'OPD'}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.linesCount}

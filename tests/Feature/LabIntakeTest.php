@@ -136,3 +136,56 @@ test('a laboratory catalog item can be updated and deleted', function () {
 
     expect(PriceList::query()->whereKey($item->getKey())->exists())->toBeFalse();
 });
+
+test('a laboratory catalog item with parameter_id can be updated', function () {
+    $user = User::factory()->create();
+    $root = laboratoryRoot($user);
+
+    $subcategory = PriceList::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'name' => 'Hematology',
+        'category_id' => $root->getKey(),
+        'subcategory_id' => null,
+        'is_category' => false,
+    ]);
+
+    $parentTest = PriceList::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'name' => 'CBC',
+        'category_id' => $root->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+        'is_category' => false,
+        'is_inventory' => false,
+        'price' => 1000,
+        'result_type' => 'text',
+    ]);
+
+    $childParameter = PriceList::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'name' => 'Hemoglobin',
+        'category_id' => $root->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+        'parameter_id' => $parentTest->getKey(),
+        'is_category' => false,
+        'is_inventory' => false,
+        'price' => 0,
+        'result_type' => 'number',
+    ]);
+
+    $this->actingAs($user)
+        ->patch(labIntakeTeamUrl($user, '/'.$childParameter->getKey()), [
+            'name' => 'Hemoglobin Updated',
+            'is_category' => false,
+            'is_inventory' => false,
+            'price' => 0,
+            'result_type' => 'number',
+            'category_id' => $root->getKey(),
+            'subcategory_id' => $subcategory->getKey(),
+            'parameter_id' => $parentTest->getKey(),
+            'parameters' => [],
+        ])
+        ->assertRedirect(labIntakeTeamUrl($user));
+
+    expect($childParameter->fresh()->name)->toBe('Hemoglobin Updated')
+        ->and($childParameter->fresh()->parameter_id)->toBe($parentTest->getKey());
+});

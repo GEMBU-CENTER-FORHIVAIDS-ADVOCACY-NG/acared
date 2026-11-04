@@ -1,8 +1,15 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import ConsultationRecordController from '@/actions/App/Http/Controllers/ConsultationRecordController';
 import Heading from '@/components/heading';
-import { notesToString } from '@/utils/notes';
+import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
+import { TreatmentViewModal } from '@/components/treatment-view-modal';
+import { PrescriptionViewModal } from '@/components/prescription-view-modal';
+import { LaboratoryViewModal } from '@/components/laboratory-view-modal';
+import { ComplaintViewModal } from '@/components/complaint-view-modal';
+import { ExaminationViewModal } from '@/components/examination-view-modal';
+import { DiagnosisViewModal } from '@/components/diagnosis-view-modal';
+import { AdmissionViewModal } from '@/components/admission-view-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +71,14 @@ export default function ConsultationsAllView({
     );
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
+    const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
+    const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
+    const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
+    const [viewComplaint, setViewComplaint] = useState<ConsultationRecord | null>(null);
+    const [viewExamination, setViewExamination] = useState<ConsultationRecord | null>(null);
+    const [viewDiagnosis, setViewDiagnosis] = useState<ConsultationRecord | null>(null);
+    const [viewAdmission, setViewAdmission] = useState<ConsultationRecord | null>(null);
 
     function openCreate(type: ConsultationRecordType) {
         setActiveType(type);
@@ -332,6 +347,14 @@ export default function ConsultationsAllView({
                                                         record,
                                                     )
                                                 }
+                                                onViewVitalSigns={(r) => setViewVitalSigns(r)}
+                                                onViewTreatment={(r) => setViewTreatment(r)}
+                                                onViewPrescription={(r) => setViewPrescription(r)}
+                                                onViewLaboratory={(id) => setViewLaboratory(id)}
+                                                onViewComplaint={(r) => setViewComplaint(r)}
+                                                onViewExamination={(r) => setViewExamination(r)}
+                                                onViewDiagnosis={(r) => setViewDiagnosis(r)}
+                                                onViewAdmission={(r) => setViewAdmission(r)}
                                                 disabled={
                                                     consultation.status ===
                                                     'scheduled'
@@ -359,6 +382,88 @@ export default function ConsultationsAllView({
                     onSubmit={submit}
                 />
             ) : null}
+
+            <VitalSignsViewModal
+                record={viewVitalSigns}
+                open={viewVitalSigns !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewVitalSigns(null);
+                    }
+                }}
+            />
+
+            <TreatmentViewModal
+                record={viewTreatment}
+                open={viewTreatment !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewTreatment(null);
+                    }
+                }}
+            />
+
+            <PrescriptionViewModal
+                record={viewPrescription}
+                open={viewPrescription !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewPrescription(null);
+                    }
+                }}
+                currencySymbol={currencySymbol}
+            />
+
+            <LaboratoryViewModal
+                laboratoryId={viewLaboratory}
+                teamSlug={teamSlug ?? ''}
+                open={viewLaboratory !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewLaboratory(null);
+                    }
+                }}
+            />
+
+            <ComplaintViewModal
+                record={viewComplaint}
+                open={viewComplaint !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewComplaint(null);
+                    }
+                }}
+            />
+
+            <ExaminationViewModal
+                record={viewExamination}
+                open={viewExamination !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewExamination(null);
+                    }
+                }}
+            />
+
+            <DiagnosisViewModal
+                record={viewDiagnosis}
+                open={viewDiagnosis !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewDiagnosis(null);
+                    }
+                }}
+            />
+
+            <AdmissionViewModal
+                record={viewAdmission}
+                open={viewAdmission !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewAdmission(null);
+                    }
+                }}
+            />
         </>
     );
 }
@@ -378,6 +483,14 @@ function RecordCard({
     currencySymbol,
     onEdit,
     onDelete,
+    onViewVitalSigns,
+    onViewTreatment,
+    onViewPrescription,
+    onViewLaboratory,
+    onViewComplaint,
+    onViewExamination,
+    onViewDiagnosis,
+    onViewAdmission,
     disabled,
 }: {
     type: ConsultationRecordType;
@@ -385,10 +498,16 @@ function RecordCard({
     currencySymbol: string;
     onEdit: () => void;
     onDelete: () => void;
+    onViewVitalSigns: (record: ConsultationRecord) => void;
+    onViewTreatment: (record: ConsultationRecord) => void;
+    onViewPrescription: (record: ConsultationRecord) => void;
+    onViewLaboratory: (id: number) => void;
+    onViewComplaint: (record: ConsultationRecord) => void;
+    onViewExamination: (record: ConsultationRecord) => void;
+    onViewDiagnosis: (record: ConsultationRecord) => void;
+    onViewAdmission: (record: ConsultationRecord) => void;
     disabled: boolean;
 }) {
-    const { currentTeam } = usePage().props;
-    const teamSlug = currentTeam?.slug;
     const recordedBy = record.recordedByName ?? '—';
 
     return (
@@ -403,76 +522,6 @@ function RecordCard({
                     ) : null}
                 </div>
 
-                {type === 'complaints' ? (
-                    <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {record.notes_en ?? record.notes ?? '—'}
-                    </p>
-                ) : null}
-
-                {type === 'examinations' || type === 'diagnoses' ? (
-                    <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {record.notes ? String(record.notes) : '—'}
-                    </p>
-                ) : null}
-
-                {type === 'admissions' ? (
-                    <div className="space-y-1 text-sm">
-                        <p>{notesToString(record.notes) || '—'}</p>
-                        <p className="text-xs text-muted-foreground">
-                            Ward: {record.ward?.name ?? '—'} · Duration:{' '}
-                            {record.duration ?? 0} day(s)
-                        </p>
-                    </div>
-                ) : null}
-
-                {type !== 'complaints' &&
-                type !== 'examinations' &&
-                type !== 'diagnoses' &&
-                type !== 'admissions' ? (
-                    <div className="space-y-2">
-                        {(record.lines ?? []).map((line) => (
-                            <div
-                                key={line.id}
-                                className="rounded-md border p-2"
-                            >
-                                <p className="text-sm font-medium">
-                                    {line.price_list?.name ?? '—'}
-                                </p>
-                                {type === 'vital-signs' ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        Result: {line.results ?? '—'}
-                                    </p>
-                                ) : (
-                                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                        {line.quantity ? (
-                                            <span>Qty: {line.quantity}</span>
-                                        ) : null}
-                                        {line.frequency ? (
-                                            <span>
-                                                Frequency: {line.frequency}
-                                            </span>
-                                        ) : null}
-                                        {line.duration ? (
-                                            <span>
-                                                Duration: {line.duration}
-                                            </span>
-                                        ) : null}
-                                        {line.dosage ? (
-                                            <span>Dosage: {line.dosage}</span>
-                                        ) : null}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {record.total !== undefined && record.total !== null ? (
-                            <p className="pt-2 text-sm font-semibold">
-                                Total: {currencySymbol}
-                                {Number(record.total).toLocaleString()}
-                            </p>
-                        ) : null}
-                    </div>
-                ) : null}
-
                 <p className="text-xs text-muted-foreground">
                     {record.recordedAt
                         ? new Date(record.recordedAt).toLocaleString()
@@ -481,17 +530,76 @@ function RecordCard({
             </div>
 
             <div className="mt-3 flex items-center gap-2">
-                {type === 'laboratories' && teamSlug ? (
+                {type === 'vital-signs' ? (
                     <Button
                         size="sm"
                         variant="outline"
-                        asChild
+                        onClick={() => onViewVitalSigns(record)}
                     >
-                        <Link
-                            href={`/${teamSlug}/laboratories/${record.id}`}
-                        >
-                            View
-                        </Link>
+                        View
+                    </Button>
+                ) : null}
+                {type === 'treatments' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewTreatment(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'laboratories' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewLaboratory(record.id)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'prescriptions' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewPrescription(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'complaints' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewComplaint(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'examinations' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewExamination(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'diagnoses' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewDiagnosis(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'admissions' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewAdmission(record)}
+                    >
+                        View
                     </Button>
                 ) : null}
                 <Button

@@ -82,6 +82,8 @@ type Filters = {
 
 const SPECIAL_METHODS = ['Discount', 'Wallet', 'Mercy Fund', 'Infant Formula'];
 
+const today = new Date().toISOString().split('T')[0];
+
 type Form = {
     patient_id: string;
     method_id: string;
@@ -129,6 +131,8 @@ export default function WalletHistoryIndex({
     const { currentTeam } = usePage().props;
     const team = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
+    const [from, setFrom] = useState(filters.from ?? today);
+    const [to, setTo] = useState(filters.to ?? today);
     const [form, setForm] = useState<Form>(emptyForm());
     const [editing, setEditing] = useState<History | null>(null);
     const [deleting, setDeleting] = useState<History | null>(null);
@@ -449,33 +453,54 @@ export default function WalletHistoryIndex({
                             Search
                         </Button>
                     </form>
-                    <div className="space-y-1">
-                        <Label htmlFor="wallet-from">From</Label>
-                        <Input
-                            id="wallet-from"
-                            type="date"
-                            value={filters.from ?? ''}
-                            onChange={(event) =>
+
+                    <div className="flex items-end gap-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="wallet-from">From</Label>
+                            <Input
+                                id="wallet-from"
+                                type="date"
+                                value={from}
+                                onChange={(event) =>
+                                    setFrom(event.target.value)
+                                }
+                                className="w-40"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="wallet-to">To</Label>
+                            <Input
+                                id="wallet-to"
+                                type="date"
+                                value={to}
+                                onChange={(event) => setTo(event.target.value)}
+                                className="w-40"
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() =>
                                 visit({
-                                    from: event.target.value || null,
+                                    from: from || null,
+                                    to: to || null,
                                     page: 1,
                                 })
                             }
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="wallet-to">To</Label>
-                        <Input
-                            id="wallet-to"
-                            type="date"
-                            value={filters.to ?? ''}
-                            onChange={(event) =>
-                                visit({
-                                    to: event.target.value || null,
-                                    page: 1,
-                                })
-                            }
-                        />
+                        >
+                            Apply
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setFrom(today);
+                                setTo(today);
+                                visit({ from: null, to: null, page: 1 });
+                            }}
+                        >
+                            Clear
+                        </Button>
                     </div>
                 </div>
 

@@ -33,6 +33,7 @@ use App\Http\Controllers\Pharmacy\DrugInventoryController;
 use App\Http\Controllers\Pharmacy\PrescriptionController;
 use App\Http\Controllers\PresentPregnancyController;
 use App\Http\Controllers\PreviousPregnancyController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\ReportCatalogController;
@@ -183,8 +184,10 @@ Route::prefix('{current_team}')
         // Lab Intake
         Route::middleware('permission:view lab-intake')->group(function () {
             Route::get('lab-intake', [LabIntakeController::class, 'index'])->name('lab-intake.index');
+            Route::get('lab-intake/create', [LabIntakeController::class, 'create'])->name('lab-intake.create');
             Route::post('lab-intake', [LabIntakeController::class, 'store'])->name('lab-intake.store');
             Route::post('lab-intake/subcategories', [LabIntakeController::class, 'storeSubcategory'])->name('lab-intake.subcategories.store');
+            Route::get('lab-intake/{price_list}/edit', [LabIntakeController::class, 'edit'])->name('lab-intake.edit');
             Route::patch('lab-intake/{price_list}', [LabIntakeController::class, 'update'])->name('lab-intake.update');
             Route::delete('lab-intake/{price_list}', [LabIntakeController::class, 'destroy'])->name('lab-intake.destroy');
         });
@@ -192,10 +195,23 @@ Route::prefix('{current_team}')
         // Price Lists
         Route::middleware('permission:view price-lists')->group(function () {
             Route::get('price-lists', [LabIntakeController::class, 'allIndex'])->name('price-lists.index');
+            Route::get('price-lists/create', [LabIntakeController::class, 'createAll'])->name('price-lists.create');
             Route::post('price-lists', [LabIntakeController::class, 'storeAll'])->name('price-lists.store');
             Route::post('price-lists/subcategories', [LabIntakeController::class, 'storeSubcategory'])->name('price-lists.subcategories.store');
+            Route::get('price-lists/{price_list}/edit', [LabIntakeController::class, 'editAll'])->name('price-lists.edit');
             Route::patch('price-lists/{price_list}', [LabIntakeController::class, 'updateAll'])->name('price-lists.update');
             Route::delete('price-lists/{price_list}', [LabIntakeController::class, 'destroyAll'])->name('price-lists.destroy');
+        });
+
+        // Products
+        Route::middleware('permission:view price-lists')->group(function () {
+            Route::get('products', [ProductController::class, 'index'])->name('products.index');
+            Route::get('products/create', [ProductController::class, 'create'])->name('products.create');
+            Route::post('products', [ProductController::class, 'store'])->name('products.store');
+            Route::post('products/subcategories', [ProductController::class, 'storeSubcategory'])->name('products.subcategories.store');
+            Route::get('products/{price_list}/edit', [ProductController::class, 'edit'])->name('products.edit');
+            Route::patch('products/{price_list}', [ProductController::class, 'update'])->name('products.update');
+            Route::delete('products/{price_list}', [ProductController::class, 'destroy'])->name('products.destroy');
         });
 
         // Pharmacy

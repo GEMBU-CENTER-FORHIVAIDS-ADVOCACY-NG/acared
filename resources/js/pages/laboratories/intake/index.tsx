@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, FolderPlus, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -16,20 +16,14 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
+import { store as labIntakeSubcategoryStore } from '@/routes/lab-intake/subcategories';
 import {
     Table,
     TableBody,
@@ -38,7 +32,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import { index as labIntakeRoute } from '@/routes/lab-intake';
 import type {
     LabIntakeFilters,
@@ -58,6 +51,7 @@ export type LabIntakePageProps = {
     formOptions: {
         categories: { id: number; name: string }[];
         subcategories: { id: number; name: string; categoryId: number }[];
+        parentTests: { id: number; name: string }[];
         drugForms: { id: number; name: string }[];
         resultTypes: { value: string; label: string }[];
     };
@@ -73,72 +67,6 @@ export type LabIntakePageProps = {
     routeBuilder?: (teamSlug: string, suffix?: string) => string;
 };
 
-type ParameterForm = {
-    name: string;
-    ranges: string;
-    uom: string;
-    result_type: string;
-    options: string;
-};
-
-type FormValues = {
-    name: string;
-    is_category: boolean;
-    is_inventory: boolean;
-    ranges: string;
-    price: string;
-    result_type: string;
-    options: string;
-    category_id: string;
-    subcategory_id: string;
-    uom: string;
-    description: string;
-    parameters: ParameterForm[];
-    inventory_sku: string;
-    inventory_min_qty: string;
-    inventory_drug_form_id: string;
-    inventory_expires_at: string;
-};
-
-const EMPTY_PARAMETER: ParameterForm = {
-    name: '',
-    ranges: '',
-    uom: '',
-    result_type: 'text',
-    options: '',
-};
-
-const EMPTY_FORM: FormValues = {
-    name: '',
-    is_category: false,
-    is_inventory: false,
-    ranges: '',
-    price: '0',
-    result_type: 'text',
-    options: '',
-    category_id: '',
-    subcategory_id: '',
-    uom: '',
-    description: '',
-    parameters: [],
-    inventory_sku: '',
-    inventory_min_qty: '5',
-    inventory_drug_form_id: '',
-    inventory_expires_at: '',
-};
-
-function optionsToText(
-    options: { label: string }[] | string[] | null | undefined,
-): string {
-    if (!options) {
-        return '';
-    }
-
-    return options
-        .map((option) => (typeof option === 'string' ? option : option.label))
-        .filter(Boolean)
-        .join('\n');
-}
 
 export default function LabIntakeIndex({
     currencySymbol,
@@ -151,29 +79,25 @@ export default function LabIntakeIndex({
     itemLabel = 'catalog item',
     routeBuilder,
     padded = true,
-}: LabIntakePageProps & { padded?: boolean }) {
+    subcategoryStoreUrl,
+    showSkuInsteadOfCategory = false,
+    sortableSubcategory = false,
+}: LabIntakePageProps & { padded?: boolean; subcategoryStoreUrl?: (teamSlug: string) => string; showSkuInsteadOfCategory?: boolean; sortableSubcategory?: boolean }) {
     const { currentTeam } = usePage<LayoutProps>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
     const [filterCategoryId, setFilterCategoryId] = useState(filters.categoryId);
     const [filterSubcategoryId, setFilterSubcategoryId] = useState(filters.subcategoryId);
-    const [formOpen, setFormOpen] = useState(false);
-    const [editing, setEditing] = useState<LabIntakeListItem | null>(null);
     const [viewing, setViewing] = useState<LabIntakeListItem | null>(null);
-    const [form, setForm] = useState<FormValues>(EMPTY_FORM);
     const [toDelete, setToDelete] = useState<LabIntakeListItem | null>(null);
     const [processing, setProcessing] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
+    const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
+    const [subcategoryForm, setSubcategoryForm] = useState({
+        category_id: '',
+        name: '',
+    });
+    const [subcategoryProcessing, setSubcategoryProcessing] = useState(false);
 
-    const filteredSubcategories = useMemo(
-        () =>
-            formOptions.subcategories.filter(
-                (item) =>
-                    !form.category_id ||
-                    String(item.categoryId) === form.category_id,
-            ),
-        [form.category_id, formOptions.subcategories],
-    );
 
     function baseUrl(path = '') {
         return routeBuilder
@@ -199,136 +123,6 @@ export default function LabIntakeIndex({
         );
     }
 
-    function generateUniqueSku() {
-        const existingSkus = new Set(
-            items.data
-                .map((item) => item.inventory?.sku)
-                .filter((sku): sku is string => !!sku),
-        );
-
-        let sku: string;
-        do {
-            sku = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
-        } while (existingSkus.has(sku));
-
-        return sku;
-    }
-
-    function openCreate() {
-        setEditing(null);
-        setForm({
-            ...EMPTY_FORM,
-            inventory_sku: generateUniqueSku(),
-        });
-        setFormError(null);
-        setFormOpen(true);
-    }
-
-    function openEdit(item: LabIntakeListItem) {
-        setEditing(item);
-        setForm({
-            name: item.name,
-            is_category: item.isCategory,
-            is_inventory: item.isInventory,
-            ranges: item.ranges ?? '',
-            price: String(item.price ?? 0),
-            result_type: item.resultType ?? 'text',
-            options: optionsToText(item.options),
-            category_id: item.categoryId ? String(item.categoryId) : '',
-            subcategory_id: item.subcategoryId
-                ? String(item.subcategoryId)
-                : '',
-            uom: item.uom ?? '',
-            description: item.description ?? '',
-            parameters: item.parameters.map((parameter) => ({
-                name: parameter.name,
-                ranges: parameter.ranges ?? '',
-                uom: parameter.uom ?? '',
-                result_type: parameter.resultType ?? 'text',
-                options: optionsToText(parameter.options),
-            })),
-            inventory_sku: item.inventory?.sku ?? '',
-            inventory_min_qty: String(item.inventory?.minQty ?? 5),
-            inventory_drug_form_id: item.inventory?.drugFormId
-                ? String(item.inventory.drugFormId)
-                : '',
-            inventory_expires_at: item.inventory?.expiresAt
-                ? item.inventory.expiresAt.slice(0, 16)
-                : '',
-        });
-        setFormError(null);
-        setFormOpen(true);
-    }
-
-    function parseOptions(text: string) {
-        return text
-            .split('\n')
-            .map((label) => label.trim())
-            .filter(Boolean)
-            .map((label) => ({ label }));
-    }
-
-    function submitForm() {
-        setProcessing(true);
-        setFormError(null);
-
-        const payload = {
-            name: form.name,
-            is_category: form.is_category,
-            is_inventory: form.is_inventory,
-            ranges: form.ranges || null,
-            price: Number(form.price || 0),
-            result_type: form.result_type,
-            options:
-                form.result_type === 'select' ? parseOptions(form.options) : [],
-            category_id: form.category_id ? Number(form.category_id) : null,
-            subcategory_id: form.subcategory_id
-                ? Number(form.subcategory_id)
-                : null,
-            uom: form.uom || null,
-            description: form.description || null,
-            parameters: form.parameters.map((parameter) => ({
-                name: parameter.name,
-                ranges: parameter.ranges || null,
-                uom: parameter.uom || null,
-                result_type: parameter.result_type,
-                options:
-                    parameter.result_type === 'select'
-                        ? parseOptions(parameter.options)
-                        : [],
-            })),
-            inventory: form.is_inventory
-                ? {
-                      sku: form.inventory_sku || null,
-                      min_qty: Number(form.inventory_min_qty || 0),
-                      drug_form_id: form.inventory_drug_form_id
-                          ? Number(form.inventory_drug_form_id)
-                          : null,
-                      expires_at: form.inventory_expires_at || null,
-                  }
-                : null,
-        };
-
-        const options = {
-            preserveScroll: true,
-            onSuccess: () => {
-                setFormOpen(false);
-                setEditing(null);
-                setForm(EMPTY_FORM);
-            },
-            onError: (errors: Record<string, string>) =>
-                setFormError(
-                    Object.values(errors)[0] ?? 'Something went wrong.',
-                ),
-            onFinish: () => setProcessing(false),
-        };
-
-        if (editing) {
-            router.patch(baseUrl(`/${editing.id}`), payload, options);
-        } else {
-            router.post(baseUrl(), payload, options);
-        }
-    }
 
     function deleteItem() {
         if (!toDelete) {
@@ -345,6 +139,23 @@ export default function LabIntakeIndex({
         });
     }
 
+    function createSubcategory() {
+        setSubcategoryProcessing(true);
+        const url = subcategoryStoreUrl
+            ? subcategoryStoreUrl(teamSlug)
+            : labIntakeSubcategoryStore.url(teamSlug);
+        router.post(url, subcategoryForm, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowSubcategoryModal(false);
+                setSubcategoryForm({ category_id: '', name: '' });
+            },
+            onFinish: () => {
+                setSubcategoryProcessing(false);
+            },
+        });
+    }
+
     return (
         <>
             <Head title={title} />
@@ -354,7 +165,19 @@ export default function LabIntakeIndex({
             >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Heading title={title} description={description} />
-                    <Button onClick={openCreate}>Add {itemLabel}</Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowSubcategoryModal(true)}
+                        >
+                            <FolderPlus className="mr-2 h-4 w-4" />
+                            New Subcategory
+                        </Button>
+                        <Button onClick={() => router.visit(baseUrl('/create'))}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add {itemLabel}
+                        </Button>
+                    </div>
                 </div>
 
                 {summary && (
@@ -456,8 +279,35 @@ export default function LabIntakeIndex({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Subcategory</TableHead>
+                                    <TableHead>{showSkuInsteadOfCategory ? 'SKU' : 'Category'}</TableHead>
+                                    <TableHead>
+                                        {sortableSubcategory ? (
+                                            <button
+                                                type="button"
+                                                className="group flex items-center gap-1 font-normal"
+                                                onClick={() => {
+                                                    const nextSort = filters.sort === 'subcategory_name'
+                                                        ? (filters.direction === 'asc' ? 'subcategory_name' : 'subcategory_name')
+                                                        : 'subcategory_name';
+                                                    const nextDirection =
+                                                        filters.sort === 'subcategory_name' && filters.direction === 'asc'
+                                                            ? 'desc'
+                                                            : 'asc';
+                                                    applyFilters({ sort: nextSort, direction: nextDirection });
+                                                }}
+                                            >
+                                                Subcategory
+                                                {filters.sort === 'subcategory_name'
+                                                    ? (filters.direction === 'asc'
+                                                        ? <ArrowUp className="h-4 w-4" />
+                                                        : <ArrowDown className="h-4 w-4" />)
+                                                    : <ArrowUpDown className="h-4 w-4 opacity-40 group-hover:opacity-70" />
+                                                }
+                                            </button>
+                                        ) : (
+                                            'Subcategory'
+                                        )}
+                                    </TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Price</TableHead>
                                     <TableHead>Category?</TableHead>
@@ -481,7 +331,9 @@ export default function LabIntakeIndex({
                                     items.data.map((item) => (
                                         <TableRow key={item.id}>
                                             <TableCell>
-                                                {item.categoryName ?? '—'}
+                                                {showSkuInsteadOfCategory
+                                                    ? (item.sku ?? '—')
+                                                    : (item.categoryName ?? '—')}
                                             </TableCell>
                                             <TableCell className="max-w-[200px] whitespace-normal break-words">
                                                 {item.subcategoryName ?? '—'}
@@ -518,7 +370,13 @@ export default function LabIntakeIndex({
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                openEdit(item)
+                                                                router.visit(
+                                                                    baseUrl(
+                                                                        '/' +
+                                                                            item.id +
+                                                                            '/edit',
+                                                                    ),
+                                                                )
                                                             }
                                                         >
                                                             <Pencil className="mr-2 h-4 w-4" />
@@ -555,421 +413,6 @@ export default function LabIntakeIndex({
                 />
             </div>
 
-            <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-                    <SheetHeader>
-                        <SheetTitle>
-                            {editing ? `Edit ${itemLabel}` : `Add ${itemLabel}`}
-                        </SheetTitle>
-                        <SheetDescription>
-                            Product / item / service for the laboratory catalog.
-                        </SheetDescription>
-                    </SheetHeader>
-
-                    <div className="mt-6 space-y-4 px-4 pb-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
-                                id="name"
-                                value={form.name}
-                                onChange={(event) =>
-                                    setForm((current) => ({
-                                        ...current,
-                                        name: event.target.value,
-                                    }))
-                                }
-                            />
-                        </div>
-
-                        <label className="flex items-center gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={form.is_category}
-                                onChange={(event) =>
-                                    setForm((current) => ({
-                                        ...current,
-                                        is_category: event.target.checked,
-                                    }))
-                                }
-                            />
-                            Is category / grouping node
-                        </label>
-
-                        {!form.is_category ? (
-                            <>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label>Ranges</Label>
-                                        <Input
-                                            value={form.ranges}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    ranges: event.target.value,
-                                                }))
-                                            }
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Price</Label>
-                                        <Input
-                                            type="number"
-                                            value={form.price}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    price: event.target.value,
-                                                }))
-                                            }
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Result input type</Label>
-                                    <SelectNative
-                                        value={form.result_type}
-                                        onChange={(event) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                result_type: event.target.value,
-                                            }))
-                                        }
-                                    >
-                                        {formOptions.resultTypes.map((type) => (
-                                            <option
-                                                key={type.value}
-                                                value={type.value}
-                                            >
-                                                {type.label}
-                                            </option>
-                                        ))}
-                                    </SelectNative>
-                                </div>
-
-                                {form.result_type === 'select' ? (
-                                    <div className="space-y-2">
-                                        <Label>
-                                            Dropdown options (one per line)
-                                        </Label>
-                                        <Textarea
-                                            value={form.options}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    options: event.target.value,
-                                                }))
-                                            }
-                                        />
-                                    </div>
-                                ) : null}
-
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label>Category</Label>
-                                        <SelectNative
-                                            value={form.category_id}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    category_id:
-                                                        event.target.value,
-                                                    subcategory_id: '',
-                                                }))
-                                            }
-                                        >
-                                            <option value="">Select…</option>
-                                            {formOptions.categories.map(
-                                                (item) => (
-                                                    <option
-                                                        key={item.id}
-                                                        value={item.id}
-                                                    >
-                                                        {item.name}
-                                                    </option>
-                                                ),
-                                            )}
-                                        </SelectNative>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Subcategory</Label>
-                                        <SelectNative
-                                            value={form.subcategory_id}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    subcategory_id:
-                                                        event.target.value,
-                                                }))
-                                            }
-                                        >
-                                            <option value="">Select…</option>
-                                            {filteredSubcategories.map(
-                                                (item) => (
-                                                    <option
-                                                        key={item.id}
-                                                        value={item.id}
-                                                    >
-                                                        {item.name}
-                                                    </option>
-                                                ),
-                                            )}
-                                        </SelectNative>
-                                    </div>
-                                </div>
-
-                                <label className="flex items-center gap-2 text-sm">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.is_inventory}
-                                        onChange={(event) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                is_inventory:
-                                                    event.target.checked,
-                                            }))
-                                        }
-                                    />
-                                    Track inventory
-                                </label>
-
-                                {form.is_inventory ? (
-                                    <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label>Reference</Label>
-                                            <Input
-                                                value={form.inventory_sku}
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        inventory_sku:
-                                                            event.target.value,
-                                                    }))
-                                                }
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Min qty</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.inventory_min_qty}
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        inventory_min_qty:
-                                                            event.target.value,
-                                                    }))
-                                                }
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Product form</Label>
-                                            <SelectNative
-                                                value={
-                                                    form.inventory_drug_form_id
-                                                }
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        inventory_drug_form_id:
-                                                            event.target.value,
-                                                    }))
-                                                }
-                                            >
-                                                <option value="">
-                                                    Select…
-                                                </option>
-                                                {formOptions.drugForms.map(
-                                                    (item) => (
-                                                        <option
-                                                            key={item.id}
-                                                            value={item.id}
-                                                        >
-                                                            {item.name}
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </SelectNative>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Expires at</Label>
-                                            <Input
-                                                type="datetime-local"
-                                                value={
-                                                    form.inventory_expires_at
-                                                }
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        inventory_expires_at:
-                                                            event.target.value,
-                                                    }))
-                                                }
-                                            />
-                                        </div>
-                                    </div>
-                                ) : null}
-
-                                <div className="space-y-2">
-                                    <Label>UOM</Label>
-                                    <Input
-                                        value={form.uom}
-                                        onChange={(event) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                uom: event.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Description</Label>
-                                    <Textarea
-                                        value={form.description}
-                                        onChange={(event) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                description: event.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <Label>Parameters</Label>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="secondary"
-                                            onClick={() =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    parameters: [
-                                                        ...current.parameters,
-                                                        { ...EMPTY_PARAMETER },
-                                                    ],
-                                                }))
-                                            }
-                                        >
-                                            Add parameter
-                                        </Button>
-                                    </div>
-                                    {form.parameters.map((parameter, index) => (
-                                        <div
-                                            key={index}
-                                            className="space-y-2 rounded-lg border p-3"
-                                        >
-                                            <Input
-                                                placeholder="Parameter name"
-                                                value={parameter.name}
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        parameters:
-                                                            current.parameters.map(
-                                                                (
-                                                                    row,
-                                                                    rowIndex,
-                                                                ) =>
-                                                                    rowIndex ===
-                                                                    index
-                                                                        ? {
-                                                                              ...row,
-                                                                              name: event
-                                                                                  .target
-                                                                                  .value,
-                                                                          }
-                                                                        : row,
-                                                            ),
-                                                    }))
-                                                }
-                                            />
-                                            <Input
-                                                placeholder="Ranges"
-                                                value={parameter.ranges}
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        parameters:
-                                                            current.parameters.map(
-                                                                (
-                                                                    row,
-                                                                    rowIndex,
-                                                                ) =>
-                                                                    rowIndex ===
-                                                                    index
-                                                                        ? {
-                                                                              ...row,
-                                                                              ranges: event
-                                                                                  .target
-                                                                                  .value,
-                                                                          }
-                                                                        : row,
-                                                            ),
-                                                    }))
-                                                }
-                                            />
-                                            <SelectNative
-                                                value={parameter.result_type}
-                                                onChange={(event) =>
-                                                    setForm((current) => ({
-                                                        ...current,
-                                                        parameters:
-                                                            current.parameters.map(
-                                                                (
-                                                                    row,
-                                                                    rowIndex,
-                                                                ) =>
-                                                                    rowIndex ===
-                                                                    index
-                                                                        ? {
-                                                                              ...row,
-                                                                              result_type:
-                                                                                  event
-                                                                                      .target
-                                                                                      .value,
-                                                                          }
-                                                                        : row,
-                                                            ),
-                                                    }))
-                                                }
-                                            >
-                                                {formOptions.resultTypes.map(
-                                                    (type) => (
-                                                        <option
-                                                            key={type.value}
-                                                            value={type.value}
-                                                        >
-                                                            {type.label}
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </SelectNative>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        ) : null}
-
-                        {formError ? (
-                            <p className="text-sm text-red-600">{formError}</p>
-                        ) : null}
-                    </div>
-
-                    <SheetFooter className="mt-6">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setFormOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button disabled={processing} onClick={submitForm}>
-                            {processing ? 'Saving…' : 'Save'}
-                        </Button>
-                    </SheetFooter>
-                </SheetContent>
-            </Sheet>
 
             <Dialog
                 open={viewing !== null}
@@ -1110,6 +553,92 @@ export default function LabIntakeIndex({
                             ) : null}
                         </div>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={showSubcategoryModal}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setShowSubcategoryModal(false);
+                        setSubcategoryForm({ category_id: '', name: '' });
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create subcategory</DialogTitle>
+                        <DialogDescription>
+                            Add a new subcategory under an existing category.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="subcategory-category">
+                                Category <span className="text-red-500">*</span>
+                            </Label>
+                            <SelectNative
+                                id="subcategory-category"
+                                value={subcategoryForm.category_id}
+                                onChange={(e) =>
+                                    setSubcategoryForm((prev) => ({
+                                        ...prev,
+                                        category_id: e.target.value,
+                                    }))
+                                }
+                            >
+                                <option value="">Select a category</option>
+                                {formOptions.categories.map((category) => (
+                                    <option
+                                        key={category.id}
+                                        value={String(category.id)}
+                                    >
+                                        {category.name}
+                                    </option>
+                                ))}
+                            </SelectNative>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="subcategory-name">
+                                Name <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                id="subcategory-name"
+                                type="text"
+                                placeholder="Enter subcategory name"
+                                value={subcategoryForm.name}
+                                onChange={(e) =>
+                                    setSubcategoryForm((prev) => ({
+                                        ...prev,
+                                        name: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowSubcategoryModal(false);
+                                setSubcategoryForm({ category_id: '', name: '' });
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={createSubcategory}
+                            disabled={
+                                !subcategoryForm.category_id ||
+                                !subcategoryForm.name ||
+                                subcategoryProcessing
+                            }
+                        >
+                            {subcategoryProcessing
+                                ? 'Creating...'
+                                : 'Create'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

@@ -6,6 +6,10 @@ import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
 import { TreatmentViewModal } from '@/components/treatment-view-modal';
 import { PrescriptionViewModal } from '@/components/prescription-view-modal';
 import { LaboratoryViewModal } from '@/components/laboratory-view-modal';
+import { ComplaintViewModal } from '@/components/complaint-view-modal';
+import { ExaminationViewModal } from '@/components/examination-view-modal';
+import { DiagnosisViewModal } from '@/components/diagnosis-view-modal';
+import { AdmissionViewModal } from '@/components/admission-view-modal';
 import { EndAppointmentModal } from '@/components/end-appointment-modal';
 import { notesToString, parseExaminationNotes } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
@@ -363,6 +367,10 @@ export default function NursingRecordsView({
     const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
     const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
     const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
+    const [viewComplaint, setViewComplaint] = useState<ConsultationRecord | null>(null);
+    const [viewExamination, setViewExamination] = useState<ConsultationRecord | null>(null);
+    const [viewDiagnosis, setViewDiagnosis] = useState<ConsultationRecord | null>(null);
+    const [viewAdmission, setViewAdmission] = useState<ConsultationRecord | null>(null);
     const [showEndAppointment, setShowEndAppointment] = useState(false);
 
     // History state
@@ -1575,6 +1583,10 @@ export default function NursingRecordsView({
                                                 onViewTreatment={(r) => setViewTreatment(r)}
                                                 onViewPrescription={(r) => setViewPrescription(r)}
                                                 onViewLaboratory={(id) => setViewLaboratory(id)}
+                                                onViewComplaint={(r) => setViewComplaint(r)}
+                                                onViewExamination={(r) => setViewExamination(r)}
+                                                onViewDiagnosis={(r) => setViewDiagnosis(r)}
+                                                onViewAdmission={(r) => setViewAdmission(r)}
                                             />
                                         ))}
                                     </div>
@@ -1663,6 +1675,46 @@ export default function NursingRecordsView({
                 onOpenChange={(open) => {
                     if (!open) {
                         setViewLaboratory(null);
+                    }
+                }}
+            />
+
+            <ComplaintViewModal
+                record={viewComplaint}
+                open={viewComplaint !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewComplaint(null);
+                    }
+                }}
+            />
+
+            <ExaminationViewModal
+                record={viewExamination}
+                open={viewExamination !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewExamination(null);
+                    }
+                }}
+            />
+
+            <DiagnosisViewModal
+                record={viewDiagnosis}
+                open={viewDiagnosis !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewDiagnosis(null);
+                    }
+                }}
+            />
+
+            <AdmissionViewModal
+                record={viewAdmission}
+                open={viewAdmission !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setViewAdmission(null);
                     }
                 }}
             />
@@ -2353,6 +2405,40 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
     );
 }
 
+const isDisabledForEdit = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+    if (!status) {
+        return false;
+    }
+    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    if (generalDisabled.includes(status)) {
+        return true;
+    }
+    if (type === 'admissions' && status === 'admitted') {
+        return true;
+    }
+    if (type === 'prescriptions' && status === 'refund') {
+        return true;
+    }
+    return false;
+};
+
+const isDisabledForDelete = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+    if (!status) {
+        return false;
+    }
+    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    if (generalDisabled.includes(status)) {
+        return true;
+    }
+    if (type === 'admissions' && status === 'admitted') {
+        return true;
+    }
+    if (type === 'prescriptions' && status === 'refund') {
+        return true;
+    }
+    return false;
+};
+
 function RecordCard({
     type,
     record,
@@ -2363,6 +2449,10 @@ function RecordCard({
     onViewTreatment,
     onViewPrescription,
     onViewLaboratory,
+    onViewComplaint,
+    onViewExamination,
+    onViewDiagnosis,
+    onViewAdmission,
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
@@ -2373,6 +2463,10 @@ function RecordCard({
     onViewTreatment: (record: ConsultationRecord) => void;
     onViewPrescription: (record: ConsultationRecord) => void;
     onViewLaboratory: (id: number) => void;
+    onViewComplaint: (record: ConsultationRecord) => void;
+    onViewExamination: (record: ConsultationRecord) => void;
+    onViewDiagnosis: (record: ConsultationRecord) => void;
+    onViewAdmission: (record: ConsultationRecord) => void;
 }) {
     const recordedBy = record.recordedByName ?? '—';
 
@@ -2387,101 +2481,6 @@ function RecordCard({
                         </Badge>
                     ) : null}
                 </div>
-
-                {type === 'complaints' ? (
-                    <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {String(record.notes_en ?? (typeof record.notes === 'string' ? record.notes : '') ?? '—')}
-                    </p>
-                ) : null}
-
-                {type === 'examinations' ? (
-                    <div className="space-y-1 text-sm">
-                        {Object.entries(parseExaminationNotes(record.notes)).map(
-                            ([key, value]) => (
-                                <div key={key} className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">{key}:</span>
-                                    <span className="text-right">{value || '—'}</span>
-                                </div>
-                            ),
-                        )}
-                        {Object.keys(parseExaminationNotes(record.notes)).length === 0 && (
-                            <p className="text-muted-foreground">—</p>
-                        )}
-                    </div>
-                ) : null}
-
-                {type === 'diagnoses' ? (
-                    <p className="line-clamp-4 text-sm whitespace-pre-line">
-                        {record.notes ? String(record.notes) : '—'}
-                    </p>
-                ) : null}
-
-                {type === 'admissions' ? (
-                    <div className="space-y-1 text-sm">
-                        <p>{notesToString(record.notes) || '—'}</p>
-                        <p className="text-xs text-muted-foreground">
-                            Ward: {record.ward?.name ?? '—'} · Duration:{' '}
-                            {record.duration ?? 0} day(s)
-                        </p>
-                    </div>
-                ) : null}
-
-                {type === 'vital-signs' ? (
-                    <div className="space-y-2">
-                        {(record.lines ?? []).map((line) => (
-                            <div
-                                key={line.id}
-                                className="rounded-md border p-2"
-                            >
-                                <p className="text-sm font-medium">
-                                    {line.price_list?.name ?? '—'}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Result: {line.results ?? '—'}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
-
-                {type !== 'vital-signs' &&
-                type !== 'complaints' &&
-                type !== 'examinations' &&
-                type !== 'diagnoses' &&
-                type !== 'admissions' ? (
-                    <div className="space-y-2">
-                        {(record.lines ?? []).map((line) => (
-                            <div
-                                key={line.id}
-                                className="rounded-md border p-2"
-                            >
-                                <p className="text-sm font-medium">
-                                    {line.price_list?.name ?? '—'}
-                                </p>
-                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                    {line.quantity ? (
-                                        <span>Qty: {line.quantity}</span>
-                                    ) : null}
-                                    {line.frequency ? (
-                                        <span>Frequency: {line.frequency}</span>
-                                    ) : null}
-                                    {line.duration ? (
-                                        <span>Duration: {line.duration}</span>
-                                    ) : null}
-                                    {line.dosage ? (
-                                        <span>Dosage: {line.dosage}</span>
-                                    ) : null}
-                                </div>
-                            </div>
-                        ))}
-                        {record.total !== undefined && record.total !== null ? (
-                            <p className="pt-2 text-sm font-semibold">
-                                Total: {currencySymbol}
-                                {Number(record.total).toLocaleString()}
-                            </p>
-                        ) : null}
-                    </div>
-                ) : null}
 
                 <p className="text-xs text-muted-foreground">
                     {record.recordedAt
@@ -2527,10 +2526,46 @@ function RecordCard({
                         View
                     </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" disabled={record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false} onClick={onEdit}>
+                {type === 'complaints' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewComplaint(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'examinations' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewExamination(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'diagnoses' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewDiagnosis(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                {type === 'admissions' ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewAdmission(record)}
+                    >
+                        View
+                    </Button>
+                ) : null}
+                <Button size="sm" variant="secondary" disabled={isDisabledForEdit(type, record.status)} onClick={onEdit}>
                     Edit
                 </Button>
-                <Button size="sm" variant="outline" disabled={record.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(record.status) : false} onClick={onDelete}>
+                <Button size="sm" variant="outline" disabled={isDisabledForDelete(type, record.status)} onClick={onDelete}>
                     Delete
                 </Button>
             </div>

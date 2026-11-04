@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Banknote, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -42,6 +42,16 @@ type LayoutProps = {
     currentTeam?: Team | null;
 };
 
+const today = new Date().toISOString().split('T')[0];
+
+const STATUS_BADGE: Record<string, string> = {
+    paid: 'bg-emerald-100 text-emerald-800',
+    billed: 'bg-amber-100 text-amber-800',
+    scheduled: 'bg-sky-100 text-sky-800',
+    started: 'bg-amber-100 text-amber-800',
+    completed: 'bg-emerald-100 text-emerald-800',
+};
+
 export default function BillingHistory({
     currencySymbol,
     billings,
@@ -57,30 +67,33 @@ export default function BillingHistory({
     const teamSlug = currentTeam?.slug;
 
     const [search, setSearch] = useState(filters.q);
-    const [from, setFrom] = useState(filters.from ?? '');
-    const [to, setTo] = useState(filters.to ?? '');
+    const [from, setFrom] = useState(filters.from ?? today);
+    const [to, setTo] = useState(filters.to ?? today);
     const [processing, setProcessing] = useState(false);
     const [toDelete, setToDelete] = useState<BillingListItem | null>(null);
 
-    function applyFilters(patch: Partial<BillingFilters>) {
-        const next = { ...filters, page: 1, ...patch };
+    const applyFilters = useCallback(
+        (patch: Partial<BillingFilters>) => {
+            const next = { ...filters, page: 1, ...patch };
 
-        router.get(
-            history.url(teamSlug, {
-                query: {
-                    q: next.q || undefined,
-                    sort: next.sort,
-                    direction: next.direction,
-                    perPage: next.perPage,
-                    from: next.from || undefined,
-                    to: next.to || undefined,
-                    page: next.page,
-                },
-            }),
-            {},
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
-    }
+            router.get(
+                history.url(teamSlug, {
+                    query: {
+                        q: next.q || undefined,
+                        sort: next.sort,
+                        direction: next.direction,
+                        perPage: next.perPage,
+                        from: next.from || undefined,
+                        to: next.to || undefined,
+                        page: next.page,
+                    },
+                }),
+                {},
+                { preserveState: true, preserveScroll: true, replace: true },
+            );
+        },
+        [filters, teamSlug],
+    );
 
     function toggleSort(column: string) {
         applyFilters({
@@ -215,6 +228,20 @@ export default function BillingHistory({
                         >
                             Apply
                         </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setFrom(today);
+                                setTo(today);
+                                applyFilters({
+                                    from: null,
+                                    to: null,
+                                });
+                            }}
+                        >
+                            Clear
+                        </Button>
                     </div>
                 </div>
 
@@ -303,7 +330,7 @@ export default function BillingHistory({
                                                 {billing.total.toLocaleString()}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="secondary" className="capitalize">
+                                                <Badge className={`${STATUS_BADGE[billing.status] ?? 'bg-muted text-muted-foreground'} capitalize`}>
                                                     {billing.status}
                                                 </Badge>
                                             </TableCell>

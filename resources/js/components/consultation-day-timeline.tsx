@@ -62,9 +62,19 @@ function getCategoryBadge(categoryName: string | null): { label: string; classNa
 export default function ConsultationDayTimeline({ events, onEventClick }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
 
-    const sortedEvents = [...events].sort((a, b) =>
-        a.startsAt.localeCompare(b.startsAt)
-    );
+    const sortedEvents = [...events].sort((a, b) => {
+        const parseTime = (time: string) => {
+            const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2], 10);
+            const period = match[3].toUpperCase();
+            if (period === 'AM' && hours === 12) hours = 0;
+            if (period === 'PM' && hours !== 12) hours += 12;
+            return hours * 60 + minutes;
+        };
+        return parseTime(a.startsAt) - parseTime(b.startsAt);
+    });
 
     const filteredEvents = searchQuery.trim()
         ? sortedEvents.filter((event) => {

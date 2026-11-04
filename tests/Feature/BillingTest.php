@@ -67,29 +67,40 @@ test('guests are redirected to the login page', function () {
     $this->get(billingTeamUrl($user))->assertRedirect(route('login'));
 });
 
-test('the billings history lists paid billings with a summed total', function () {
+test('the billings history lists all billings with a summed total', function () {
     $user = User::factory()->create();
-    teamBilling($user, ['status' => 'paid', 'total' => 3000]);
-    teamBilling($user, ['status' => 'paid', 'total' => 2000]);
-    teamBilling($user, ['status' => 'billed', 'total' => 9999]);
+    teamBilling($user, ['status' => 'paid', 'total' => 3000, 'created_at' => now()]);
+    teamBilling($user, ['status' => 'paid', 'total' => 2000, 'created_at' => now()]);
+    teamBilling($user, ['status' => 'billed', 'total' => 1000, 'created_at' => now()]);
 
     $this->actingAs($user)
         ->get(billingTeamUrl($user, '/history'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('finance/billings/history')
-            ->has('billings.data', 2)
-            ->where('summary.total', 5000)
-            ->where('summary.count', 2));
+            ->has('billings.data', 3)
+            ->where('summary.total', 6000)
+            ->where('summary.count', 3));
 });
 
 test('the billings history filters by search query', function () {
     $user = User::factory()->create();
     $patient = teamPatientSlug($user);
-    teamBilling($user, ['status' => 'paid', 'patient_id' => $patient]);
+    teamBilling($user, ['status' => 'paid', 'patient_id' => $patient, 'created_at' => now()]);
 
     $this->actingAs($user)
         ->get(billingTeamUrl($user, '/history', ['q' => $patient]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('billings.data', 1));
+});
+
+test('the billings history defaults to today when no date filter is provided', function () {
+    $user = User::factory()->create();
+    teamBilling($user, ['status' => 'paid', 'created_at' => now()->subDays(20)]);
+    teamBilling($user, ['status' => 'paid', 'created_at' => now()]);
+
+    $this->actingAs($user)
+        ->get(billingTeamUrl($user, '/history'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->has('billings.data', 1));
 });

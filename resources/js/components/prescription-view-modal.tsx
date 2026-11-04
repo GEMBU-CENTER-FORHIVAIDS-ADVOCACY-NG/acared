@@ -90,6 +90,9 @@ export function PrescriptionViewModal({
                                         Dosage
                                     </th>
                                     <th className="px-3 py-2 text-left font-medium">
+                                        Comment
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
                                         Price
                                     </th>
                                     <th className="px-3 py-2 text-left font-medium">
@@ -107,10 +110,17 @@ export function PrescriptionViewModal({
                                             {frequencyLabel(line.frequency)}
                                         </td>
                                         <td className="px-3 py-2">
-                                            {line.duration ?? '—'}
+                                            {line.duration != null && line.duration !== ''
+                                                ? Number(line.duration).toLocaleString()
+                                                : '—'}
                                         </td>
                                         <td className="px-3 py-2">
-                                            {line.dosage ?? '—'}
+                                            {line.dosage != null && line.dosage !== ''
+                                                ? Number(line.dosage).toLocaleString()
+                                                : '—'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {line.comment ?? '—'}
                                         </td>
                                         <td className="px-3 py-2 tabular-nums">
                                             {line.unitPrice
@@ -129,7 +139,7 @@ export function PrescriptionViewModal({
                                     <tr>
                                         <td
                                             className="px-3 py-2 text-right text-sm"
-                                            colSpan={4}
+                                            colSpan={5}
                                         >
                                             Total:
                                         </td>

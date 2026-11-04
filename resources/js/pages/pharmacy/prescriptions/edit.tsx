@@ -44,7 +44,9 @@ type LineForm = {
     frequency: string;
     duration: string;
     dosage: string;
+    comment: string;
     quantity: string;
+    paid: boolean;
 };
 
 type Prescription = {
@@ -60,7 +62,9 @@ type Prescription = {
         frequency: number | null;
         duration: number | null;
         dosage: number | null;
+        comment: string | null;
         quantity: number;
+        paid: boolean;
     }[];
 };
 
@@ -96,7 +100,9 @@ export default function PrescriptionEdit({
             frequency: line.frequency !== null ? String(line.frequency) : '1',
             duration: line.duration !== null ? String(line.duration) : '1',
             dosage: line.dosage !== null ? String(line.dosage) : '1',
+            comment: line.comment ?? '',
             quantity: String(line.quantity),
+            paid: line.paid,
         })),
     );
     const [processing, setProcessing] = useState(false);
@@ -160,6 +166,22 @@ export default function PrescriptionEdit({
         return sum + (Number(line.quantity) || 0) * price;
     }, 0);
 
+    const totalPaid = lines.reduce((sum, line) => {
+        if (!line.paid) {
+            return sum;
+        }
+        const price = priceById.get(Number(line.price_list_id))?.price ?? 0;
+        return sum + (Number(line.quantity) || 0) * price;
+    }, 0);
+
+    const totalNew = lines.reduce((sum, line) => {
+        if (line.paid) {
+            return sum;
+        }
+        const price = priceById.get(Number(line.price_list_id))?.price ?? 0;
+        return sum + (Number(line.quantity) || 0) * price;
+    }, 0);
+
     function updateLine(index: number, patch: Partial<LineForm>) {
         setLines((current) =>
             current.map((line, i) => {
@@ -211,6 +233,7 @@ export default function PrescriptionEdit({
                     frequency: line.frequency ? Number(line.frequency) : null,
                     duration: line.duration ? Number(line.duration) : null,
                     dosage: line.dosage ? Number(line.dosage) : null,
+                    comment: line.comment || null,
                     quantity: Number(line.quantity) || 0,
                 })),
             },
@@ -364,10 +387,12 @@ export default function PrescriptionEdit({
                                     <TableHead>Frequency</TableHead>
                                     <TableHead className="w-[80px]">Duration</TableHead>
                                     <TableHead className="w-[80px]">Dosage</TableHead>
+                                    <TableHead className="min-w-[150px]">Comment</TableHead>
                                     <TableHead className="w-[80px]">Qty</TableHead>
                                     <TableHead className="text-right">
                                         Line total
                                     </TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead />
                                 </TableRow>
                             </TableHeader>
@@ -385,6 +410,7 @@ export default function PrescriptionEdit({
                                             <TableCell className="min-w-[400px] align-top">
                                                 <SelectNative
                                                     className="h-auto py-1.5"
+                                                    disabled={line.paid}
                                                     value={
                                                         line.price_list_id
                                                     }
@@ -422,6 +448,7 @@ export default function PrescriptionEdit({
                                             </TableCell>
                                             <TableCell>
                                                 <SelectNative
+                                                    disabled={line.paid}
                                                     value={line.frequency}
                                                     onChange={(event) =>
                                                         updateLine(index, {
@@ -453,6 +480,7 @@ export default function PrescriptionEdit({
                                                 <Input
                                                     type="number"
                                                     min="0"
+                                                    disabled={line.paid}
                                                     value={line.duration}
                                                     onChange={(event) =>
                                                         updateLine(index, {
@@ -467,20 +495,36 @@ export default function PrescriptionEdit({
                                                 <Input
                                                     type="number"
                                                     min="0"
+                                                    disabled={line.paid}
                                                     value={line.dosage}
                                                     onChange={(event) =>
                                                         updateLine(index, {
                                                             dosage: event
                                                                 .target
-                                                                .value,
+                                                                    .value,
                                                         })
                                                     }
+                                                />
+                                            </TableCell>
+                                            <TableCell className="min-w-[150px]">
+                                                <Input
+                                                    disabled={line.paid}
+                                                    value={line.comment}
+                                                    onChange={(event) =>
+                                                        updateLine(index, {
+                                                            comment: event
+                                                                .target
+                                                                    .value,
+                                                        })
+                                                    }
+                                                    placeholder="Doctor's note…"
                                                 />
                                             </TableCell>
                                             <TableCell className="w-[80px]">
                                                 <Input
                                                     type="number"
                                                     min="0"
+                                                    disabled={line.paid}
                                                     value={line.quantity}
                                                     onChange={(event) =>
                                                         updateLine(index, {
@@ -496,11 +540,16 @@ export default function PrescriptionEdit({
                                                 {lineTotal.toLocaleString()}
                                             </TableCell>
                                             <TableCell>
+                                                <Badge variant={line.paid ? 'default' : 'secondary'}>
+                                                    {line.paid ? 'Paid' : 'Billed'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
                                                     disabled={
-                                                        lines.length === 1
+                                                        lines.length === 1 || line.paid
                                                     }
                                                     onClick={() =>
                                                         setLines(
@@ -537,7 +586,9 @@ export default function PrescriptionEdit({
                                             frequency: '1',
                                             duration: '1',
                                             dosage: '1',
+                                            comment: '',
                                             quantity: '1',
+                                            paid: false,
                                         },
                                     ])
                                 }
@@ -545,9 +596,21 @@ export default function PrescriptionEdit({
                                 <Plus className="mr-2 size-4" />
                                 Add drug
                             </Button>
-                            <p className="text-lg font-semibold">
-                                Total: {currencySymbol} {total.toLocaleString()}
-                            </p>
+                            <div className="text-right">
+                                <p className="text-sm text-muted-foreground">
+                                    Total paid: {currencySymbol}{' '}
+                                    {totalPaid.toLocaleString()}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Total billing for new lines:{' '}
+                                    {currencySymbol}{' '}
+                                    {totalNew.toLocaleString()}
+                                </p>
+                                <p className="text-lg font-semibold">
+                                    Total: {currencySymbol}{' '}
+                                    {total.toLocaleString()}
+                                </p>
+                            </div>
                         </div>
 
                         {error ? (

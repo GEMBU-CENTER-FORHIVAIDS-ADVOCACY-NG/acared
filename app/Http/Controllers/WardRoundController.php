@@ -111,12 +111,31 @@ class WardRoundController extends Controller
         abort_unless($ward->is_ward, 404);
         $ward->load(['beds' => fn (HasMany $beds) => $beds->with(['bedAdmissions' => fn (HasMany $admissions) => $admissions
             ->active()->latest('id')->with(['patient', 'doctor'])])]);
-        $pendingAdmissions = Admission::query()->where('ward_id', $ward->getKey())->where('status', 'pending')
+
+        // Get all pending admissions across all wards, not just this ward
+        $pendingAdmissions = Admission::query()->where('status', 'pending')
             ->with('patient')->latest()->get()->map(fn (Admission $admission) => [
                 'id' => $admission->id,
                 'patientId' => $admission->patient_id,
                 'patientName' => $admission->patient?->fullName,
+                'requestedWardId' => $admission->ward_id,
+                'requestedWardName' => $admission->ward?->name,
                 'notes' => $admission->notes,
+            ]);
+
+        // Load all wards with their available beds for ward selection during admission
+        $allWards = Ward::query()->wards()
+            ->with(['beds' => fn (HasMany $beds) => $beds->with(['bedAdmissions' => fn (HasMany $admissions) => $admissions->active()])])
+            ->orderBy('name')->get()
+            ->map(fn (Ward $w) => [
+                'id' => $w->id,
+                'name' => $w->name,
+                'beds' => $w->beds->filter(fn (Ward $bed) => ! $bed->is_ward && $bed->status !== 'occupied' && ! $bed->bedAdmissions->isNotEmpty())
+                    ->map(fn (Ward $bed) => [
+                        'id' => $bed->id,
+                        'name' => $bed->name,
+                    ])
+                    ->values(),
             ]);
 
         return Inertia::render('nursing/ward-rounds/show', [
@@ -127,6 +146,7 @@ class WardRoundController extends Controller
                 'beds' => $ward->beds->map(fn (Ward $bed) => $this->bedData($bed))->values(),
             ],
             'pendingAdmissions' => $pendingAdmissions,
+            'allWards' => $allWards,
         ]);
     }
 
@@ -193,21 +213,30 @@ class WardRoundController extends Controller
         abort_unless($ward->is_ward, 404);
         $data = $request->validate([
             'admission_id' => ['required', 'integer', Rule::exists('admissions', 'id')->where('team_id', $request->user()->currentTeam->getKey())],
+            'ward_id' => ['nullable', 'integer', Rule::exists('wards', 'id')->where('team_id', $request->user()->currentTeam->getKey())],
             'bed_id' => ['required', 'integer', Rule::exists('wards', 'id')->where('team_id', $request->user()->currentTeam->getKey())],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        DB::transaction(function () use ($data, $ward): void {
+        // Determine the target ward: use the provided ward_id if given, otherwise fall back to the route ward
+        $targetWardId = $data['ward_id'] ?? $ward->getKey();
+
+        DB::transaction(function () use ($data, $targetWardId): void {
             $bed = Ward::query()->whereKey($data['bed_id'])->lockForUpdate()->firstOrFail();
-            abort_unless(! $bed->is_ward && (int) $bed->ward_id === (int) $ward->getKey(), 422, 'Choose a bed in this ward.');
+            abort_unless(! $bed->is_ward && (int) $bed->ward_id === (int) $targetWardId, 422, 'Choose a bed in the selected ward.');
             abort_if($bed->status === 'occupied' || $bed->bedAdmissions()->active()->exists(), 422, 'This bed is already occupied.');
             $admission = Admission::query()->whereKey($data['admission_id'])->lockForUpdate()->firstOrFail();
-            abort_unless((int) $admission->ward_id === (int) $ward->getKey() && $admission->status === 'pending', 422, 'This admission is no longer waiting for a bed in this ward.');
-            $admission->update(['bed_id' => $bed->getKey(), 'status' => 'admitted', 'notes' => $data['notes'] ?? $admission->notes]);
+            abort_unless($admission->status === 'pending', 422, 'This admission is no longer waiting for a bed.');
+            $admission->update([
+                'ward_id' => $targetWardId,
+                'bed_id' => $bed->getKey(),
+                'status' => 'admitted',
+                'notes' => $data['notes'],
+            ]);
             $bed->update(['status' => 'occupied']);
         });
 
-        return to_route('nursing.ward-rounds.show', [$request->user()->currentTeam->slug, $ward->getKey()]);
+        return to_route('nursing.ward-rounds.show', [$request->user()->currentTeam->slug, $targetWardId]);
     }
 
     public function discharge(Request $request, string $current_team, Admission $admission): RedirectResponse

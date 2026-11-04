@@ -52,7 +52,7 @@ class LabIntakeController extends Controller
             'perPage' => $this->perPage($request),
         ];
 
-        $query = $laboratoryOnly ? $this->catalogQuery() : PriceList::query();
+        $query = $laboratoryOnly ? $this->catalogQuery() : $this->allCatalogQuery();
         $items = $query
             ->when($filters['q'] !== '', function (Builder $query) use ($filters): void {
                 $like = '%'.$filters['q'].'%';
@@ -73,19 +73,69 @@ class LabIntakeController extends Controller
             ->withQueryString()
             ->through(fn (PriceList $item) => $this->listItem($item));
 
+        $baseQuery = $laboratoryOnly ? $this->catalogQuery() : $this->allCatalogQuery();
+
         $summary = [
-            'categories' => $this->countWhere($request, 'is_category', true),
-            'subcategories' => $this->countWithSubcategory($request),
-            'items' => $this->countWhere($request, 'is_category', false),
-            'inventoryLinked' => $this->countWhere($request, 'is_inventory', true),
+            'categories' => $this->countWhere($request, 'is_category', true, $baseQuery),
+            'subcategories' => $this->countWithSubcategory($request, $baseQuery),
+            'items' => $this->countWhere($request, 'is_category', false, $baseQuery),
+            'inventoryLinked' => $this->countWhere($request, 'is_inventory', true, $baseQuery),
         ];
 
-        return Inertia::render($laboratoryOnly ? 'laboratories/intake/index' : 'price-lists/index', [
+        return Inertia::render($laboratoryOnly ? 'lab-intake/index' : 'price-lists/index', [
             'currencySymbol' => DashboardCurrency::symbol(),
             'items' => $items,
             'filters' => $filters,
-            'formOptions' => $this->formOptions($request),
+            'formOptions' => $this->formOptions($request, $laboratoryOnly),
             'summary' => $summary,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new laboratory catalog item.
+     */
+    public function create(Request $request): Response
+    {
+        return Inertia::render('laboratories/intake/edit', [
+            'item' => null,
+            'formOptions' => $this->formOptions($request),
+            'isPriceList' => false,
+        ]);
+    }
+
+    public function createAll(Request $request): Response
+    {
+        return Inertia::render('price-lists/edit', [
+            'item' => null,
+            'formOptions' => $this->formOptions($request, false),
+        ]);
+    }
+
+    /**
+     * Show the form for editing a laboratory catalog item.
+     */
+    public function edit(Request $request, string $current_team, PriceList $price_list): Response
+    {
+        abort_unless($this->belongsToLaboratoryCatalog($price_list), 404);
+
+        $price_list->load(['category', 'subCategory', 'parameter', 'inventories.drugForm', 'parameters']);
+
+        return Inertia::render('laboratories/intake/edit', [
+            'item' => $this->listItem($price_list),
+            'formOptions' => $this->formOptions($request),
+            'isPriceList' => false,
+        ]);
+    }
+
+    public function editAll(Request $request, string $current_team, PriceList $price_list): Response
+    {
+        abort_unless((int) $price_list->team_id === (int) $request->user()->currentTeam->getKey(), 404);
+
+        $price_list->load(['category', 'subCategory', 'parameter', 'inventories.drugForm', 'parameters']);
+
+        return Inertia::render('price-lists/edit', [
+            'item' => $this->listItem($price_list),
+            'formOptions' => $this->formOptions($request, false),
         ]);
     }
 
@@ -116,6 +166,7 @@ class LabIntakeController extends Controller
                 'options' => $this->normalizeOptions($data),
                 'category_id' => $data['category_id'] ?? null,
                 'subcategory_id' => $data['subcategory_id'] ?? null,
+                'parameter_id' => $data['parameter_id'] ?? null,
                 'is_category' => (bool) $data['is_category'],
                 'is_inventory' => $data['is_category'] ? false : (bool) ($data['is_inventory'] ?? false),
                 'uom' => $data['uom'] ?? null,
@@ -143,9 +194,11 @@ class LabIntakeController extends Controller
             if (! $data['is_category'] && ($data['is_inventory'] ?? false) && ! empty($data['inventory'])) {
                 $inventory = $data['inventory'];
 
+                $sku = $inventory['sku'] ?? $this->generateUniqueSku();
+
                 Inventory::create([
                     'team_id' => $request->user()->currentTeam->getKey(),
-                    'sku' => $inventory['sku'] ?? ('SLG-'.Str::upper(Str::random(6))),
+                    'sku' => $sku,
                     'price_list_id' => $item->getKey(),
                     'drug_form_id' => $inventory['drug_form_id'],
                     'min_qty' => $inventory['min_qty'],
@@ -193,6 +246,7 @@ class LabIntakeController extends Controller
                 'options' => $this->normalizeOptions($data),
                 'category_id' => $data['category_id'] ?? null,
                 'subcategory_id' => $data['subcategory_id'] ?? null,
+                'parameter_id' => $data['parameter_id'] ?? null,
                 'is_category' => (bool) $data['is_category'],
                 'is_inventory' => $data['is_category'] ? false : (bool) ($data['is_inventory'] ?? false),
                 'uom' => $data['uom'] ?? null,
@@ -331,6 +385,7 @@ class LabIntakeController extends Controller
             'options.*.label' => ['required_with:options', 'string'],
             'category_id' => ['nullable', Rule::exists('price_lists', 'id')->where('team_id', $teamId)],
             'subcategory_id' => ['nullable', Rule::exists('price_lists', 'id')->where('team_id', $teamId)],
+            'parameter_id' => ['nullable', Rule::exists('price_lists', 'id')->where('team_id', $teamId)],
             'uom' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'parameters' => ['nullable', 'array'],
@@ -411,6 +466,21 @@ class LabIntakeController extends Controller
         });
     }
 
+    /**
+     * Build the query for all price lists excluding Laboratory and Pharmacy categories.
+     *
+     * @return Builder<PriceList>
+     */
+    private function allCatalogQuery(): Builder
+    {
+        return PriceList::query()->where(function (Builder $query): void {
+            $query
+                ->whereDoesntHave('category', fn (Builder $query) => $query->whereIn('name', ['Laboratory', 'Pharmacy']))
+                ->whereDoesntHave('subCategory', fn (Builder $query) => $query->whereIn('name', ['Laboratory', 'Pharmacy']))
+                ->whereDoesntHave('subCategory.category', fn (Builder $query) => $query->whereIn('name', ['Laboratory', 'Pharmacy']));
+        })->whereNot(fn (Builder $query) => $query->whereIn('name', ['Laboratory', 'Pharmacy'])->whereNull('category_id'));
+    }
+
     private function belongsToLaboratoryCatalog(PriceList $item): bool
     {
         return $this->catalogQuery()->whereKey($item->getKey())->exists();
@@ -419,20 +489,61 @@ class LabIntakeController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function formOptions(Request $request): array
+    private function formOptions(Request $request, bool $laboratoryOnly = true): array
     {
         $teamId = $request->user()->currentTeam->getKey();
 
-        $categories = PriceList::query()
-            ->whereNull('category_id')
+        if ($laboratoryOnly) {
+            // Get the Laboratory category
+            $laboratoryCategory = PriceList::query()
+                ->where('name', 'Laboratory')
+                ->whereNull('category_id')
+                ->where('team_id', $teamId)
+                ->first();
+
+            $categories = PriceList::query()
+                ->whereNull('category_id')
+                ->where('name', 'Laboratory')
+                ->where('team_id', $teamId)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+
+            // Subcategories: only those under Laboratory category
+            $subcategories = PriceList::query()
+                ->whereNotNull('category_id')
+                ->whereNull('subcategory_id')
+                ->where('team_id', $teamId)
+                ->orderBy('name');
+
+            if ($laboratoryCategory) {
+                $subcategories->where('category_id', $laboratoryCategory->id);
+            }
+
+            $subcategories = $subcategories->get(['id', 'name', 'category_id']);
+        } else {
+            // For all price lists, exclude Laboratory and Pharmacy categories
+            $categories = PriceList::query()
+                ->whereNull('category_id')
+                ->where('team_id', $teamId)
+                ->whereNotIn('name', ['Laboratory', 'Pharmacy'])
+                ->orderBy('name')
+                ->get(['id', 'name']);
+
+            $categoryIds = $categories->pluck('id')->toArray();
+
+            $subcategories = PriceList::query()
+                ->whereNotNull('category_id')
+                ->whereNull('subcategory_id')
+                ->where('team_id', $teamId)
+                ->whereIn('category_id', $categoryIds)
+                ->orderBy('name')
+                ->get(['id', 'name', 'category_id']);
+        }
+
+        $parentTests = PriceList::query()
+            ->whereKey(PriceList::query()->pluck('parameter_id'))
             ->orderBy('name')
             ->get(['id', 'name']);
-
-        $subcategories = PriceList::query()
-            ->whereNotNull('category_id')
-            ->whereNull('subcategory_id')
-            ->orderBy('name')
-            ->get(['id', 'name', 'category_id']);
 
         return [
             'categories' => $categories->map(fn (PriceList $item) => [
@@ -443,6 +554,10 @@ class LabIntakeController extends Controller
                 'id' => $item->getKey(),
                 'name' => $item->name,
                 'categoryId' => $item->category_id,
+            ])->values(),
+            'parentTests' => $parentTests->map(fn (PriceList $item) => [
+                'id' => $item->getKey(),
+                'name' => $item->name,
             ])->values(),
             'drugForms' => DrugForm::query()->orderBy('name')->get(['id', 'name'])
                 ->map(fn (DrugForm $form) => [
@@ -464,14 +579,18 @@ class LabIntakeController extends Controller
      */
     private function listItem(PriceList $item): array
     {
+        $firstInventory = $item->inventories->first();
+
         return [
             'id' => $item->getKey(),
             'name' => $item->name,
             'categoryName' => $item->category?->name,
             'subcategoryName' => $item->subCategory?->name,
             'parameterName' => $item->parameter?->name,
+            'parameterId' => $item->parameter_id,
             'isCategory' => (bool) $item->is_category,
             'isInventory' => (bool) $item->is_inventory,
+            'sku' => $firstInventory?->sku,
             'price' => (float) ($item->price ?? 0),
             'ranges' => $item->ranges,
             'uom' => $item->uom,
@@ -488,12 +607,16 @@ class LabIntakeController extends Controller
                 'resultType' => $parameter->result_type,
                 'options' => $parameter->options,
             ])->values(),
-            'inventory' => $item->inventory ? [
-                'sku' => $item->inventory->sku,
-                'minQty' => (float) $item->inventory->min_qty,
-                'drugFormId' => $item->inventory->drug_form_id,
-                'expiresAt' => $item->inventory->expires_at?->toIso8601String(),
-            ] : null,
+            'inventory' => $item->inventories->isNotEmpty()
+                ? (function ($inv) {
+                    return [
+                        'sku' => $inv->sku,
+                        'minQty' => (float) $inv->min_qty,
+                        'drugFormId' => $inv->drug_form_id,
+                        'expiresAt' => $inv->expires_at?->toIso8601String(),
+                    ];
+                })($item->inventories->first())
+                : null,
             'createdAt' => $item->created_at?->toIso8601String(),
             'updatedAt' => $item->updated_at?->toIso8601String(),
         ];
@@ -516,9 +639,9 @@ class LabIntakeController extends Controller
     /**
      * Count price list items matching a boolean column value, respecting the current filters.
      */
-    private function countWhere(Request $request, string $column, bool $value): int
+    private function countWhere(Request $request, string $column, bool $value, ?Builder $baseQuery = null): int
     {
-        $query = $this->catalogQuery()->where($column, $value);
+        $query = ($baseQuery ?? $this->catalogQuery())->where($column, $value);
 
         $this->applyCommonFilters($query, $request);
 
@@ -528,13 +651,31 @@ class LabIntakeController extends Controller
     /**
      * Count price list items that have a subcategory assigned, respecting the current filters.
      */
-    private function countWithSubcategory(Request $request): int
+    private function countWithSubcategory(Request $request, ?Builder $baseQuery = null): int
     {
-        $query = $this->catalogQuery()->whereNotNull('subcategory_id');
+        $query = ($baseQuery ?? $this->catalogQuery())->whereNotNull('subcategory_id');
 
         $this->applyCommonFilters($query, $request);
 
         return (int) $query->count();
+    }
+
+    /**
+     * Generate a unique 5-digit random SKU.
+     */
+    private function generateUniqueSku(): string
+    {
+        $maxAttempts = 10;
+
+        for ($i = 0; $i < $maxAttempts; $i++) {
+            $sku = (string) random_int(10000, 99999);
+
+            if (! Inventory::where('sku', $sku)->exists()) {
+                return $sku;
+            }
+        }
+
+        return (string) random_int(10000, 99999);
     }
 
     /**

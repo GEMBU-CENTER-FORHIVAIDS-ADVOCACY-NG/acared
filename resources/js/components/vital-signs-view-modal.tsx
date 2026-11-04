@@ -44,27 +44,44 @@ export function VitalSignsViewModal({
                     </div>
                 ) : null}
 
-                <div className="space-y-3">
-                    {(record.lines ?? []).map((line) => (
-                        <div
-                            key={line.id}
-                            className="rounded-md border p-3"
-                        >
-                            <p className="text-sm font-medium">
-                                {line.price_list?.name ?? line.price_list_id ?? '—'}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Result: {line.results ?? '—'}
-                            </p>
-                        </div>
-                    ))}
-
-                    {record.lines?.length === 0 ? (
-                        <p className="py-4 text-center text-muted-foreground">
-                            No vital sign data available.
-                        </p>
-                    ) : null}
-                </div>
+                {record.lines?.length === 0 ? (
+                    <p className="py-4 text-center text-muted-foreground">
+                        No vital sign data available.
+                    </p>
+                ) : (
+                    <div className="max-h-96 overflow-y-auto rounded-md border">
+                        <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-muted/50">
+                                <tr>
+                                    <th className="px-4 py-2 text-left font-medium">
+                                        Vital Sign
+                                    </th>
+                                    <th className="px-4 py-2 text-left font-medium">
+                                        Result
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(record.lines ?? []).map((line) => (
+                                    <tr
+                                        key={line.id}
+                                        className="border-t border-border"
+                                    >
+                                        <td className="px-4 py-2">
+                                            {line.price_list?.name ?? line.price_list_id ?? '—'}
+                                        </td>
+                                        <td className="px-4 py-2 text-muted-foreground">
+                                            {line.results ?? '—'}
+                                            {line.price_list?.uom
+                                                ? ` ${line.price_list.uom}`
+                                                : ''}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );
