@@ -4,6 +4,7 @@ use App\Models\Category;
 use App\Models\Country;
 use App\Models\DrugForm;
 use App\Models\DrugInventory;
+use App\Models\Inventory;
 use App\Models\Lga;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -418,4 +419,322 @@ test('adding new drugs to a billed prescription updates the existing billing', f
 
     // Prescription total should reflect both drugs
     expect((float) $prescription->total)->toBe(300.0);
+});
+
+test('adding new drugs to a dispensed prescription creates a new billing without auto-dispensing', function () {
+    $user = User::factory()->create();
+    $teamId = $user->currentTeam->getKey();
+    $patient = prescriptionPatients($user, 1)->first();
+
+    $category = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Pharmacy',
+        'is_category' => true,
+        'category_id' => null,
+        'subcategory_id' => null,
+    ]);
+
+    $subcategory = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Analgesics',
+        'is_category' => false,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => null,
+    ]);
+
+    $drug1 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Paracetamol 500mg',
+        'price' => 100,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    $drug2 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Ibuprofen 400mg',
+        'price' => 200,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    $drugForm1 = DrugForm::factory()->create(['team_id' => $teamId]);
+    $drugForm2 = DrugForm::factory()->create(['team_id' => $teamId]);
+
+    Inventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug1->getKey(),
+        'drug_form_id' => $drugForm1->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    Inventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug2->getKey(),
+        'drug_form_id' => $drugForm2->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    $drugInventory1 = DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug1->getKey(),
+        'drug_form_id' => $drugForm1->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    $drugInventory2 = DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug2->getKey(),
+        'drug_form_id' => $drugForm2->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    // Create a prescription with drug1
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription = Prescription::query()->where('patient_id', $patient->slug)->firstOrFail();
+    expect($prescription->status)->toBe('billed');
+    $originalBilling = $prescription->billings()->firstOrFail();
+    expect((float) $originalBilling->total)->toBe(100.0);
+
+    // Mark as paid and dispensed
+    $originalBilling->update(['status' => 'paid']);
+    $prescription->update(['status' => 'paid']);
+    $prescription->lines()->update(['paid' => true]);
+
+    // Dispense the prescription
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user, '/'.$prescription->getKey().'/dispense'))
+        ->assertRedirect();
+
+    $prescription->refresh();
+    expect($prescription->status)->toBe('dispensed');
+
+    // Record initial stock for drug2
+    $initialDrug2Quantity = (int) $drugInventory2->fresh()->quantity;
+
+    // Now edit the dispensed prescription to add drug2
+    $this->actingAs($user)
+        ->patch(prescriptionTeamUrl($user, '/'.$prescription->getKey()), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'id' => $prescription->lines()->first()->getKey(),
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+                [
+                    'id' => null,
+                    'price_list_id' => $drug2->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription->refresh();
+    $billings = $prescription->billings()->orderBy('id')->get();
+
+    // Original billing should remain unchanged
+    expect((float) $billings[0]->total)->toBe(100.0);
+    expect($billings[0]->status)->toBe('paid');
+
+    // New billing should exist for the new drug only
+    expect((float) $billings[1]->total)->toBe(200.0);
+
+    // Prescription total should reflect both drugs
+    expect((float) $prescription->total)->toBe(300.0);
+
+    // The new line should NOT be marked as paid (no auto-dispensing)
+    $newLine = $prescription->lines()->where('price_list_id', $drug2->getKey())->firstOrFail();
+    expect($newLine->paid)->toBeFalse();
+
+    // Drug2 inventory should NOT be decremented (no auto-dispensing)
+    expect((int) $drugInventory2->fresh()->quantity)->toBe($initialDrug2Quantity);
+});
+
+test('dispensing new lines of a dispensed prescription decrements inventory and marks lines as paid', function () {
+    $user = User::factory()->create();
+    $teamId = $user->currentTeam->getKey();
+    $patient = prescriptionPatients($user, 1)->first();
+
+    $category = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Pharmacy',
+        'is_category' => true,
+        'category_id' => null,
+        'subcategory_id' => null,
+    ]);
+
+    $subcategory = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Analgesics',
+        'is_category' => false,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => null,
+    ]);
+
+    $drug1 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Paracetamol 500mg',
+        'price' => 100,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    $drug2 = PriceList::factory()->create([
+        'team_id' => $teamId,
+        'name' => 'Ibuprofen 400mg',
+        'price' => 200,
+        'is_category' => false,
+        'is_inventory' => true,
+        'category_id' => $category->getKey(),
+        'subcategory_id' => $subcategory->getKey(),
+    ]);
+
+    $drugForm1 = DrugForm::factory()->create(['team_id' => $teamId]);
+    $drugForm2 = DrugForm::factory()->create(['team_id' => $teamId]);
+
+    Inventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug1->getKey(),
+        'drug_form_id' => $drugForm1->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    Inventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug2->getKey(),
+        'drug_form_id' => $drugForm2->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    $drugInventory1 = DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug1->getKey(),
+        'drug_form_id' => $drugForm1->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    $drugInventory2 = DrugInventory::factory()->create([
+        'team_id' => $teamId,
+        'price_list_id' => $drug2->getKey(),
+        'drug_form_id' => $drugForm2->getKey(),
+        'quantity' => 50,
+        'min_qty' => 5,
+    ]);
+
+    // Create a prescription with drug1
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription = Prescription::query()->where('patient_id', $patient->slug)->firstOrFail();
+    expect($prescription->status)->toBe('billed');
+    $originalBilling = $prescription->billings()->firstOrFail();
+    expect((float) $originalBilling->total)->toBe(100.0);
+
+    // Mark as paid and dispensed
+    $originalBilling->update(['status' => 'paid']);
+    $prescription->update(['status' => 'paid']);
+    $prescription->lines()->update(['paid' => true]);
+
+    // Dispense the prescription
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user, '/'.$prescription->getKey().'/dispense'))
+        ->assertRedirect();
+
+    $prescription->refresh();
+    expect($prescription->status)->toBe('dispensed');
+
+    // Record initial stock for drug2
+    $initialDrug2Quantity = (int) $drugInventory2->fresh()->quantity;
+
+    // Add drug2 to the dispensed prescription
+    $this->actingAs($user)
+        ->patch(prescriptionTeamUrl($user, '/'.$prescription->getKey()), [
+            'patient_id' => $patient->slug,
+            'lines' => [
+                [
+                    'id' => $prescription->lines()->first()->getKey(),
+                    'price_list_id' => $drug1->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+                [
+                    'id' => null,
+                    'price_list_id' => $drug2->getKey(),
+                    'frequency' => 1,
+                    'duration' => 1,
+                    'dosage' => 1,
+                    'quantity' => 1,
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $prescription->refresh();
+    $newLine = $prescription->lines()->where('price_list_id', $drug2->getKey())->firstOrFail();
+    expect($newLine->paid)->toBeFalse();
+
+    // Mark the new billing as paid so the new lines can be dispensed
+    $newBilling = $prescription->billings()->orderByDesc('id')->firstOrFail();
+    $newBilling->update(['status' => 'paid']);
+
+    // Now manually dispense the new lines
+    $this->actingAs($user)
+        ->post(prescriptionTeamUrl($user, '/'.$prescription->getKey().'/dispense-new-lines'))
+        ->assertRedirect();
+
+    $prescription->refresh();
+    $newLine->refresh();
+
+    // The new line should now have dispense_status set to 'dispensed'
+    expect($newLine->dispense_status)->toBe('dispensed');
+
+    // Drug2 inventory should be decremented by 1
+    expect((int) $drugInventory2->fresh()->quantity)->toBe($initialDrug2Quantity - 1);
 });

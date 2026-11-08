@@ -195,7 +195,6 @@ class ConsultationController extends Controller
 
         if ($consultation->status !== 'started') {
             $consultation->update(['status' => 'started']);
-            $consultation->billing?->update(['status' => 'started']);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Consultation started.']);
@@ -214,7 +213,6 @@ class ConsultationController extends Controller
         $this->authorizeConsultantAccess($request, $consultation);
 
         $consultation->update(['status' => 'completed']);
-        $consultation->billing?->update(['status' => 'completed']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Consultation completed.']);
 

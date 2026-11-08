@@ -64,17 +64,18 @@ export type CouponOption = {
     type: string;
     value: number;
     fundType: string | null;
+    balance: number;
 };
 
 export type BillingCountStats = {
     total_billed: number;
-    total_billed_count: string;
+    total_billed_count: number;
     collected: number;
-    collected_count: string;
+    collected_count: number;
     awaiting_payment: number;
-    awaiting_payment_count: string;
+    awaiting_payment_count: number;
     wallet_debts: number;
-    wallet_debts_count: string;
+    wallet_debts_count: number;
 };
 
 export type BillingDateFilterOption = {
@@ -109,6 +110,7 @@ export type BillingPatientOption = {
     relation: string | null;
     art: string | null;
     slugOther: string | null;
+    maritalStatus: string | null;
 };
 
 export type BillingPriceListOption = {
@@ -133,6 +135,7 @@ export type NewBillingOptions = {
     countries: PatientLocationOption[];
     states: PatientLocationOption[];
     lgas: PatientLgaOption[];
+    nextHospitalNumber: string;
     priceLists: BillingPriceListOption[];
     services: BillingPriceListOption[];
 };

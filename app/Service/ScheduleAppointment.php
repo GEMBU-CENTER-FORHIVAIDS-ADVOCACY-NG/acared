@@ -148,7 +148,7 @@ final class ScheduleAppointment
                 );
             }
 
-            $billing->update(['status' => 'scheduled']);
+            $billing->update(['status' => 'scheduled', 'is_scheduled' => true]);
 
             return $result;
         }, 3);

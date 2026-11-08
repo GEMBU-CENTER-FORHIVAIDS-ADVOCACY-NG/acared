@@ -293,7 +293,6 @@ class NursingController extends Controller
 
         if ($nursing->status !== 'in_progress') {
             $nursing->update(['status' => 'in_progress']);
-            $nursing->billing?->update(['status' => 'started']);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'ANC appointment started.']);
@@ -312,7 +311,6 @@ class NursingController extends Controller
         $this->authorizeNurseAccess($request, $nursing);
 
         $nursing->update(['status' => 'completed']);
-        $nursing->billing?->update(['status' => 'completed']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'ANC appointment completed.']);
 

@@ -228,6 +228,7 @@ Route::prefix('{current_team}')
             Route::patch('pharmacy/prescriptions/{prescription}', [PrescriptionController::class, 'update'])->name('pharmacy.prescriptions.update');
             Route::post('pharmacy/prescriptions/{prescription}/refund', [PrescriptionController::class, 'refund'])->name('pharmacy.prescriptions.refund');
             Route::post('pharmacy/prescriptions/{prescription}/dispense', [PrescriptionController::class, 'dispense'])->name('pharmacy.prescriptions.dispense');
+            Route::post('pharmacy/prescriptions/{prescription}/dispense-new-lines', [PrescriptionController::class, 'dispenseNewLines'])->name('pharmacy.prescriptions.dispense-new-lines');
             Route::delete('pharmacy/prescriptions/{prescription}', [PrescriptionController::class, 'destroy'])->name('pharmacy.prescriptions.destroy');
 
             Route::get('pharmacy/inventories', [DrugInventoryController::class, 'index'])->name('pharmacy.inventories.index');

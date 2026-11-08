@@ -7,7 +7,8 @@ use App\Models\Diagnose;
 use App\Models\Examination;
 use App\Models\Laboratory;
 use App\Models\Line;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -45,7 +46,7 @@ class ClinicalReportController extends Controller
         $filters = $this->filters($request);
         $model = self::REPORTS[$report]['model'];
         $totalRecords = (clone $model::query())
-            ->when($filters['q'] !== '', fn (Builder $query) => $query->whereHas('patient', fn (Builder $patient) => $patient
+            ->when($filters['q'] !== '', fn (EloquentBuilder $query) => $query->whereHas('patient', fn (EloquentBuilder $patient) => $patient
                 ->where('fullName', 'like', '%'.$filters['q'].'%')
                 ->orWhere('slug', 'like', '%'.$filters['q'].'%')))
             ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
@@ -53,7 +54,7 @@ class ClinicalReportController extends Controller
 
         $records = $model::query()
             ->with(['patient', 'doctor'])
-            ->when($filters['q'] !== '', fn (Builder $query) => $query->whereHas('patient', fn (Builder $patient) => $patient
+            ->when($filters['q'] !== '', fn (EloquentBuilder $query) => $query->whereHas('patient', fn (EloquentBuilder $patient) => $patient
                 ->where('fullName', 'like', '%'.$filters['q'].'%')
                 ->orWhere('slug', 'like', '%'.$filters['q'].'%')))
             ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
@@ -90,8 +91,8 @@ class ClinicalReportController extends Controller
             /** @var class-string<Complaint|Diagnose|Examination> $model */
             $model = $config['model'];
             $count = $model::query()
-                ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
-                ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
+                ->when($filters['from'], fn (EloquentBuilder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
+                ->when($filters['to'], fn (EloquentBuilder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
                 ->count();
 
             $totalRecords += $count;
@@ -106,9 +107,13 @@ class ClinicalReportController extends Controller
         // Add laboratory tests count to dashboard stats
         $laboratoryTestsCount = Line::query()
             ->where('lineable_type', Laboratory::class)
-            ->whereHas('lineable', fn (Builder $q) => $q->where('status', 'submitted'))
-            ->when($filters['from'], fn (Builder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
-            ->when($filters['to'], fn (Builder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
+            ->whereExists(function (QueryBuilder $q) {
+                $q->from('laboratories')
+                    ->whereColumn('laboratories.id', 'lines.lineable_id')
+                    ->where('laboratories.status', 'submitted');
+            })
+            ->when($filters['from'], fn (EloquentBuilder $builder, string $from) => $builder->whereDate('created_at', '>=', $from))
+            ->when($filters['to'], fn (EloquentBuilder $builder, string $to) => $builder->whereDate('created_at', '<=', $to))
             ->count();
 
         $perReportStats['laboratory-tests'] = ['records' => $laboratoryTestsCount];
@@ -164,7 +169,7 @@ class ClinicalReportController extends Controller
         $label = self::REPORTS[$report]['label'];
         $records = $model::query()
             ->with(['patient', 'doctor'])
-            ->when($filters['q'] !== '', fn (Builder $query) => $query->whereHas('patient', fn (Builder $patient) => $patient
+            ->when($filters['q'] !== '', fn (EloquentBuilder $query) => $query->whereHas('patient', fn (EloquentBuilder $patient) => $patient
                 ->where('fullName', 'like', '%'.$filters['q'].'%')
                 ->orWhere('slug', 'like', '%'.$filters['q'].'%')))
             ->whereBetween('created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])

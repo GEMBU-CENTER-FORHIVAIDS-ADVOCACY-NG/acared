@@ -232,7 +232,7 @@ class ConsultationRecordController extends Controller
             $record->save();
 
             $this->syncLines($request, $record, $config, $data);
-            $this->syncBillings($context, $record, $config, $data);
+            $this->syncBillings($request, $context, $record, $config, $data);
         });
 
         return $config;
@@ -265,7 +265,7 @@ class ConsultationRecordController extends Controller
             }
 
             $this->syncLines($request, $model, $config, $data);
-            $this->syncBillings($context, $model, $config, $data);
+            $this->syncBillings($request, $context, $model, $config, $data);
         });
 
         return $config;
@@ -553,7 +553,7 @@ class ConsultationRecordController extends Controller
      * @param  array<string, mixed>  $data
      * @param  Admission|Complaint|Diagnose|Examination|Laboratory|Prescription|Treatment|Vital  $record
      */
-    private function syncBillings(array $context, Model $record, array $config, array $data): void
+    private function syncBillings(Request $request, array $context, Model $record, array $config, array $data): void
     {
         if (! $config['billings'] || ! $config['total'] || ! method_exists($record, 'billings')) {
             return;
@@ -562,7 +562,7 @@ class ConsultationRecordController extends Controller
         $record->billings()->create([
             'team_id' => $record->team_id,
             'patient_id' => $record->patient_id,
-            'user_id' => $context['user_id'],
+            'user_id' => $context['user_id'] ?: $request->user()->getKey(),
             'total' => $this->linesTotal($config, $data),
             'status' => 'billed',
         ]);

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import Pagination, { type PaginationMeta } from '@/components/pagination';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ type SpatieRole = {
 type Props = {
     team: Team;
     members: TeamMember[];
+    pagination: PaginationMeta;
     availableTeamRoles: RoleOption[];
     spatieRoles: SpatieRole[];
     permissions: TeamPermissions;
@@ -74,6 +76,7 @@ const blankForm: UserForm = {
 export default function TeamUsersIndex({
     team,
     members,
+    pagination,
     availableTeamRoles,
     spatieRoles,
     permissions,
@@ -94,6 +97,21 @@ export default function TeamUsersIndex({
 
     const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
+
+    const handlePageChange = (page: number) => {
+        router.get(
+            index({ team: team.slug }),
+            { page, per_page: pagination.perPage },
+            { preserveScroll: true },
+        );
+    };
+
+    const handlePerPageChange = (perPage: number) => {
+        router.get(
+            index({ team: team.slug }),
+            { page: 1, per_page: perPage },
+        );
+    };
 
     const pageTitle = useMemo(
         () => `Users — ${team.name}`,
@@ -349,6 +367,14 @@ export default function TeamUsersIndex({
                             </TableBody>
                         </Table>
                     </div>
+
+                    {pagination.lastPage > 1 && (
+                        <Pagination
+                            meta={pagination}
+                            onPageChange={handlePageChange}
+                            onPerPageChange={handlePerPageChange}
+                        />
+                    )}
                 </div>
             </div>
 

@@ -91,18 +91,25 @@ class PaymentMethodSalesReportController extends Controller
 
     /**
      * @param  array<int, array{method: string, transactions: int, amount: float, discount: float, wallet: float, mercyFund: float, infantFormula: float}>  $groups
-     * @return array{totalTransactions: int, totalAmount: float, totalDiscount: float, totalWallet: float, totalMercyFund: float, totalInfantFormula: float, methods: int}
+     * @return array{totalTransactions: int, totalAmount: float, totalDiscount: float, totalWallet: float, totalMercyFund: float, totalInfantFormula: float, totalGrandTotal: float, methods: int}
      */
     private function summary(array $groups): array
     {
+        $totalAmount = array_sum(array_column($groups, 'amount'));
+        $totalDiscount = array_sum(array_column($groups, 'discount'));
+        $totalWallet = array_sum(array_column($groups, 'wallet'));
+        $totalMercyFund = array_sum(array_column($groups, 'mercyFund'));
+        $totalInfantFormula = array_sum(array_column($groups, 'infantFormula'));
+
         return [
             'methods' => count($groups),
             'totalTransactions' => array_sum(array_column($groups, 'transactions')),
-            'totalAmount' => array_sum(array_column($groups, 'amount')),
-            'totalDiscount' => array_sum(array_column($groups, 'discount')),
-            'totalWallet' => array_sum(array_column($groups, 'wallet')),
-            'totalMercyFund' => array_sum(array_column($groups, 'mercyFund')),
-            'totalInfantFormula' => array_sum(array_column($groups, 'infantFormula')),
+            'totalAmount' => $totalAmount,
+            'totalDiscount' => $totalDiscount,
+            'totalWallet' => $totalWallet,
+            'totalMercyFund' => $totalMercyFund,
+            'totalInfantFormula' => $totalInfantFormula,
+            'totalGrandTotal' => $totalAmount + $totalDiscount + $totalWallet + $totalMercyFund + $totalInfantFormula,
         ];
     }
 

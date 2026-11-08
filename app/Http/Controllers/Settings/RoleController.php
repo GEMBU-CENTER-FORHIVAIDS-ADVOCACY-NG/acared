@@ -49,7 +49,7 @@ class RoleController extends Controller
 
         $groupedPermissions = $this->groupPermissionsByResource($allPermissions->toArray());
 
-        return Inertia::render('roles/index', [
+        return Inertia::render('settings/roles/index', [
             'roles' => $roles,
             'permissions' => $allPermissions,
             'groupedPermissions' => $groupedPermissions,

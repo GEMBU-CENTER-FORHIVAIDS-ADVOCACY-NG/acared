@@ -24,7 +24,13 @@ class TeamUserController extends Controller
     {
         Gate::authorize('view', $team);
 
-        $members = $team->members()->orderBy('name')->get()->map(function (User $user) {
+        $perPage = in_array(request()->input('per_page'), [10, 25, 50, 100])
+            ? (int) request()->input('per_page')
+            : 25;
+
+        $membersPaginator = $team->members()->orderBy('name')->paginate($perPage, ['*'], 'page');
+
+        $members = $membersPaginator->map(function (User $user) {
             $membership = $user->getRelation('pivot');
 
             return [
@@ -53,6 +59,12 @@ class TeamUserController extends Controller
                 'slug' => $team->slug,
             ],
             'members' => $members,
+            'pagination' => [
+                'currentPage' => $membersPaginator->currentPage(),
+                'lastPage' => $membersPaginator->lastPage(),
+                'perPage' => $membersPaginator->perPage(),
+                'total' => $membersPaginator->total(),
+            ],
             'availableTeamRoles' => TeamRole::assignable(),
             'spatieRoles' => $spatieRoles,
             'permissions' => auth()->user()->toTeamPermissions($team),

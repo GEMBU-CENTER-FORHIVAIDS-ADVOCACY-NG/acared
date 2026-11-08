@@ -643,7 +643,17 @@ export default function WalletHistoryIndex({
                                                 .reduce((sum, row) => sum + row.debit, 0)
                                                 .toLocaleString()}
                                         </TableCell>
-                                        <TableCell colSpan={3} />
+                                        <TableCell
+                                            className={
+                                                stats.net_balance < 0
+                                                    ? 'font-semibold text-destructive'
+                                                    : 'font-semibold text-emerald-600'
+                                            }
+                                        >
+                                            ₦
+                                            {Math.abs(stats.net_balance).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell colSpan={2} />
                                     </TableRow>
                                 )}
                             </TableBody>

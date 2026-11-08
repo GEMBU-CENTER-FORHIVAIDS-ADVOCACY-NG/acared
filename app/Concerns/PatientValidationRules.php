@@ -35,6 +35,7 @@ trait PatientValidationRules
             'lastName' => ['required', 'string', 'max:255'],
             'gender' => ['required', Rule::in(['Male', 'Female'])],
             'birthDate' => ['required', 'date'],
+            'maritalStatus' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'string', 'max:255', 'email', ...$this->patientUniqueIgnore('email', $ignoreId)],
             'phone' => ['required', 'string', 'max:255'],
             'mobile' => $this->patientUniqueRule('mobile', $ignoreId),

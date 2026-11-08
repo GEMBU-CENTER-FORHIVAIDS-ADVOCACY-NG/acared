@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Pharmacy;
 use App\Http\Controllers\Controller;
 use App\Models\Billing;
 use App\Models\DrugInventory;
-use App\Models\Inventory;
 use App\Models\Line;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\PriceList;
-use App\Models\Stock;
 use App\Service\DashboardCurrency;
 use App\Service\InventoryUsageService;
 use Illuminate\Database\Eloquent\Builder;
@@ -250,7 +248,7 @@ class PrescriptionController extends Controller
      */
     public function update(Request $request, string $current_team, Prescription $prescription): RedirectResponse
     {
-        abort_if(in_array($prescription->status, ['dispensed', 'refunded'], true), 409, 'This prescription can no longer be edited.');
+        abort_if($prescription->status === 'refunded', 409, 'This prescription can no longer be edited.');
 
         $teamId = $request->user()->currentTeam->getKey();
 
@@ -331,17 +329,17 @@ class PrescriptionController extends Controller
 
             $prescription->update(['total' => $total]);
 
-            // If prescription is paid, create a new billing for only the newly added lines.
+            // If prescription is paid or dispensed, create a new billing for only the newly added lines.
             // If prescription is billed, add new lines to the existing billing.
-            if ($prescription->status === 'paid' && ! empty($newLineIds)) {
+            if (in_array($prescription->status, ['paid', 'dispensed'], true) && ! empty($newLineIds)) {
                 $prescription->billings()->create([
                     'team_id' => $teamId,
                     'patient_id' => $data['patient_id'],
                     'user_id' => $request->user()->getKey(),
                     'total' => $newLinesTotal,
                 ]);
-            } elseif ($prescription->status === 'paid') {
-                // No new lines added to a paid prescription — nothing to bill.
+            } elseif (in_array($prescription->status, ['paid', 'dispensed'], true)) {
+                // No new lines added to a paid/dispensed prescription — nothing to bill.
             } elseif ($prescription->status === 'billed') {
                 // Update the existing billing with the new total including new lines.
                 $billing = $prescription->billings()->first();
@@ -422,42 +420,18 @@ class PrescriptionController extends Controller
 
                 $refundTotal += $refundQuantity * (float) $line->unitPrice;
 
-                $parentInventory = Inventory::query()->where('price_list_id', $line->price_list_id)->first();
                 $drugInventory = DrugInventory::query()->where('price_list_id', $line->price_list_id)->first();
 
-                abort_unless($parentInventory, 422, 'The medication does not have a linked inventory record.');
+                abort_unless($drugInventory, 422, 'The medication does not have a linked drug inventory record.');
 
-                Stock::create([
-                    'team_id' => $teamId,
-                    'user_id' => $request->user()->getKey(),
-                    'inventory_id' => $parentInventory->getKey(),
-                    'stockable_id' => $refunded->getKey(),
-                    'stockable_type' => Prescription::class,
-                    'receivable_id' => $receiver->getKey(),
-                    'receivable_type' => Patient::class,
-                    'quantity' => -1 * $refundQuantity,
-                    'status' => 'Returned',
-                ]);
-
-                if ($drugInventory) {
-                    Stock::create([
-                        'team_id' => $teamId,
-                        'user_id' => $request->user()->getKey(),
-                        'inventory_id' => $parentInventory->getKey(),
-                        'stockable_id' => $drugInventory->getKey(),
-                        'stockable_type' => DrugInventory::class,
-                        'receivable_id' => $receiver->getKey(),
-                        'receivable_type' => Patient::class,
-                        'quantity' => $refundQuantity,
-                        'status' => 'Returned',
-                    ]);
-
-                    $nextQuantity = (float) $drugInventory->quantity + $refundQuantity;
-                    $drugInventory->update([
-                        'quantity' => $nextQuantity,
-                        'status' => $nextQuantity <= (float) $drugInventory->min_qty ? 'low' : 'available',
-                    ]);
-                }
+                // Use InventoryUsageService to return stock back to drug inventory
+                app(InventoryUsageService::class)->return(
+                    $drugInventory,
+                    quantity: (int) $refundQuantity,
+                    stockStatus: 'Returned',
+                    patientId: (int) $receiver->getKey(),
+                    stockableId: (int) $refunded->getKey(),
+                );
 
                 $refunded->lines()->create([
                     'team_id' => $teamId,
@@ -470,6 +444,7 @@ class PrescriptionController extends Controller
                     'quantity' => $refundQuantity,
                     'patient_id' => $line->patient_id,
                     'user_id' => $line->user_id,
+                    'dispense_status' => 'dispensed',
                 ]);
             }
 
@@ -536,12 +511,100 @@ class PrescriptionController extends Controller
                     stockStatus: 'Dispensed',
                     patientId: (int) $patient->getKey(),
                 );
+
+                $line->update(['dispense_status' => 'dispensed']);
             }
 
             $prescription->update(['status' => 'dispensed']);
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Prescription dispensed successfully.']);
+
+        return to_route('pharmacy.prescriptions.show', [
+            'current_team' => $request->user()->currentTeam->slug,
+            'prescription' => $prescription->getKey(),
+        ]);
+    }
+
+    /**
+     * Dispense newly added lines of a dispensed prescription whose billing has been paid.
+     * Only lines added after the original billing (new lines) are dispensed.
+     */
+    public function dispenseNewLines(Request $request, string $current_team, Prescription $prescription): RedirectResponse
+    {
+        if ($prescription->status !== 'dispensed') {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Only dispensed prescriptions can have new lines dispensed.']);
+
+            return to_route('pharmacy.prescriptions.show', [
+                'current_team' => $request->user()->currentTeam->slug,
+                'prescription' => $prescription->getKey(),
+            ]);
+        }
+
+        $prescription->load(['lines.priceList', 'patient', 'billings']);
+
+        // Verify there's a paid billing that is NOT the first (original) billing
+        $firstBillingId = $prescription->billings->first()?->getKey();
+        $hasPaidNewBilling = $prescription->billings->contains(fn (Billing $billing) => $billing->getKey() !== $firstBillingId && $billing->status === 'paid');
+
+        if (! $hasPaidNewBilling) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'There are no new paid lines to dispense.']);
+
+            return to_route('pharmacy.prescriptions.show', [
+                'current_team' => $request->user()->currentTeam->slug,
+                'prescription' => $prescription->getKey(),
+            ]);
+        }
+
+        // Only dispense lines that are not yet dispensed (dispense_status is still 'pending')
+        $pendingLines = $prescription->lines->filter(fn (Line $line) => $line->dispense_status !== 'dispensed');
+
+        if ($pendingLines->isEmpty()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'There are no new paid lines to dispense.']);
+
+            return to_route('pharmacy.prescriptions.show', [
+                'current_team' => $request->user()->currentTeam->slug,
+                'prescription' => $prescription->getKey(),
+            ]);
+        }
+
+        // Check for missing stock
+        $missingStock = $pendingLines
+            ->filter(fn (Line $line) => DrugInventory::query()->where('price_list_id', $line->price_list_id)->doesntExist())
+            ->map(fn (Line $line) => $line->priceList?->name ?? "Price list #{$line->price_list_id}")
+            ->values();
+
+        if ($missingStock->isNotEmpty()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Cannot dispense — no pharmacy stock available for: '.$missingStock->implode(', ')]);
+
+            return to_route('pharmacy.prescriptions.show', [
+                'current_team' => $request->user()->currentTeam->slug,
+                'prescription' => $prescription->getKey(),
+            ]);
+        }
+
+        DB::transaction(function () use ($prescription, $pendingLines): void {
+            $patient = Patient::query()->where('slug', $prescription->patient_id)->firstOrFail();
+
+            foreach ($pendingLines as $line) {
+                $drugInventory = DrugInventory::query()->where('price_list_id', $line->price_list_id)->first();
+
+                if ($drugInventory === null) {
+                    continue;
+                }
+
+                app(InventoryUsageService::class)->use(
+                    $drugInventory,
+                    quantity: (int) $line->quantity,
+                    stockStatus: 'Dispensed',
+                    patientId: (int) $patient->getKey(),
+                );
+
+                $line->update(['dispense_status' => 'dispensed']);
+            }
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'New lines dispensed successfully.']);
 
         return to_route('pharmacy.prescriptions.show', [
             'current_team' => $request->user()->currentTeam->slug,
@@ -641,17 +704,40 @@ class PrescriptionController extends Controller
                 'quantity' => (float) $line->quantity,
                 'totalPrice' => (float) $line->totalPrice,
                 'paid' => (bool) $line->paid,
+                'dispenseStatus' => $line->dispense_status,
             ])->values(),
             'billings' => $prescription->billings->map(fn (Billing $billing) => [
                 'id' => $billing->getKey(),
                 'total' => (float) $billing->total,
                 'status' => $billing->status,
             ])->values(),
-            'canEdit' => ! in_array($prescription->status, ['dispensed', 'refunded'], true),
+            'canEdit' => ! in_array($prescription->status, ['refunded'], true),
             'canRefund' => $prescription->status === 'dispensed',
             'canDispense' => $prescription->status === 'paid',
+            'canDispenseNewLines' => $this->hasNewPendingLines($prescription),
             'canDelete' => ! in_array($prescription->status, ['paid', 'dispensed', 'refunded'], true),
         ];
+    }
+
+    /**
+     * Check if the prescription has new lines with a paid billing that are not yet dispensed.
+     */
+    private function hasNewPendingLines(Prescription $prescription): bool
+    {
+        if ($prescription->status !== 'dispensed') {
+            return false;
+        }
+
+        // Check if there's a paid billing that is NOT the first (original) billing
+        $firstBillingId = $prescription->billings->first()?->getKey();
+        $hasPaidNewBilling = $prescription->billings->contains(fn (Billing $billing) => $billing->getKey() !== $firstBillingId && $billing->status === 'paid');
+
+        if (! $hasPaidNewBilling) {
+            return false;
+        }
+
+        // Check if there are lines not yet dispensed
+        return $prescription->lines->contains(fn (Line $line) => $line->dispense_status !== 'dispensed');
     }
 
     /**

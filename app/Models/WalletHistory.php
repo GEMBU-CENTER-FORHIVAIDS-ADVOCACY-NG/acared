@@ -23,6 +23,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property float $credit
  * @property float $debit
  * @property float|null $balance
+ * @property float $total
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read Patient|null $patient

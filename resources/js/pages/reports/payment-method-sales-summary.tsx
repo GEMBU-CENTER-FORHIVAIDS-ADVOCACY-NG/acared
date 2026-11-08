@@ -49,6 +49,7 @@ type Summary = {
     totalWallet: number;
     totalMercyFund: number;
     totalInfantFormula: number;
+    totalGrandTotal: number;
 };
 
 export default function PaymentMethodSalesSummary({
@@ -114,6 +115,10 @@ export default function PaymentMethodSalesSummary({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-3 no-print">
+                        <StatCard
+                            title="Grand total"
+                            value={money(summary.totalGrandTotal)}
+                        />
                         <StatCard
                             title="Payment methods"
                             value={summary.methods.toLocaleString()}

@@ -1,5 +1,5 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { Key, LogOut, Settings, Shield, Users } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { LogOut, Settings } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -8,12 +8,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
-import { usePermissions } from '@/hooks/use-permissions';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
-import { index as rolesIndex } from '@/routes/roles';
-import { index as permissionsIndex } from '@/routes/permissions';
-import { index as teamUsersIndex } from '@/routes/teams/users';
 import type { User } from '@/types';
 
 type Props = {
@@ -22,8 +18,6 @@ type Props = {
 
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
-    const { currentTeam } = usePage().props;
-    const can = usePermissions();
 
     const handleLogout = () => {
         cleanup();
@@ -50,45 +44,6 @@ export function UserMenuContent({ user }: Props) {
                         Settings
                     </Link>
                 </DropdownMenuItem>
-                {currentTeam && can.canViewPage('users') && (
-                    <DropdownMenuItem asChild>
-                        <Link
-                            className="block w-full cursor-pointer"
-                            href={teamUsersIndex({ team: currentTeam.slug })}
-                            prefetch
-                            onClick={cleanup}
-                        >
-                            <Users className="mr-2" />
-                            Users
-                        </Link>
-                    </DropdownMenuItem>
-                )}
-                {can.canViewPage('roles') && (
-                    <DropdownMenuItem asChild>
-                        <Link
-                            className="block w-full cursor-pointer"
-                            href={rolesIndex()}
-                            prefetch
-                            onClick={cleanup}
-                        >
-                            <Shield className="mr-2" />
-                            Roles
-                        </Link>
-                    </DropdownMenuItem>
-                )}
-                {can.canViewPage('permissions') && (
-                    <DropdownMenuItem asChild>
-                        <Link
-                            className="block w-full cursor-pointer"
-                            href={permissionsIndex()}
-                            prefetch
-                            onClick={cleanup}
-                        >
-                            <Key className="mr-2" />
-                            Permissions
-                        </Link>
-                    </DropdownMenuItem>
-                )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

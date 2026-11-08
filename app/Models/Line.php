@@ -33,8 +33,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $results
  * @property float|null $unitCost
  * @property float|null $totalPrice
- * @property float|null $totalCost
  * @property bool $paid
+ * @property string $dispenseStatus
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read Patient|null $patient

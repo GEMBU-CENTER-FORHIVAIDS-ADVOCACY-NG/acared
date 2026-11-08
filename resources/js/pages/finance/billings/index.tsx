@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Banknote, Coins, CreditCard, Plus, UserMinus, X } from 'lucide-react';
+import { Banknote, Calculator, Coins, CreditCard, Plus, UserMinus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import FloatingCalculator from '@/components/floating-calculator';
@@ -62,6 +62,7 @@ type NewPatientRow = {
     lastName: string;
     gender: string;
     birthDate: string;
+    maritalStatus: string;
     email: string;
     phone: string;
     mobile: string;
@@ -110,6 +111,7 @@ function emptyPatient(): NewPatientRow {
         lastName: '',
         gender: 'Male',
         birthDate: '',
+        maritalStatus: '',
         email: '',
         phone: '',
         mobile: '',
@@ -168,6 +170,8 @@ export default function BillingIndex({
     const walletDebounceTimerRefs = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({});
 
     const [newOpen, setNewOpen] = useState(false);
+    const [calculatorOpen, setCalculatorOpen] = useState(false);
+    const [paymentCalculatorOpen, setPaymentCalculatorOpen] = useState(false);
     const [itemsOpen, setItemsOpen] = useState(false);
     const [existingPatientId, setExistingPatientId] = useState('');
     const [selectedPatientLabel, setSelectedPatientLabel] = useState('');
@@ -694,8 +698,6 @@ export default function BillingIndex({
     return (
         <>
             <Head title="Billings" />
-
-            <FloatingCalculator />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
                 <div className="space-y-3">
@@ -1246,7 +1248,23 @@ export default function BillingIndex({
                             >
                                 {processing ? 'Saving...' : 'Record payment'}
                             </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setPaymentCalculatorOpen(true)}
+                                aria-label="Open calculator"
+                            >
+                                <Calculator className="mr-2 size-4" />
+                                Calculator
+                            </Button>
                         </div>
+
+                        <FloatingCalculator
+                            modal={true}
+                            showToggle={false}
+                            isOpen={paymentCalculatorOpen}
+                            onOpenChange={setPaymentCalculatorOpen}
+                        />
                     </CardContent>
                 </Card>
             </div>
@@ -1399,6 +1417,7 @@ export default function BillingIndex({
                                                         gender: option.gender ?? 'Male',
                                                         birthDate: option.birthDate ?? '',
                                                         email: option.email ?? '',
+                                                        maritalStatus: option.maritalStatus ?? '',
                                                         phone: option.phone ?? '',
                                                         mobile: option.mobile ?? '',
                                                         country_id: option.country_id ?? '',
@@ -1423,17 +1442,39 @@ export default function BillingIndex({
                             </div>
                         </div>
 
-                        {existingPatientId && (
+                        <div className="grid gap-3 sm:grid-cols-3">
                             <div className="space-y-2">
                                 <Label>Hospital number</Label>
                                 <Input
-                                    value={existingPatientId}
+                                    value={existingPatientId || newBillingOptions.nextHospitalNumber}
+                                    readOnly
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Art No</Label>
+                                <Input
+                                    value={patient.art}
                                     onChange={(event) =>
-                                        setExistingPatientId(event.target.value)
+                                        setPatient({
+                                            ...patient,
+                                            art: event.target.value,
+                                        })
                                     }
                                 />
                             </div>
-                        )}
+                            <div className="space-y-2">
+                                <Label>NHIS / Other</Label>
+                                <Input
+                                    value={patient.slugOther}
+                                    onChange={(event) =>
+                                        setPatient({
+                                            ...patient,
+                                            slugOther: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                        </div>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="space-y-2">
@@ -1478,16 +1519,48 @@ export default function BillingIndex({
                             </div>
                             <div className="space-y-2">
                                 <Label>Birth date</Label>
-                                <Input
-                                    type="date"
-                                    value={patient.birthDate}
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="date"
+                                        value={patient.birthDate}
+                                        onChange={(event) =>
+                                            setPatient({
+                                                ...patient,
+                                                birthDate: event.target.value,
+                                            })
+                                        }
+                                        className="flex-1"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCalculatorOpen(true)}
+                                        className="shrink-0"
+                                        aria-label="Open calculator"
+                                    >
+                                        <Calculator className="size-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Marital status</Label>
+                                <SelectNative
+                                    value={patient.maritalStatus}
                                     onChange={(event) =>
                                         setPatient({
                                             ...patient,
-                                            birthDate: event.target.value,
+                                            maritalStatus: event.target.value,
                                         })
                                     }
-                                />
+                                >
+                                    <option value="">Select…</option>
+                                    <option value="Single">Single</option>
+                                    <option value="Married">Married</option>
+                                    <option value="Divorced">Divorced</option>
+                                    <option value="Widowed">Widowed</option>
+                                    <option value="Separated">Separated</option>
+                                </SelectNative>
                             </div>
                             <div className="space-y-2">
                                 <Label>Category</Label>
@@ -1607,6 +1680,78 @@ export default function BillingIndex({
                             </div>
                         </div>
 
+                        <div className="space-y-4">
+                            <Label>Next of Kin</Label>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Full name</Label>
+                                    <Input
+                                        value={patient.kinFullName}
+                                        onChange={(event) =>
+                                            setPatient({
+                                                ...patient,
+                                                kinFullName: event.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Phone</Label>
+                                    <Input
+                                        value={patient.kinPhone}
+                                        onChange={(event) =>
+                                            setPatient({
+                                                ...patient,
+                                                kinPhone: event.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Email</Label>
+                                    <Input
+                                        type="email"
+                                        value={patient.kinEmail}
+                                        onChange={(event) =>
+                                            setPatient({
+                                                ...patient,
+                                                kinEmail: event.target.value,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Relation</Label>
+                                    <SelectNative
+                                        value={patient.relation}
+                                        onChange={(event) =>
+                                            setPatient({
+                                                ...patient,
+                                                relation: event.target.value,
+                                            })
+                                        }
+                                    >
+                                        <option value="">Select relation…</option>
+                                        <option value="Father">Father</option>
+                                        <option value="Mother">Mother</option>
+                                        <option value="Spouse">Spouse</option>
+                                        <option value="Husband">Husband</option>
+                                        <option value="Wife">Wife</option>
+                                        <option value="Sibling">Sibling</option>
+                                        <option value="Brother">Brother</option>
+                                        <option value="Sister">Sister</option>
+                                        <option value="Son">Son</option>
+                                        <option value="Daughter">Daughter</option>
+                                        <option value="Grandparent">Grandparent</option>
+                                        <option value="Grandchild">Grandchild</option>
+                                        <option value="Friend">Friend</option>
+                                        <option value="Colleague">Colleague</option>
+                                        <option value="Other">Other</option>
+                                    </SelectNative>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <Label>Billing lines</Label>
@@ -1716,6 +1861,8 @@ export default function BillingIndex({
                             </Button>
                         </div>
                     </div>
+
+                    <FloatingCalculator modal={true} showToggle={false} isOpen={calculatorOpen} onOpenChange={setCalculatorOpen} />
                 </SheetContent>
             </Sheet>
 

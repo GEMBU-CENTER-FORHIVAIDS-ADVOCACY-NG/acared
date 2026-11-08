@@ -47,6 +47,7 @@ type LineForm = {
     comment: string;
     quantity: string;
     paid: boolean;
+    dispenseStatus: string;
 };
 
 type Prescription = {
@@ -65,6 +66,7 @@ type Prescription = {
         comment: string | null;
         quantity: number;
         paid: boolean;
+        dispenseStatus: string;
     }[];
 };
 
@@ -103,6 +105,7 @@ export default function PrescriptionEdit({
             comment: line.comment ?? '',
             quantity: String(line.quantity),
             paid: line.paid,
+            dispenseStatus: line.dispenseStatus ?? 'pending',
         })),
     );
     const [processing, setProcessing] = useState(false);
@@ -392,6 +395,7 @@ export default function PrescriptionEdit({
                                     <TableHead className="text-right">
                                         Line total
                                     </TableHead>
+                                    <TableHead>Billing</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead />
                                 </TableRow>
@@ -541,7 +545,12 @@ export default function PrescriptionEdit({
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={line.paid ? 'default' : 'secondary'}>
-                                                    {line.paid ? 'Paid' : 'Billed'}
+                                                    {line.paid ? 'Paid' : 'Unpaid'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={line.dispenseStatus === 'dispensed' ? 'default' : 'destructive'}>
+                                                    {line.dispenseStatus === 'dispensed' ? 'Dispensed' : 'Pending'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
@@ -589,6 +598,7 @@ export default function PrescriptionEdit({
                                             comment: '',
                                             quantity: '1',
                                             paid: false,
+                                            dispenseStatus: 'pending',
                                         },
                                     ])
                                 }

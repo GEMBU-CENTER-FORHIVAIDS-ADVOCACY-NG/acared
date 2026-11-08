@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Billing;
 use App\Models\Coupon;
 use App\Models\Line;
 use App\Models\Method;
@@ -146,6 +147,17 @@ class WalletHistoryController extends Controller
                     'debit' => $debit,
                 ]);
 
+                // Create a Billing record with WalletHistory as billable
+                $billing = Billing::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $walletPatientId,
+                    'user_id' => $userId,
+                    'billable_type' => WalletHistory::class,
+                    'billable_id' => $walletHistory->getKey(),
+                    'total' => $debit,
+                    'status' => 'paid',
+                ]);
+
                 // Automatically create a Deposit line item for wallet debit
                 $depositPriceList = PriceList::withoutGlobalScope('team')
                     ->where('name', 'Deposit')
@@ -160,8 +172,8 @@ class WalletHistoryController extends Controller
                         'unitPrice' => $debit,
                         'quantity' => 1,
                         'paid' => true,
-                        'lineable_type' => WalletHistory::class,
-                        'lineable_id' => $walletHistory->getKey(),
+                        'lineable_type' => Billing::class,
+                        'lineable_id' => $billing->getKey(),
                     ]);
                 }
             } else {
@@ -207,6 +219,17 @@ class WalletHistoryController extends Controller
                     'credit' => $credit,
                 ]);
 
+                // Create a Billing record with WalletHistory as billable
+                $billing = Billing::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientId,
+                    'user_id' => $userId,
+                    'billable_type' => WalletHistory::class,
+                    'billable_id' => $walletHistory->getKey(),
+                    'total' => $credit,
+                    'status' => 'paid',
+                ]);
+
                 // Automatically create a Deposit line item for wallet credit
                 $depositPriceList = PriceList::withoutGlobalScope('team')
                     ->where('name', 'Deposit')
@@ -221,8 +244,8 @@ class WalletHistoryController extends Controller
                         'unitPrice' => $credit,
                         'quantity' => 1,
                         'paid' => true,
-                        'lineable_type' => WalletHistory::class,
-                        'lineable_id' => $walletHistory->getKey(),
+                        'lineable_type' => Billing::class,
+                        'lineable_id' => $billing->getKey(),
                     ]);
                 }
             }

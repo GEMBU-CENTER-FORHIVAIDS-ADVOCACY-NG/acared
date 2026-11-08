@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Pill, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pill, PillBottle, RotateCcw, Trash2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
@@ -32,8 +32,8 @@ import {
 } from '@/components/ui/table';
 import type { Team } from '@/types';
 import {
-    destroy as destroyRoute,
     dispense as dispenseRoute,
+    dispenseNewLines as dispenseNewLinesRoute,
     edit as editRoute,
     index as prescriptionsIndex,
     refund as refundRoute,
@@ -53,6 +53,7 @@ type LineItem = {
     quantity: number;
     totalPrice: number;
     paid: boolean;
+    dispenseStatus: string;
 };
 
 type Prescription = {
@@ -69,6 +70,7 @@ type Prescription = {
     canEdit: boolean;
     canRefund: boolean;
     canDispense: boolean;
+    canDispenseNewLines: boolean;
     canDelete: boolean;
 };
 
@@ -306,6 +308,32 @@ export default function PrescriptionShow({
                                     {processing ? 'Processing…' : 'Dispense'}
                                 </Button>
                             ) : null}
+                            {prescription.canDispenseNewLines ? (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setProcessing(true);
+                                        setError(null);
+                                        router.post(
+                                            dispenseNewLinesRoute.url({
+                                                current_team: teamSlug,
+                                                prescription: prescription.id,
+                                            }),
+                                            {},
+                                            {
+                                                preserveScroll: true,
+                                                onError: (errors) =>
+                                                    setError(Object.values(errors)[0] ?? 'Dispense new lines failed.'),
+                                                onFinish: () => setProcessing(false),
+                                            },
+                                        );
+                                    }}
+                                    disabled={processing}
+                                >
+                                    <PillBottle className="mr-2 size-4" />
+                                    {processing ? 'Processing…' : 'Dispense new lines'}
+                                </Button>
+                            ) : null}
                             {prescription.canRefund ? (
                                 <Button
                                     variant="secondary"
@@ -401,6 +429,7 @@ export default function PrescriptionShow({
                                         <TableHead className="text-right">
                                             Line total
                                         </TableHead>
+                                        <TableHead>Billing</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -408,7 +437,7 @@ export default function PrescriptionShow({
                                     {prescription.lines.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={9}
+                                                colSpan={10}
                                                 className="py-8 text-center text-muted-foreground"
                                             >
                                                 No drugs on this prescription.
@@ -449,7 +478,12 @@ export default function PrescriptionShow({
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant={line.paid ? 'default' : 'secondary'}>
-                                                        {line.paid ? 'Paid' : 'Billed'}
+                                                        {line.paid ? 'Paid' : 'Unpaid'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={line.dispenseStatus === 'dispensed' ? 'default' : 'destructive'}>
+                                                        {line.dispenseStatus === 'dispensed' ? 'Dispensed' : 'Pending'}
                                                     </Badge>
                                                 </TableCell>
                                             </TableRow>
@@ -501,6 +535,15 @@ export default function PrescriptionShow({
                                             </TableCell>
                                         </TableRow>
                                     ))}
+                                    <TableRow className="font-semibold">
+                                        <TableCell colSpan={2}>Total</TableCell>
+                                        <TableCell className="text-right">
+                                            {currencySymbol}{' '}
+                                            {prescription.billings
+                                                .reduce((sum, billing) => sum + billing.total, 0)
+                                                .toLocaleString()}
+                                        </TableCell>
+                                    </TableRow>
                                 </TableBody>
                             </Table>
                         </CardContent>

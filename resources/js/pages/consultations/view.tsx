@@ -476,8 +476,7 @@ export default function ConsultationsView({
                                         )?.label
                                     }
                                 </CardTitle>
-                                {consultation.status !== 'scheduled' &&
-                                consultation.status !== 'completed' ? (
+                                {consultation.status !== 'scheduled' ? (
                                     <Button size="sm" onClick={openCreate}>
                                         New
                                     </Button>

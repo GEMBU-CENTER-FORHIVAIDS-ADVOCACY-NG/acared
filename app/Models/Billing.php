@@ -25,6 +25,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $billable_id
  * @property string $total
  * @property string $status
+ * @property bool $is_scheduled
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property CarbonInterface|null $deleted_at
@@ -64,7 +65,8 @@ class Billing extends Model
                 'Billing',
                 'App\\Models\\Billing',
             ])
-            ->whereNotIn('status', ['started', 'completed', 'scheduled'])
+            ->where('is_scheduled', false)
+            ->whereNotIn('status', ['started', 'completed'])
             ->whereDoesntHave('appointments', function (Builder $q) {
                 $q->whereIn('status', ['started', 'completed', 'scheduled']);
             });

@@ -1,41 +1,71 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { usePermissions } from '@/hooks/use-permissions';
 import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
+import { index as permissionsIndex } from '@/routes/permissions';
 import { edit } from '@/routes/profile';
+import { index as rolesIndex } from '@/routes/roles';
 import { edit as editSecurity } from '@/routes/security';
 import { index as teams } from '@/routes/teams';
+import { index as teamUsersIndex } from '@/routes/teams/users';
 import type { NavItem } from '@/types';
-
-const sidebarNavItems: NavItem[] = [
-    {
-        title: 'Profile',
-        href: edit(),
-        icon: null,
-    },
-    {
-        title: 'Security',
-        href: editSecurity(),
-        icon: null,
-    },
-    {
-        title: 'Teams',
-        href: teams(),
-        icon: null,
-    },
-    {
-        title: 'Appearance',
-        href: editAppearance(),
-        icon: null,
-    },
-];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const { currentTeam } = usePage().props;
+    const can = usePermissions();
+
+    const sidebarNavItems: NavItem[] = [
+        {
+            title: 'Profile',
+            href: edit(),
+            icon: null,
+        },
+        {
+            title: 'Security',
+            href: editSecurity(),
+            icon: null,
+        },
+        {
+            title: 'Teams',
+            href: teams(),
+            icon: null,
+        },
+        {
+            title: 'Appearance',
+            href: editAppearance(),
+            icon: null,
+        },
+    ];
+
+    if (currentTeam && can.canViewPage('users')) {
+        sidebarNavItems.push({
+            title: 'Users',
+            href: teamUsersIndex({ team: currentTeam.slug }),
+            icon: null,
+        });
+    }
+
+    if (can.canViewPage('roles')) {
+        sidebarNavItems.push({
+            title: 'Roles',
+            href: rolesIndex(),
+            icon: null,
+        });
+    }
+
+    if (can.canViewPage('permissions')) {
+        sidebarNavItems.push({
+            title: 'Permissions',
+            href: permissionsIndex(),
+            icon: null,
+        });
+    }
 
     return (
         <div className="p-4 md:p-6 lg:p-8">

@@ -30,7 +30,7 @@ class PermissionController extends Controller
                 'updatedAt' => $permission->updated_at?->toIso8601String(),
             ]);
 
-        return Inertia::render('permissions/index', [
+        return Inertia::render('settings/permissions/index', [
             'permissions' => $permissions,
             'filters' => ['q' => $query, 'perPage' => $perPage],
         ]);

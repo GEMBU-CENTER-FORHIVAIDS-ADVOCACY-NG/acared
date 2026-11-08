@@ -115,6 +115,7 @@ class BillingController extends Controller
             'stats' => $this->stats($dateFilter),
             'newBillingOptions' => [
                 ...$this->patientFormOptions(),
+                'nextHospitalNumber' => $this->nextHospitalNumber(),
                 'priceLists' => PriceList::query()
                     ->where('is_category', false)
                     ->whereHas('category', fn (Builder $query) => $query->whereRaw('LOWER(name) = ?', ['billing']))
@@ -143,13 +144,14 @@ class BillingController extends Controller
     }
 
     /**
-     * Search patients by name or slug for the current team.
+     * Search all patients by name or slug, across every team.
      */
     public function searchPatients(Request $request): JsonResponse
     {
         $search = trim((string) $request->query('q', ''));
 
         $patients = Patient::query()
+            ->withoutGlobalScope('team')
             ->when($search !== '', function (Builder $q) use ($search): void {
                 $q->where(function (Builder $inner) use ($search): void {
                     $inner->where('slug', 'like', "%{$search}%")
@@ -185,6 +187,7 @@ class BillingController extends Controller
                 'relation',
                 'art',
                 'slugOther',
+                'marital_status',
             ])
             ->map(fn (Patient $patient) => [
                 'slug' => $patient->slug,
@@ -208,6 +211,7 @@ class BillingController extends Controller
                 'relation' => $patient->relation,
                 'art' => $patient->art,
                 'slugOther' => $patient->slugOther,
+                'maritalStatus' => $patient->marital_status,
             ])->values();
 
         return response()->json($patients);
@@ -319,6 +323,7 @@ class BillingController extends Controller
                         'gender', 'birthDate', 'email', 'phone', 'mobile', 'country_id',
                         'state_id', 'lga_id', 'address', 'kinFullName', 'kinPhone', 'kinEmail', 'relation',
                     ])->all(),
+                    'marital_status' => $data['maritalStatus'] ?? null,
                     'slug' => $this->nextHospitalNumber(),
                     'team_id' => $teamId,
                 ])->slug;
@@ -366,7 +371,9 @@ class BillingController extends Controller
             ->whereKey($data['billing_id'])
             ->firstOrFail();
 
-        DB::transaction(function () use ($billing, $data, $user, $teamId): void {
+        $totalPaymentAmount = 0;
+
+        DB::transaction(function () use ($billing, $data, $user, $teamId, &$totalPaymentAmount): void {
             foreach ($data['payments'] as $paymentData) {
                 $method = Method::query()->whereKey($paymentData['method_id'])->firstOrFail();
 
@@ -379,6 +386,12 @@ class BillingController extends Controller
                     ...$this->paymentColumns($method->name, $paymentData),
                 ]);
 
+                // Accumulate the total payment amount across all payment methods
+                $totalPaymentAmount += (float) ($payment->amount ?? 0);
+                $totalPaymentAmount += (float) ($payment->wallet ?? 0);
+                $totalPaymentAmount += (float) ($payment->mercy_fund ?? 0);
+                $totalPaymentAmount += (float) ($payment->infant_formula ?? 0);
+
                 if (($paymentData['coupon_id'] ?? null) && ($paymentData['coupon_discount_amount'] ?? 0) > 0) {
                     $payment->couponUsage()->create([
                         'coupon_id' => $paymentData['coupon_id'],
@@ -387,15 +400,55 @@ class BillingController extends Controller
                     ]);
                 }
 
-                if ($method->name === 'Wallet' && ($paymentData['wallet_debit'] ?? 0) > 0) {
+                if ($method->name === 'Wallet' && ! empty($paymentData['wallet_debit'])) {
+                    $walletDebit = (float) $paymentData['wallet_debit'];
                     $walletPatientId = $paymentData['wallet_patient_id'] ?? $billing->patient_id;
-                    $payment->walletHistories()->create([
-                        'team_id' => $teamId,
-                        'patient_id' => $walletPatientId,
-                        'user_id' => $user->getKey(),
-                        'method_id' => $method->getKey(),
-                        'debit' => $paymentData['wallet_debit'],
-                    ]);
+
+                    if ($walletDebit < 0) {
+                        // Negative value: put absolute in credit column, decrement patient wallet (make less negative),
+                        // store negative in payment wallet column.
+                        // Set payment wallet first so the observer can detect this was handled by the controller.
+                        $payment->update([
+                            'wallet' => $walletDebit,
+                        ]);
+
+                        $payment->walletHistories()->create([
+                            'team_id' => $teamId,
+                            'patient_id' => $walletPatientId,
+                            'user_id' => $user->getKey(),
+                            'method_id' => $method->getKey(),
+                            'credit' => abs($walletDebit),
+                        ]);
+
+                        $patient = Patient::query()->where('team_id', $teamId)->where('slug', $walletPatientId)->first();
+
+                        if ($patient) {
+                            // User's "decrement": make balance less negative (e.g., -2000 → -1000), so we add the absolute value
+                            $patient->increment('wallet', abs($walletDebit));
+                        }
+                    } else {
+                        // Positive value: put in debit column, increment patient wallet (make more negative),
+                        // store positive in payment wallet column.
+                        // Set payment wallet first so the observer can detect this was handled by the controller.
+                        $payment->update([
+                            'wallet' => $walletDebit,
+                        ]);
+
+                        $payment->walletHistories()->create([
+                            'team_id' => $teamId,
+                            'patient_id' => $walletPatientId,
+                            'user_id' => $user->getKey(),
+                            'method_id' => $method->getKey(),
+                            'debit' => $walletDebit,
+                        ]);
+
+                        $patient = Patient::query()->where('team_id', $teamId)->where('slug', $walletPatientId)->first();
+
+                        if ($patient) {
+                            // User's "increment": make balance more negative (e.g., -2000 → -3000), so we subtract the value
+                            $patient->decrement('wallet', $walletDebit);
+                        }
+                    }
                 }
             }
 
@@ -404,15 +457,33 @@ class BillingController extends Controller
                 'created_at' => Carbon::now(),
             ]);
 
-            Line::query()
-                ->where('lineable_id', $billing->billable_id)
-                ->where('lineable_type', $billing->billable_type)
-                ->update(['paid' => true]);
+            // If the total payment is negative, update line items' unitPrice to negative
+            if ($totalPaymentAmount < 0) {
+                $lines = Line::query()
+                    ->where('lineable_id', $billing->billable_id)
+                    ->where('lineable_type', $billing->billable_type)
+                    ->get(['id', 'unitPrice']);
+
+                foreach ($lines as $line) {
+                    $line->update([
+                        'paid' => true,
+                        'unitPrice' => -abs((float) $line->unitPrice),
+                    ]);
+                }
+            } else {
+                Line::query()
+                    ->where('lineable_id', $billing->billable_id)
+                    ->where('lineable_type', $billing->billable_type)
+                    ->update(['paid' => true]);
+            }
 
             $billable = $billing->billable;
 
             if ($billable?->status && $billing->total > 0) {
-                $billable->update(['status' => 'paid']);
+                // Only update to 'paid' if the billable is not already in a terminal state like 'dispensed'
+                if (! in_array($billable->status, ['dispensed', 'refunded'], true)) {
+                    $billable->update(['status' => 'paid']);
+                }
             }
         });
 
@@ -487,6 +558,7 @@ class BillingController extends Controller
                         'quantity' => 1,
                         'lineable_type' => Patient::class,
                         'lineable_id' => $patient->getKey(),
+                        'paid' => true,
                     ]);
                 }
             } else {
