@@ -78,7 +78,7 @@ class WalletHistoryController extends Controller
         return Inertia::render('finance/wallet-history/index', [
             'histories' => $rows,
             'stats' => $stats,
-            'methods' => Method::query()->orderBy('name')->limit(100)->get(['id', 'name']),
+            'methods' => Method::query()->where('name', '!=', 'Wallet')->orderBy('name')->limit(100)->get(['id', 'name']),
             'coupons' => Coupon::query()
                 ->where('team_id', $teamId)
                 ->where('is_active', true)
@@ -114,6 +114,34 @@ class WalletHistoryController extends Controller
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
                         ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('slug')
+            ->limit(50)
+            ->get(['slug', 'fullName', 'wallet'])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+                'wallet' => (float) ($patient->wallet ?? 0),
+            ])->values();
+
+        return response()->json($patients);
+    }
+
+    /**
+     * Search patients with negative wallet balance by hospital no or full name.
+     */
+    public function searchNegativeBalancePatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $patients = Patient::query()
+            ->where('team_id', $request->user()->currentTeam->getKey())
+            ->where('wallet', '<', 0)
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
                 });
             })
             ->orderBy('slug')
@@ -301,6 +329,74 @@ class WalletHistoryController extends Controller
             'ids.*' => ['integer', Rule::exists('wallet_histories', 'id')->where('team_id', $teamId)],
         ]);
         WalletHistory::query()->whereIn('id', $data['ids'])->delete();
+
+        return to_route('finance.wallet-history.index', $request->user()->currentTeam->slug);
+    }
+
+    /**
+     * Transfer wallet balance from one patient to another.
+     *
+     * This does not create billing, payment, or line records.
+     */
+    public function transfer(Request $request): RedirectResponse
+    {
+        $teamId = $request->user()->currentTeam->getKey();
+        $userId = $request->user()->getKey();
+        $data = $request->validate([
+            'from_patient_id' => ['required', 'string', Rule::exists('patients', 'slug')->where('team_id', $teamId)],
+            'to_patient_id' => ['required', 'string', Rule::exists('patients', 'slug')->where('team_id', $teamId)],
+        ]);
+
+        $fromPatient = Patient::query()->where('slug', $data['from_patient_id'])->where('team_id', $teamId)->firstOrFail();
+        $toPatient = Patient::query()->where('slug', $data['to_patient_id'])->where('team_id', $teamId)->firstOrFail();
+
+        if ($fromPatient->id === $toPatient->id) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Please choose two different patients for the transfer.']);
+
+            return back();
+        }
+
+        $transferAmount = abs((float) $fromPatient->wallet);
+
+        if ($transferAmount <= 0) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'The selected patient has no balance to transfer.']);
+
+            return back();
+        }
+
+        // Ensure a "Transfer" method exists for this team
+        $transferMethod = Method::firstOrCreate(
+            ['team_id' => $teamId, 'name' => 'Transfer'],
+            ['name' => 'Transfer'],
+        );
+
+        DB::transaction(function () use ($fromPatient, $toPatient, $transferAmount, $teamId, $userId, $transferMethod): void {
+            // Set the source patient's wallet to 0
+            $fromPatient->update(['wallet' => 0]);
+
+            // Add the transfer amount to the target patient's wallet (makes it more negative)
+            $toPatient->decrement('wallet', $transferAmount);
+
+            // Create wallet history record for the source patient (credit - balance leaving)
+            WalletHistory::create([
+                'team_id' => $teamId,
+                'patient_id' => $fromPatient->slug,
+                'user_id' => $userId,
+                'method_id' => $transferMethod->id,
+                'credit' => $transferAmount,
+            ]);
+
+            // Create wallet history record for the target patient (debit - negative balance added)
+            WalletHistory::create([
+                'team_id' => $teamId,
+                'patient_id' => $toPatient->slug,
+                'user_id' => $userId,
+                'method_id' => $transferMethod->id,
+                'debit' => $transferAmount,
+            ]);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Wallet balance transferred successfully.']);
 
         return to_route('finance.wallet-history.index', $request->user()->currentTeam->slug);
     }

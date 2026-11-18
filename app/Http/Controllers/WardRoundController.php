@@ -230,6 +230,7 @@ class WardRoundController extends Controller
                 'status' => $admission->status,
                 'admittedAt' => $admission->created_at?->toIso8601String(),
                 'notes' => $admission->notes,
+                'patientWallet' => (float) ($admission->patient?->wallet ?? 0),
             ],
             'detail' => [
                 'birthDate' => $admission->patient?->birthDate,

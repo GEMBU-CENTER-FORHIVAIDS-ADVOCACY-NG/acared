@@ -376,7 +376,9 @@ Route::prefix('{current_team}')
             Route::get('finance/wallet-history', [WalletHistoryController::class, 'index'])->name('finance.wallet-history.index');
             Route::get('finance/wallet-history/{wallet_history}', [WalletHistoryController::class, 'show'])->name('finance.wallet-history.show');
             Route::get('finance/wallet-history/patients/search', [WalletHistoryController::class, 'searchPatients'])->name('finance.wallet-history.patients.search');
+            Route::get('finance/wallet-history/patients/negative-balance/search', [WalletHistoryController::class, 'searchNegativeBalancePatients'])->name('finance.wallet-history.patients.negative-balance.search');
             Route::post('finance/wallet-history', [WalletHistoryController::class, 'store'])->name('finance.wallet-history.store');
+            Route::post('finance/wallet-history/transfer', [WalletHistoryController::class, 'transfer'])->name('finance.wallet-history.transfer');
             Route::delete('finance/wallet-history/bulk', [WalletHistoryController::class, 'bulkDestroy'])->name('finance.wallet-history.bulk.destroy');
             Route::patch('finance/wallet-history/{wallet_history}', [WalletHistoryController::class, 'update'])->name('finance.wallet-history.update');
             Route::delete('finance/wallet-history/{wallet_history}', [WalletHistoryController::class, 'destroy'])->name('finance.wallet-history.destroy');

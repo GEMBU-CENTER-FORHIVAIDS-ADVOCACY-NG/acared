@@ -111,7 +111,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -127,7 +127,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -160,7 +160,7 @@ show.url = (args: { current_team?: string | number, wallet_history: number | { i
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -170,7 +170,7 @@ show.get = (args: { current_team?: string | number, wallet_history: number | { i
 })
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -181,7 +181,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -192,7 +192,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -202,7 +202,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
         })
             /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:269
+ * @see app/Http/Controllers/WalletHistoryController.php:297
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -219,7 +219,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
     show.form = showForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:131
+ * @see app/Http/Controllers/WalletHistoryController.php:159
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -235,7 +235,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:131
+ * @see app/Http/Controllers/WalletHistoryController.php:159
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -268,7 +268,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:131
+ * @see app/Http/Controllers/WalletHistoryController.php:159
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -279,7 +279,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:131
+ * @see app/Http/Controllers/WalletHistoryController.php:159
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -290,7 +290,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:131
+ * @see app/Http/Controllers/WalletHistoryController.php:159
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -301,8 +301,91 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     
     store.form = storeForm
 /**
+* @see \App\Http\Controllers\WalletHistoryController::transfer
+ * @see app/Http/Controllers/WalletHistoryController.php:341
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/transfer'
+ */
+export const transfer = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: transfer.url(args, options),
+    method: 'post',
+})
+
+transfer.definition = {
+    methods: ["post"],
+    url: '/{current_team?}/finance/wallet-history/transfer',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\WalletHistoryController::transfer
+ * @see app/Http/Controllers/WalletHistoryController.php:341
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/transfer'
+ */
+transfer.url = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { current_team: args }
+    }
+
+    
+    if (Array.isArray(args)) {
+        args = {
+                    current_team: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    validateParameters(args, [
+            "current_team",
+        ])
+
+    const parsedArgs = {
+                        current_team: args?.current_team ?? '$currentTeam',
+                }
+
+    return transfer.definition.url
+            .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\WalletHistoryController::transfer
+ * @see app/Http/Controllers/WalletHistoryController.php:341
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/transfer'
+ */
+transfer.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: transfer.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\WalletHistoryController::transfer
+ * @see app/Http/Controllers/WalletHistoryController.php:341
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/transfer'
+ */
+    const transferForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: transfer.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WalletHistoryController::transfer
+ * @see app/Http/Controllers/WalletHistoryController.php:341
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/transfer'
+ */
+        transferForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: transfer.url(args, options),
+            method: 'post',
+        })
+    
+    transfer.form = transferForm
+/**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:283
+ * @see app/Http/Controllers/WalletHistoryController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -318,7 +401,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:283
+ * @see app/Http/Controllers/WalletHistoryController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -351,7 +434,7 @@ update.url = (args: { current_team?: string | number, wallet_history: number | {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:283
+ * @see app/Http/Controllers/WalletHistoryController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -362,7 +445,7 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:283
+ * @see app/Http/Controllers/WalletHistoryController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -378,7 +461,7 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:283
+ * @see app/Http/Controllers/WalletHistoryController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -395,7 +478,7 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:276
+ * @see app/Http/Controllers/WalletHistoryController.php:304
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -411,7 +494,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:276
+ * @see app/Http/Controllers/WalletHistoryController.php:304
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -444,7 +527,7 @@ destroy.url = (args: { current_team?: string | number, wallet_history: number | 
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:276
+ * @see app/Http/Controllers/WalletHistoryController.php:304
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -455,7 +538,7 @@ destroy.delete = (args: { current_team?: string | number, wallet_history: number
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:276
+ * @see app/Http/Controllers/WalletHistoryController.php:304
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -471,7 +554,7 @@ destroy.delete = (args: { current_team?: string | number, wallet_history: number
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:276
+ * @see app/Http/Controllers/WalletHistoryController.php:304
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -491,6 +574,7 @@ const walletHistory = {
 show: Object.assign(show, show),
 patients: Object.assign(patients, patients),
 store: Object.assign(store, store),
+transfer: Object.assign(transfer, transfer),
 bulk: Object.assign(bulk, bulk),
 update: Object.assign(update, update),
 destroy: Object.assign(destroy, destroy),

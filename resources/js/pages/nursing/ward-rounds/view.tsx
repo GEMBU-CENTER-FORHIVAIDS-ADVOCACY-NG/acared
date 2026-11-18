@@ -15,9 +15,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     show as wardRoundShow,
     view as wardRoundView,
 } from '@/routes/nursing/ward-rounds';
+import { discharge } from '@/routes/nursing/ward-rounds';
 import { store, update, destroy } from '@/routes/nursing/ward-rounds/records';
 import { ConsultationRecordForm } from '@/pages/consultations/record-form';
 import type {
@@ -42,6 +51,7 @@ type AdmissionSummary = {
     status: string;
     admittedAt: string | null;
     notes: string | null;
+    patientWallet: number;
 };
 
 type AdmissionDetail = {
@@ -110,6 +120,8 @@ export default function WardRoundView({
     const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
     const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
     const [viewComplaint, setViewComplaint] = useState<ConsultationRecord | null>(null);
+    const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
+    const [walletError, setWalletError] = useState<string | null>(null);
     const [viewExamination, setViewExamination] = useState<ConsultationRecord | null>(null);
     const [viewDiagnosis, setViewDiagnosis] = useState<ConsultationRecord | null>(null);
     const [viewAdmission, setViewAdmission] = useState<ConsultationRecord | null>(null);
@@ -272,16 +284,30 @@ export default function WardRoundView({
                         title={`${admission.patientId} - ${admission.patientName ?? 'Unknown patient'}`}
                         description="Ward round details and clinical records."
                     />
-                    <Button variant="outline" asChild>
-                        <Link
-                            href={wardRoundShow.url({
-                                current_team: teamSlug,
-                                ward: admission.wardId,
-                            })}
-                        >
-                            Back to ward
-                        </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        {admission.status === 'admitted' && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                    setWalletError(null);
+                                    setDischargeModalOpen(true);
+                                }}
+                            >
+                                Discharge
+                            </Button>
+                        )}
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={wardRoundShow.url({
+                                    current_team: teamSlug,
+                                    ward: admission.wardId,
+                                })}
+                            >
+                                Back to ward
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -511,6 +537,73 @@ export default function WardRoundView({
                     }
                 }}
             />
+
+            <Dialog
+                open={dischargeModalOpen}
+                onOpenChange={(open) => {
+                    setDischargeModalOpen(open);
+                    if (!open) {
+                        setWalletError(null);
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm discharge</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to discharge{' '}
+                            <strong>{admission.patientName ?? admission.patientId}</strong>?
+                        </DialogDescription>
+                    </DialogHeader>
+                    {walletError && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+                            {walletError}
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setDischargeModalOpen(false);
+                                setWalletError(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (admission.patientWallet < 0) {
+                                    setWalletError(
+                                        `Cannot discharge: patient has an outstanding balance of ${currencySymbol}${Math.abs(admission.patientWallet).toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
+                                    );
+                                    return;
+                                }
+                                router.patch(
+                                    discharge.url({
+                                        current_team: teamSlug,
+                                        admission: admission.id,
+                                    }),
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                        onSuccess: () => {
+                                            setDischargeModalOpen(false);
+                                        },
+                                        onError: (errors) => {
+                                            if (errors.message) {
+                                                setWalletError(errors.message);
+                                            }
+                                        },
+                                    },
+                                );
+                            }}
+                        >
+                            Discharge
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

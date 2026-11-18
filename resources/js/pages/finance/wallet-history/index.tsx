@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { FileText, MoreHorizontal, WalletCards, TrendingUp, TrendingDown, Calculator, X } from 'lucide-react';
+import { ArrowRightLeft, FileText, MoreHorizontal, WalletCards, TrendingUp, TrendingDown, Calculator, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -158,6 +158,26 @@ export default function WalletHistoryIndex({
     const walletPatientSearchContainerRef = useRef<HTMLDivElement>(null);
     const walletDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Transfer modal state
+    const [transferOpen, setTransferOpen] = useState(false);
+    const [transferFromPatient, setTransferFromPatient] = useState<string>('');
+    const [transferToPatient, setTransferToPatient] = useState<string>('');
+    const [transferFromSearchQuery, setTransferFromSearchQuery] = useState('');
+    const [transferFromSearchResults, setTransferFromSearchResults] = useState<PatientOption[]>([]);
+    const [transferFromSearchOpen, setTransferFromSearchOpen] = useState(false);
+    const [transferFromSearchLoading, setTransferFromSearchLoading] = useState(false);
+    const [transferToSearchQuery, setTransferToSearchQuery] = useState('');
+    const [transferToSearchResults, setTransferToSearchResults] = useState<PatientOption[]>([]);
+    const [transferToSearchOpen, setTransferToSearchOpen] = useState(false);
+    const [transferToSearchLoading, setTransferToSearchLoading] = useState(false);
+    const [transferError, setTransferError] = useState<string | null>(null);
+    const transferFromInputRef = useRef<HTMLInputElement>(null);
+    const transferFromContainerRef = useRef<HTMLDivElement>(null);
+    const transferToInputRef = useRef<HTMLInputElement>(null);
+    const transferToContainerRef = useRef<HTMLDivElement>(null);
+    const transferFromDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const transferToDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const visit = (patch: Partial<Filters>) =>
         router.get(
             WalletHistory.index.url(team, { query: { ...filters, ...patch } }),
@@ -299,8 +319,163 @@ export default function WalletHistoryIndex({
         return () => {
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
             if (walletDebounceTimerRef.current) clearTimeout(walletDebounceTimerRef.current);
+            if (transferFromDebounceRef.current) clearTimeout(transferFromDebounceRef.current);
+            if (transferToDebounceRef.current) clearTimeout(transferToDebounceRef.current);
         };
     }, []);
+
+    // Debounced search for negative balance patients (transfer from)
+    const searchTransferFromPatients = useCallback((query: string) => {
+        if (transferFromDebounceRef.current) {
+            clearTimeout(transferFromDebounceRef.current);
+        }
+
+        if (!query.trim()) {
+            setTransferFromSearchResults([]);
+            return;
+        }
+
+        setTransferFromSearchLoading(true);
+        transferFromDebounceRef.current = setTimeout(() => {
+            const url = WalletHistory.patients.negativeBalance.search.url(team, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setTransferFromSearchResults(results);
+                    setTransferFromSearchLoading(false);
+                })
+                .catch(() => {
+                    setTransferFromSearchLoading(false);
+                });
+        }, 300);
+    }, [team]);
+
+    // Debounced search for all patients (transfer to)
+    const searchTransferToPatients = useCallback((query: string) => {
+        if (transferToDebounceRef.current) {
+            clearTimeout(transferToDebounceRef.current);
+        }
+
+        if (!query.trim()) {
+            setTransferToSearchResults([]);
+            return;
+        }
+
+        setTransferToSearchLoading(true);
+        transferToDebounceRef.current = setTimeout(() => {
+            const url = WalletHistory.patients.search.url(team, { query: { q: query } });
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then((res) => res.json())
+                .then((results) => {
+                    setTransferToSearchResults(results);
+                    setTransferToSearchLoading(false);
+                })
+                .catch(() => {
+                    setTransferToSearchLoading(false);
+                });
+        }, 300);
+    }, [team]);
+
+    // Close transfer from dropdown on outside click
+    useEffect(() => {
+        if (!transferFromSearchOpen) return;
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                transferFromContainerRef.current &&
+                !transferFromContainerRef.current.contains(event.target as Node)
+            ) {
+                setTransferFromSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [transferFromSearchOpen]);
+
+    // Close transfer to dropdown on outside click
+    useEffect(() => {
+        if (!transferToSearchOpen) return;
+
+        const handleClick = (event: MouseEvent) => {
+            if (
+                transferToContainerRef.current &&
+                !transferToContainerRef.current.contains(event.target as Node)
+            ) {
+                setTransferToSearchOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [transferToSearchOpen]);
+
+    // Get label for selected transfer from patient
+    const getTransferFromLabel = useCallback((slug: string) => {
+        if (!slug) return '';
+        const found = transferFromSearchResults.find((p) => p.slug === slug);
+        return found?.label ?? slug;
+    }, [transferFromSearchResults]);
+
+    // Get label for selected transfer to patient
+    const getTransferToLabel = useCallback((slug: string) => {
+        if (!slug) return '';
+        const found = transferToSearchResults.find((p) => p.slug === slug);
+        return found?.label ?? slug;
+    }, [transferToSearchResults]);
+
+    // Transfer from patient balance
+    const transferFromBalance = useMemo(() => {
+        if (!transferFromPatient) return 0;
+        const found = transferFromSearchResults.find((p) => p.slug === transferFromPatient);
+        return found?.wallet ?? 0;
+    }, [transferFromPatient, transferFromSearchResults]);
+
+    // Transfer to patient balance
+    const transferToBalance = useMemo(() => {
+        if (!transferToPatient) return 0;
+        const found = transferToSearchResults.find((p) => p.slug === transferToPatient);
+        return found?.wallet ?? 0;
+    }, [transferToPatient, transferToSearchResults]);
+
+    const submitTransfer = () => {
+        setTransferError(null);
+
+        if (!transferFromPatient || !transferToPatient) {
+            setTransferError('Please select both source and destination patients.');
+            return;
+        }
+
+        if (transferFromPatient === transferToPatient) {
+            setTransferError('Source and destination patients must be different.');
+            return;
+        }
+
+        router.post(
+            WalletHistory.transfer.url(team),
+            {
+                from_patient_id: transferFromPatient,
+                to_patient_id: transferToPatient,
+            },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    setTransferError(Object.values(errors)[0] ?? 'Something went wrong.');
+                },
+                onSuccess: () => {
+                    setTransferOpen(false);
+                },
+            },
+        );
+    };
 
     const startCreate = () => {
         setEditing(null);
@@ -423,9 +598,24 @@ export default function WalletHistoryIndex({
                         title="Wallet history"
                         description="Review deposits, withdrawals, payment methods, and patient balances."
                     />
-                    <Button onClick={startCreate}>
-                        New wallet transaction
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => {
+                            setTransferFromPatient('');
+                            setTransferToPatient('');
+                            setTransferFromSearchQuery('');
+                            setTransferFromSearchResults([]);
+                            setTransferToSearchQuery('');
+                            setTransferToSearchResults([]);
+                            setTransferError(null);
+                            setTransferOpen(true);
+                        }}>
+                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            Transfer wallet
+                        </Button>
+                        <Button onClick={startCreate}>
+                            New wallet transaction
+                        </Button>
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
                     <form
@@ -1135,6 +1325,243 @@ export default function WalletHistoryIndex({
                     </div>
                 </div>
             )}
+            {/* Transfer wallet modal */}
+            {transferOpen && (
+                <div
+                    className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div className="w-full max-w-lg rounded-lg bg-background p-6 shadow-xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-lg font-semibold">Transfer wallet balance</h2>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setTransferOpen(false)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <p className="mb-4 text-sm text-muted-foreground">
+                            Transfer the entire negative balance from one patient to another. The source patient&apos;s balance will be set to zero.
+                        </p>
+
+                        {/* Transfer from patient */}
+                        <div className="space-y-2" ref={(el) => {
+                            transferFromContainerRef.current = el;
+                        }}>
+                            <Label>
+                                From patient <span className="text-destructive">*</span>
+                                <span className="text-muted-foreground ml-1 font-normal">(negative balance only)</span>
+                            </Label>
+                            <div className="relative">
+                                {transferFromPatient ? (
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            value={getTransferFromLabel(transferFromPatient)}
+                                            readOnly
+                                            className="flex-1 bg-muted/50"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="shrink-0"
+                                            onClick={() => {
+                                                setTransferFromPatient('');
+                                                setTransferFromSearchQuery('');
+                                                setTransferFromSearchResults([]);
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        ref={(el) => {
+                                            transferFromInputRef.current = el;
+                                        }}
+                                        placeholder="Search by hospital no or name..."
+                                        value={transferFromSearchQuery}
+                                        onClick={() => {
+                                            setTransferFromSearchOpen(true);
+                                        }}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setTransferFromSearchQuery(value);
+                                            searchTransferFromPatients(value);
+                                            setTransferFromSearchOpen(true);
+                                        }}
+                                    />
+                                )}
+                                {transferFromSearchOpen && !transferFromPatient && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                        {transferFromSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!transferFromSearchLoading &&
+                                         transferFromSearchResults.length === 0 &&
+                                         transferFromSearchQuery?.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients with negative balance found.
+                                            </div>
+                                        )}
+                                        {transferFromSearchResults.map((patient) => (
+                                            <button
+                                                key={patient.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setTransferFromPatient(patient.slug);
+                                                    setTransferFromSearchQuery('');
+                                                    setTransferFromSearchOpen(false);
+                                                }}
+                                            >
+                                                {patient.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {transferFromPatient && (
+                                <p className="text-sm text-destructive">
+                                    Current balance: <span className="font-medium">₦{transferFromBalance.toLocaleString()}</span>
+                                    {' '}→ will be set to ₦0
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Arrow indicator */}
+                        <div className="flex justify-center py-2">
+                            <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
+                        </div>
+
+                        {/* Transfer to patient */}
+                        <div className="space-y-2" ref={(el) => {
+                            transferToContainerRef.current = el;
+                        }}>
+                            <Label>
+                                To patient <span className="text-destructive">*</span>
+                            </Label>
+                            <div className="relative">
+                                {transferToPatient ? (
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            value={getTransferToLabel(transferToPatient)}
+                                            readOnly
+                                            className="flex-1 bg-muted/50"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="shrink-0"
+                                            onClick={() => {
+                                                setTransferToPatient('');
+                                                setTransferToSearchQuery('');
+                                                setTransferToSearchResults([]);
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        ref={(el) => {
+                                            transferToInputRef.current = el;
+                                        }}
+                                        placeholder="Search by hospital no or name..."
+                                        value={transferToSearchQuery}
+                                        onClick={() => {
+                                            setTransferToSearchOpen(true);
+                                        }}
+                                        onChange={(event) => {
+                                            const value = event.target.value;
+                                            setTransferToSearchQuery(value);
+                                            searchTransferToPatients(value);
+                                            setTransferToSearchOpen(true);
+                                        }}
+                                    />
+                                )}
+                                {transferToSearchOpen && !transferToPatient && (
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                        {transferToSearchLoading && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                Searching…
+                                            </div>
+                                        )}
+                                        {!transferToSearchLoading &&
+                                         transferToSearchResults.length === 0 &&
+                                         transferToSearchQuery?.trim() && (
+                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                No patients found.
+                                            </div>
+                                        )}
+                                        {transferToSearchResults.map((patient) => (
+                                            <button
+                                                key={patient.slug}
+                                                type="button"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    setTransferToPatient(patient.slug);
+                                                    setTransferToSearchQuery('');
+                                                    setTransferToSearchOpen(false);
+                                                }}
+                                            >
+                                                {patient.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {transferToPatient && (
+                                <p className="text-sm text-muted-foreground">
+                                    Current balance: <span className="font-medium text-foreground">₦{transferToBalance.toLocaleString()}</span>
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Transfer amount summary */}
+                        {transferFromPatient && transferToPatient && (
+                            <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                                <p className="text-sm font-medium text-emerald-800">
+                                    Transfer amount: ₦{Math.abs(transferFromBalance).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-emerald-700">
+                                    {getTransferFromLabel(transferFromPatient)}
+                                    {' '}→ {getTransferToLabel(transferToPatient)}
+                                </p>
+                            </div>
+                        )}
+
+                        {transferError && (
+                            <p className="mt-3 text-sm text-destructive">{transferError}</p>
+                        )}
+
+                        {/* Actions */}
+                        <div className="mt-4 flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setTransferOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={submitTransfer}
+                                disabled={!transferFromPatient || !transferToPatient}
+                            >
+                                Confirm transfer
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <ConfirmDialog
                 open={deleting !== null}
                 onOpenChange={(isOpen) => {

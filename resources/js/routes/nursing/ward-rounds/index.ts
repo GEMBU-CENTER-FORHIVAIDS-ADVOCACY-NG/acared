@@ -332,7 +332,7 @@ view.head = (args: { current_team?: string | number, admission: number | { id: n
     view.form = viewForm
 /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:259
+ * @see app/Http/Controllers/WardRoundController.php:260
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -348,7 +348,7 @@ admit.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:259
+ * @see app/Http/Controllers/WardRoundController.php:260
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -381,7 +381,7 @@ admit.url = (args: { current_team?: string | number, ward: number | { id: number
 
 /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:259
+ * @see app/Http/Controllers/WardRoundController.php:260
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -392,7 +392,7 @@ admit.post = (args: { current_team?: string | number, ward: number | { id: numbe
 
     /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:259
+ * @see app/Http/Controllers/WardRoundController.php:260
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -403,7 +403,7 @@ admit.post = (args: { current_team?: string | number, ward: number | { id: numbe
 
             /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:259
+ * @see app/Http/Controllers/WardRoundController.php:260
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -415,7 +415,7 @@ admit.post = (args: { current_team?: string | number, ward: number | { id: numbe
     admit.form = admitForm
 /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:290
+ * @see app/Http/Controllers/WardRoundController.php:291
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -431,7 +431,7 @@ discharge.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:290
+ * @see app/Http/Controllers/WardRoundController.php:291
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -464,7 +464,7 @@ discharge.url = (args: { current_team?: string | number, admission: number | { i
 
 /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:290
+ * @see app/Http/Controllers/WardRoundController.php:291
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -475,7 +475,7 @@ discharge.patch = (args: { current_team?: string | number, admission: number | {
 
     /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:290
+ * @see app/Http/Controllers/WardRoundController.php:291
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -491,7 +491,7 @@ discharge.patch = (args: { current_team?: string | number, admission: number | {
 
             /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:290
+ * @see app/Http/Controllers/WardRoundController.php:291
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */

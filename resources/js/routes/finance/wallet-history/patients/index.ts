@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
+import negativeBalance from './negative-balance'
 /**
 * @see \App\Http\Controllers\WalletHistoryController::search
  * @see app/Http/Controllers/WalletHistoryController.php:102
@@ -109,6 +110,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
     search.form = searchForm
 const patients = {
     search: Object.assign(search, search),
+negativeBalance: Object.assign(negativeBalance, negativeBalance),
 }
 
 export default patients
