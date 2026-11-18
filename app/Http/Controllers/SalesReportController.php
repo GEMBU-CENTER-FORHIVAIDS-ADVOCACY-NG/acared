@@ -265,6 +265,7 @@ class SalesReportController extends Controller
         $billingRows = DB::table('payments')
             ->whereBetween('payments.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
             ->join('billings', 'billings.id', '=', 'payments.billing_id')
+            ->where('billings.billable_type', '<>', WalletHistory::class)
             ->join('lines', function (JoinClause $join): void {
                 $join->on('lines.lineable_id', '=', 'billings.billable_id')
                     ->on('lines.lineable_type', '=', DB::raw('billings.billable_type'));
@@ -274,14 +275,7 @@ class SalesReportController extends Controller
             ->join('price_lists as pl', 'pl.id', '=', 'lines.price_list_id')
             ->when($filters['q'] !== '', function (QueryBuilder $query) use ($filters): void {
                 $search = '%'.$filters['q'].'%';
-                $query->where(function (QueryBuilder $query) use ($search): void {
-                    $query->where('lines.patient_id', 'like', $search)
-                        ->orWhereExists(fn (QueryBuilder $q) => $q
-                            ->from('patients')
-                            ->whereColumn('patients.slug', 'lines.patient_id')
-                            ->where('patients.full_name', 'like', $search))
-                        ->orWhere('pl.name', 'like', $search);
-                });
+                $query->where('pl.name', 'like', $search);
             })
             ->selectRaw('
                 pl.id as price_list_id,
@@ -307,37 +301,8 @@ class SalesReportController extends Controller
             ->groupBy('pl.id', 'pl.name')
             ->get();
 
-        // Get billings with WalletHistory as billable (deposit transactions).
-        // These billings are created by wallet transactions and have lines attached
-        // directly to the billing (lineable_type = Billing::class).
-        $depositBillingRows = DB::table('billings')
-            ->where('billings.billable_type', WalletHistory::class)
-            ->whereBetween('billings.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
-            ->join('lines', function (JoinClause $join): void {
-                $join->on('lines.lineable_id', '=', 'billings.id')
-                    ->on('lines.lineable_type', '=', DB::raw("'".Billing::class."'"));
-            })
-            ->where('lines.paid', true)
-            ->where('lines.unitPrice', '<>', 0)
-            ->join('price_lists as pl', 'pl.id', '=', 'lines.price_list_id')
-            ->when($filters['q'] !== '', function (QueryBuilder $query) use ($filters): void {
-                $search = '%'.$filters['q'].'%';
-                $query->where('pl.name', 'like', $search);
-            })
-            ->selectRaw('
-                pl.id as price_list_id,
-                pl.name as item_name,
-                SUM(lines.quantity) as quantity,
-                SUM(lines.totalCost) as cost,
-                SUM(lines.unitPrice) as price,
-                SUM(lines.totalPrice) as amount
-            ')
-            ->groupBy('pl.id', 'pl.name')
-            ->get();
-
         // Get deposit payments (no billing_id) that have WalletHistory lines.
-        // Kept for backward compatibility with existing data where lines were
-        // attached directly to WalletHistory instead of through a Billing record.
+        // All deposit lines use lineable_type = WalletHistory::class.
         $depositRows = DB::table('payments')
             ->whereNull('billing_id')
             ->whereBetween('payments.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
@@ -365,9 +330,6 @@ class SalesReportController extends Controller
         // Merge all rows and aggregate by price_list_id.
         $allRows = collect();
         foreach ($billingRows as $row) {
-            $allRows->push((array) $row);
-        }
-        foreach ($depositBillingRows as $row) {
             $allRows->push((array) $row);
         }
         foreach ($depositRows as $row) {
@@ -418,7 +380,7 @@ class SalesReportController extends Controller
                         ->orWhereExists(fn (QueryBuilder $q) => $q
                             ->from('patients')
                             ->whereColumn('patients.slug', 'payments.patient_id')
-                            ->where('patients.full_name', 'like', $search));
+                            ->where('patients.fullName', 'like', $search));
                 });
             })
             ->selectRaw('payments.patient_id, SUM(payments.amount) as amount, SUM(payments.discount_amount) as discount, SUM(payments.wallet) as wallet, SUM(payments.mercy_fund) as mercy_fund, SUM(payments.infant_formula) as infant_formula, COUNT(*) as transactions')
@@ -461,7 +423,7 @@ class SalesReportController extends Controller
                         ->orWhereExists(fn (QueryBuilder $q) => $q
                             ->from('patients')
                             ->whereColumn('patients.slug', 'payments.patient_id')
-                            ->where('patients.full_name', 'like', $search))
+                            ->where('patients.fullName', 'like', $search))
                         ->orWhereExists(fn (QueryBuilder $q) => $q
                             ->from('methods')
                             ->whereColumn('methods.id', 'payments.method_id')
@@ -574,12 +536,44 @@ class SalesReportController extends Controller
     private function department(Payment $payment): string
     {
         if (! $payment->billing) {
-            return 'Wallet Deposit';
+            $category = $this->getCategoryFromPayment($payment);
+
+            return $category ?? 'Wallet Deposit';
         }
 
         $category = $this->getCategoryFromBilling($payment->billing);
 
         return $category ?? 'Unknown';
+    }
+
+    private function getCategoryFromPayment(Payment $payment): ?string
+    {
+        return $this->getCategoryFromPayments([$payment->id]);
+    }
+
+    /**
+     * Resolve the category name from a set of payment IDs (for older deposits without billing).
+     *
+     * @param  array<int>  $paymentIds
+     */
+    private function getCategoryFromPayments(array $paymentIds): ?string
+    {
+        if ($paymentIds === []) {
+            return null;
+        }
+
+        return Line::query()
+            ->where('lineable_type', WalletHistory::class)
+            ->whereExists(function (QueryBuilder $q) use ($paymentIds): void {
+                $q->from('wallet_histories')
+                    ->whereColumn('wallet_histories.id', 'lines.lineable_id')
+                    ->whereIn('wallet_histories.payment_id', $paymentIds);
+            })
+            ->join('price_lists', 'price_lists.id', '=', 'lines.price_list_id')
+            ->whereNotNull('price_lists.category_id')
+            ->join('price_lists as categories', 'categories.id', '=', 'price_lists.category_id')
+            ->select('categories.name')
+            ->first()?->name;
     }
 
     private function getCategoryFromBilling(Billing $billing): ?string
@@ -633,13 +627,23 @@ class SalesReportController extends Controller
                 ->get()
                 ->keyBy('id');
 
+            // For payments without a billing (older deposits), resolve category from wallet_histories → lines.
+            $nullBillingPayments = (clone $query)
+                ->whereNull('billing_id')
+                ->select('id')
+                ->get();
+
+            $nullBillingCategory = $nullBillingPayments->isNotEmpty()
+                ? $this->getCategoryFromPayments($nullBillingPayments->pluck('id')->toArray())
+                : null;
+
             $totals = [];
 
             foreach ($rows as $row) {
                 $billing = $row->billing_id ? $billings->get($row->billing_id) : null;
 
                 $label = ! $billing
-                    ? 'Wallet Deposit'
+                    ? ($nullBillingCategory ?? 'Wallet Deposit')
                     : ($this->getCategoryFromBilling($billing) ?? 'Unknown');
 
                 $this->addPaymentTotals($totals, $label, $row);

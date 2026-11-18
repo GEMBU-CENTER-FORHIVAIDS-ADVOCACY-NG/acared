@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Appointment;
+use App\Models\Billing;
 use App\Models\Category;
 use App\Models\Country;
 use App\Models\Lga;
+use App\Models\Line;
 use App\Models\Patient;
+use App\Models\PriceList;
 use App\Models\State;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,6 +70,16 @@ class PatientController extends Controller
         return Inertia::render('patients/create', [
             'options' => $this->formOptions(),
             'nextHospitalNo' => $this->nextHospitalNumber(),
+            'priceLists' => PriceList::query()
+                ->where('is_category', false)
+                ->whereHas('category', fn (Builder $query) => $query->whereRaw('LOWER(name) = ?', ['billing']))
+                ->orderBy('name')
+                ->get()
+                ->map(fn (PriceList $priceList) => [
+                    'id' => $priceList->getKey(),
+                    'name' => $priceList->name,
+                    'price' => (float) ($priceList->price ?? 0),
+                ])->values(),
         ]);
     }
 
@@ -74,15 +88,61 @@ class PatientController extends Controller
      */
     public function store(StorePatientRequest $request): RedirectResponse
     {
+        $user = $request->user();
+        $teamId = $user->currentTeam->getKey();
+
         $patient = Patient::create([
             ...$request->validated(),
             'slug' => $request->validated('slug') ?? $this->nextHospitalNumber(),
-            'team_id' => $request->user()->currentTeam->getKey(),
+            'team_id' => $teamId,
         ]);
+
+        $this->applyBillings($patient->slug, $teamId, $user, (array) $request->input('billings', []));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient registered.']);
 
-        return to_route('patients.show', [$request->user()->currentTeam->slug, $patient->getKey()]);
+        return to_route('patients.show', [$user->currentTeam->slug, $patient->getKey()]);
+    }
+
+    /**
+     * Create the patient invoices and their lines.
+     *
+     * @param  array<int, array{lines: array<int, array{price_list_id: int, unitPrice: float}>, total?: float}>  $billings
+     */
+    private function applyBillings(string $patientSlug, int $teamId, User $user, array $billings): void
+    {
+        foreach ($billings as $billingData) {
+            if (empty($billingData['lines'])) {
+                continue;
+            }
+
+            $total = $billingData['total'] ?? collect($billingData['lines'])->sum(fn (array $line) => $line['unitPrice']);
+
+            $patient = Patient::query()->where('team_id', $teamId)->where('slug', $patientSlug)->firstOrFail();
+
+            Billing::create([
+                'team_id' => $teamId,
+                'patient_id' => $patientSlug,
+                'billable_type' => Patient::class,
+                'billable_id' => $patient->getKey(),
+                'user_id' => $user->getKey(),
+                'total' => $total,
+                'status' => 'billed',
+            ]);
+
+            foreach ($billingData['lines'] as $lineData) {
+                Line::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientSlug,
+                    'price_list_id' => $lineData['price_list_id'],
+                    'unitPrice' => $lineData['unitPrice'],
+                    'quantity' => 1,
+                    'lineable_type' => Patient::class,
+                    'lineable_id' => $patient->getKey(),
+                    'paid' => true,
+                ]);
+            }
+        }
     }
 
     /**

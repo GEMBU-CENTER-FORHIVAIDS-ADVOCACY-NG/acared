@@ -234,7 +234,7 @@ export default function VendorsIndex({
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search vendors..."
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

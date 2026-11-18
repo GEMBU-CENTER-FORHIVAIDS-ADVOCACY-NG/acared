@@ -225,7 +225,7 @@ export default function TeamsIndex({
                             placeholder="Search teams"
                             className="max-w-sm"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

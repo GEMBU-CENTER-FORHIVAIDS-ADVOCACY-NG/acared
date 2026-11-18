@@ -1,9 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import LaboratoryController from '@/actions/App/Http/Controllers/LaboratoryController';
-import LabResultFields, {
+import LabResultEntryLayout from '@/components/lab-result-entry-layout';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
     buildResultPayload,
     emptyResultValues,
+    flattenTests,
 } from '@/components/lab-result-fields';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +21,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     Sheet,
     SheetContent,
@@ -48,6 +59,7 @@ type CreateLine = {
     quantity: string;
 };
 
+
 export default function LaboratoryIndex({
     currencySymbol,
     filters,
@@ -76,6 +88,8 @@ export default function LaboratoryIndex({
 
     const [processing, setProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [showCancelDialog, setShowCancelDialog] = useState(false);
+    const [refundLineIds, setRefundLineIds] = useState<Set<number>>(new Set());
     const [resultValues, setResultValues] = useState(emptyResultValues());
     const [createOpen, setCreateOpen] = useState(
         Boolean(createOptions.selectedPatientId),
@@ -218,7 +232,42 @@ export default function LaboratoryIndex({
         );
     }
 
-    function saveStepResults(stepIndex: number, _stepName: string) {
+    function openCancelDialog() {
+        if (!selected || !selected.lines) {
+            return;
+        }
+        // Pre-select all pending (not completed) lines
+        const pendingIds = new Set(
+            selected.lines.filter((line) => !line.completed).map((line) => line.id),
+        );
+        setRefundLineIds(pendingIds);
+        setShowCancelDialog(true);
+    }
+
+    function cancelLaboratory() {
+        if (!selected) {
+            return;
+        }
+
+        setProcessing(true);
+        setFormError(null);
+
+        router.post(
+            baseUrl(`/${selected.id}/cancel`),
+            { refund_line_ids: Array.from(refundLineIds) },
+            {
+                preserveScroll: true,
+                onSuccess: () => setShowCancelDialog(false),
+                onError: (errors) =>
+                    setFormError(
+                        Object.values(errors)[0] ?? 'Unable to cancel request.',
+                    ),
+                onFinish: () => setProcessing(false),
+            },
+        );
+    }
+
+    function saveStepResults(testIndex: number, _testName: string) {
         if (!selected || !resultForm) {
             return;
         }
@@ -226,42 +275,41 @@ export default function LaboratoryIndex({
         setProcessing(true);
         setFormError(null);
 
-        const step = resultForm.steps[stepIndex];
-        if (!step) {
+        const flatTests = flattenTests(resultForm);
+        const test = flatTests[testIndex];
+        if (!test) {
             setProcessing(false);
             return;
         }
 
-        // Build payload for the current step only
+        // Build payload for the current test only
         const stepLines: Record<string, string> = {};
         const stepTestResults: Record<string, { price_list_id: number; result: string }[]> = {};
         const stepInventoryConsumption: Record<string, { lab_inventory_id: number; quantity: number }[]> = {};
 
-        for (const test of step.tests) {
-            if (test.kind === 'simple') {
-                const value = resultValues.lines[String(test.id)];
-                if (value) {
-                    stepLines[String(test.id)] = value;
-                }
-            } else if (test.kind === 'parameters') {
-                const testResultMap = resultValues.testResults[String(test.id)] ?? {};
-                const rows = Object.entries(testResultMap)
-                    .filter(([, result]) => result)
-                    .map(([priceListId, result]) => ({
-                        price_list_id: Number(priceListId),
-                        result,
-                    }));
-                if (rows.length > 0) {
-                    stepTestResults[String(test.id)] = rows;
-                }
+        if (test.kind === 'simple') {
+            const value = resultValues.lines[String(test.id)];
+            if (value) {
+                stepLines[String(test.id)] = value;
             }
+        } else if (test.kind === 'parameters') {
+            const testResultMap = resultValues.testResults[String(test.id)] ?? {};
+            const rows = Object.entries(testResultMap)
+                .filter(([, result]) => result)
+                .map(([priceListId, result]) => ({
+                    price_list_id: Number(priceListId),
+                    result,
+                }));
+            if (rows.length > 0) {
+                stepTestResults[String(test.id)] = rows;
+            }
+        }
 
-            // Collect inventory consumption keyed by test (price_list_id)
-            const consumptionRows = resultValues.inventoryConsumption[String(test.id)] ?? [];
-            const filtered = consumptionRows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
-            if (filtered.length > 0) {
-                stepInventoryConsumption[String(test.id)] = filtered;
-            }
+        // Collect inventory consumption for this test
+        const consumptionRows = resultValues.inventoryConsumption[String(test.id)] ?? [];
+        const filtered = consumptionRows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
+        if (filtered.length > 0) {
+            stepInventoryConsumption[String(test.id)] = filtered;
         }
 
         router.patch(
@@ -423,13 +471,24 @@ export default function LaboratoryIndex({
                                 Select a paid request to enter pending test results.
                             </CardDescription>
                         </div>
-                        {selected ? (
-                            <Badge
-                                variant={selected.isAdmitted ? 'default' : 'secondary'}
-                            >
-                                {selected.isAdmitted ? 'On Admission' : 'OPD'}
-                            </Badge>
-                        ) : null}
+                        <div className="flex items-center gap-2">
+                            {selected ? (
+                                <Badge
+                                    variant={selected.isAdmitted ? 'default' : 'secondary'}
+                                >
+                                    {selected.isAdmitted ? 'On Admission' : 'OPD'}
+                                </Badge>
+                            ) : null}
+                            {selected ? (
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={openCancelDialog}
+                                >
+                                    Cancel request
+                                </Button>
+                            ) : null}
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-3">
@@ -480,20 +539,15 @@ export default function LaboratoryIndex({
                         </div>
 
                         {resultForm ? (
-                            <div className="space-y-4">
-                                <LabResultFields
-                                    form={resultForm}
-                                    values={resultValues}
-                                    onChange={setResultValues}
-                                    onSaveStep={saveStepResults}
-                                    onSubmitResults={submitResults}
-                                />
-                                {formError ? (
-                                    <p className="text-sm text-red-600">
-                                        {formError}
-                                    </p>
-                                ) : null}
-                            </div>
+                            <LabResultEntryLayout
+                                form={resultForm}
+                                values={resultValues}
+                                onChange={setResultValues}
+                                onSaveStep={saveStepResults}
+                                onSubmitResults={submitResults}
+                                selected={selected}
+                                formError={formError}
+                            />
                         ) : (
                             <p className="text-sm text-muted-foreground">
                                 Choose a paid laboratory request to begin.
@@ -539,7 +593,7 @@ export default function LaboratoryIndex({
                                     }}
                                 />
                                 {patientSearchOpen && !patientId && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                         {patientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
@@ -719,6 +773,103 @@ export default function LaboratoryIndex({
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
+
+            <Dialog open={showCancelDialog} onOpenChange={(open) => {
+                setShowCancelDialog(open);
+                if (!open) {
+                    setRefundLineIds(new Set());
+                }
+            }}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Cancel laboratory request?</DialogTitle>
+                        <DialogDescription>
+                            Select the tests to refund. Completed tests cannot be refunded.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selected?.lines ? (
+                        <div className="space-y-2">
+                            {selected.lines.map((line) => (
+                                <div
+                                    key={line.id}
+                                    className={`flex items-center justify-between rounded-lg border p-3 ${
+                                        line.completed ? 'opacity-50' : ''
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            id={`refund-line-${line.id}`}
+                                            checked={refundLineIds.has(line.id)}
+                                            disabled={line.completed}
+                                            onCheckedChange={(checked) => {
+                                                const next = new Set(refundLineIds);
+                                                if (checked) {
+                                                    next.add(line.id);
+                                                } else {
+                                                    next.delete(line.id);
+                                                }
+                                                setRefundLineIds(next);
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor={`refund-line-${line.id}`}
+                                            className="text-sm font-medium leading-none cursor-pointer"
+                                        >
+                                            {line.name}
+                                            {line.quantity > 1
+                                                ? ` (×${line.quantity})`
+                                                : ''}
+                                        </label>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        {line.completed ? (
+                                            <span className="text-muted-foreground">Completed</span>
+                                        ) : (
+                                            <span className="text-muted-foreground">
+                                                {currencySymbol}{(line.unitPrice * line.quantity).toLocaleString()}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+
+                    {refundLineIds.size > 0 && selected?.lines ? (
+                        <div className="flex justify-end text-sm font-medium">
+                            Refund total:{' '}
+                            {currencySymbol}
+                            {selected.lines
+                                .filter((line) => refundLineIds.has(line.id))
+                                .reduce(
+                                    (sum, line) => sum + line.unitPrice * line.quantity,
+                                    0,
+                                )
+                                .toLocaleString()}
+                        </div>
+                    ) : null}
+
+                    <DialogFooter>
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                setShowCancelDialog(false);
+                                setRefundLineIds(new Set());
+                            }}
+                        >
+                            Keep request
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            disabled={processing || refundLineIds.size === 0}
+                            onClick={cancelLaboratory}
+                        >
+                            {processing ? 'Cancelling…' : 'Cancel & refund'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

@@ -1,9 +1,8 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import { Banknote, Calculator, Coins, CreditCard, Plus, UserMinus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import FloatingCalculator from '@/components/floating-calculator';
-import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,6 +87,21 @@ type ServiceLineRow = {
 
 const SPECIAL_METHODS = ['Discount', 'Wallet', 'Mercy Fund', 'Infant Formula'];
 
+function calcCompute(a: number, b: number, op: string): number {
+    switch (op) {
+        case '+':
+            return a + b;
+        case '-':
+            return a - b;
+        case '×':
+            return a * b;
+        case '÷':
+            return b !== 0 ? a / b : 0;
+        default:
+            return b;
+    }
+}
+
 function emptyPayment(methodId: string, amount: string): PaymentRow {
     return {
         method_id: methodId,
@@ -171,8 +185,128 @@ export default function BillingIndex({
 
     const [newOpen, setNewOpen] = useState(false);
     const [calculatorOpen, setCalculatorOpen] = useState(false);
-    const [paymentCalculatorOpen, setPaymentCalculatorOpen] = useState(false);
-    const [itemsOpen, setItemsOpen] = useState(false);
+
+    // Inline calculator state
+    const [calcDisplay, setCalcDisplay] = useState('0');
+    const [calcPreviousValue, setCalcPreviousValue] = useState<string | null>(null);
+    const [calcOperation, setCalcOperation] = useState<string | null>(null);
+    const [calcWaitingForOperand, setCalcWaitingForOperand] = useState(false);
+
+    const calcHandleNumber = (num: string) => {
+        if (calcWaitingForOperand) {
+            setCalcDisplay(num);
+            setCalcWaitingForOperand(false);
+        } else {
+            setCalcDisplay(calcDisplay === '0' ? num : calcDisplay + num);
+        }
+    };
+
+    const calcHandleDecimal = () => {
+        if (calcWaitingForOperand) {
+            setCalcDisplay('0.');
+            setCalcWaitingForOperand(false);
+            return;
+        }
+        if (!calcDisplay.includes('.')) {
+            setCalcDisplay(calcDisplay + '.');
+        }
+    };
+
+    const calcHandleOperation = (nextOp: string) => {
+        const currentValue = parseFloat(calcDisplay);
+        if (calcPreviousValue !== null && calcOperation && !calcWaitingForOperand) {
+            const result = calcCompute(parseFloat(calcPreviousValue), currentValue, calcOperation);
+            const resultStr = parseFloat(result.toFixed(10)).toString();
+            setCalcDisplay(resultStr);
+            setCalcPreviousValue(resultStr);
+        } else {
+            setCalcPreviousValue(currentValue.toString());
+        }
+        setCalcOperation(nextOp);
+        setCalcWaitingForOperand(true);
+    };
+
+    const calcHandleEquals = () => {
+        if (calcPreviousValue === null || calcOperation === null) return;
+        const currentValue = parseFloat(calcDisplay);
+        const result = calcCompute(parseFloat(calcPreviousValue), currentValue, calcOperation);
+        const resultStr = parseFloat(result.toFixed(10)).toString();
+        setCalcDisplay(resultStr);
+        setCalcPreviousValue(null);
+        setCalcOperation(null);
+        setCalcWaitingForOperand(true);
+    };
+
+    const calcHandleClear = () => {
+        setCalcDisplay('0');
+        setCalcPreviousValue(null);
+        setCalcOperation(null);
+        setCalcWaitingForOperand(false);
+    };
+
+    const calcHandlePercent = () => {
+        const currentValue = parseFloat(calcDisplay);
+        setCalcDisplay((currentValue / 100).toString());
+    };
+
+    const calcHandleToggleSign = () => {
+        const currentValue = parseFloat(calcDisplay);
+        setCalcDisplay((currentValue * -1).toString());
+    };
+
+    // Keyboard input for calculator
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if user is typing in an input, textarea, or select
+            const target = e.target;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+                return;
+            }
+
+            const key = e.key;
+
+            if (key >= '0' && key <= '9') {
+                e.preventDefault();
+                calcHandleNumber(key);
+            } else if (key === '.') {
+                e.preventDefault();
+                calcHandleDecimal();
+            } else if (key === '+') {
+                e.preventDefault();
+                calcHandleOperation('+');
+            } else if (key === '-') {
+                e.preventDefault();
+                calcHandleOperation('-');
+            } else if (key === '*') {
+                e.preventDefault();
+                calcHandleOperation('×');
+            } else if (key === '/') {
+                e.preventDefault();
+                calcHandleOperation('÷');
+            } else if (key === 'Enter' || key === '=') {
+                e.preventDefault();
+                calcHandleEquals();
+            } else if (key === 'Escape') {
+                e.preventDefault();
+                calcHandleClear();
+            } else if (key === 'Backspace') {
+                e.preventDefault();
+                setCalcDisplay((prev) => {
+                    if (prev.length <= 1 || (prev.length === 2 && prev.startsWith('-'))) {
+                        return '0';
+                    }
+                    return prev.slice(0, -1);
+                });
+            } else if (key === '%') {
+                e.preventDefault();
+                calcHandlePercent();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [calcDisplay, calcPreviousValue, calcOperation, calcWaitingForOperand]);
+
     const [existingPatientId, setExistingPatientId] = useState('');
     const [selectedPatientLabel, setSelectedPatientLabel] = useState('');
     const [patient, setPatient] = useState<NewPatientRow>(emptyPatient());
@@ -695,72 +829,64 @@ export default function BillingIndex({
         },
     ];
 
+    setLayoutProps({
+        headerActions: (
+            <div className="flex items-center gap-3">
+                <div className="min-w-[180px] space-y-0">
+                    <SelectNative
+                        id="date-filter"
+                        value={filters.date_filter}
+                        data-test="billing-date-filter"
+                        onChange={(event) =>
+                            router.get(
+                                index.url(teamSlug, {
+                                    query: {
+                                        date_filter: event.target.value,
+                                    },
+                                }),
+                                {},
+                                {
+                                    preserveState: true,
+                                    preserveScroll: true,
+                                    replace: true,
+                                },
+                            )
+                        }
+                    >
+                        {dateFilterOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </SelectNative>
+                </div>
+                <div className="h-6 w-px bg-border" />
+                <Button
+                    type="button"
+                    data-test="new-billing"
+                    onClick={openNewBilling}
+                >
+                    New Billing
+                </Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={openPatientRegistration}
+                >
+                    Patient Registration
+                </Button>
+                <Button asChild variant="secondary">
+                    <Link href={history(teamSlug).url}>History</Link>
+                </Button>
+            </div>
+        ),
+    });
+
     return (
         <>
             <Head title="Billings" />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="space-y-3">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                        <Heading
-                            variant="small"
-                            title="Billings"
-                            description="Collect payment against billed invoices."
-                        />
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                data-test="new-billing"
-                                onClick={openNewBilling}
-                            >
-                                New Billing
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={openPatientRegistration}
-                            >
-                                Patient Registration
-                            </Button>
-                            <Button asChild variant="secondary">
-                                <Link href={history(teamSlug).url}>History</Link>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-end gap-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="date-filter">Period</Label>
-                        <SelectNative
-                            id="date-filter"
-                            value={filters.date_filter}
-                            data-test="billing-date-filter"
-                            onChange={(event) =>
-                                router.get(
-                                    index.url(teamSlug, {
-                                        query: {
-                                            date_filter: event.target.value,
-                                        },
-                                    }),
-                                    {},
-                                    {
-                                        preserveState: true,
-                                        preserveScroll: true,
-                                        replace: true,
-                                    },
-                                )
-                            }
-                        >
-                            {dateFilterOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </SelectNative>
-                    </div>
-                </div>
-
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {statCards.map((card) => {
                         const Icon = card.icon;
@@ -786,557 +912,561 @@ export default function BillingIndex({
                 </div>
 
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle>Payment form</CardTitle>
-                        {selected ? (
-                            <Badge
-                                variant={selected.isAdmitted ? 'default' : 'secondary'}
-                                data-test="patient-admission-badge"
-                            >
-                                {selected.isAdmitted ? 'On Admission' : 'OPD'}
-                            </Badge>
-                        ) : null}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="billing-select">Billing from</Label>
-                            <SelectNative
-                                id="billing-select"
-                                value={billingId}
-                                onChange={(event) =>
-                                    chooseBilling(event.target.value)
-                                }
-                                data-test="billing-select"
-                            >
-                                <option value="">Select a bill...</option>
-                                {billings.map((billing) => (
-                                    <option key={billing.id} value={billing.id}>
-                                        {billing.patientId}{' '}
-                                        {billing.patientName ?? ''}
-                                    </option>
-                                ))}
-                            </SelectNative>
-                        </div>
-
-                        {selected ? (
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">Patient:</span>
-                                        <span className="text-sm font-medium">
-                                            {selected.patientId} {selected.patientName ?? ''}
-                                        </span>
-                                    </div>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setItemsOpen(true)}
-                                        data-test="view-payment-items"
+                    {/* Billing selector - full width */}
+                    <div className="border-b px-6 py-4">
+                        <div className="max-w-md space-y-2">
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <Label htmlFor="billing-select">Billing from</Label>
+                                    <SelectNative
+                                        id="billing-select"
+                                        value={billingId}
+                                        onChange={(event) =>
+                                            chooseBilling(event.target.value)
+                                        }
+                                        data-test="billing-select"
                                     >
-                                        View items ({selected.lines.length})
-                                    </Button>
+                                        <option value="">Select a bill...</option>
+                                        {billings.map((billing) => (
+                                            <option key={billing.id} value={billing.id}>
+                                                {billing.patientId}{' '}
+                                                {billing.patientName ?? ''}
+                                            </option>
+                                        ))}
+                                    </SelectNative>
                                 </div>
-
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    <p className="text-sm">
-                                        <span className="text-muted-foreground">
-                                            Payment for:{' '}
-                                        </span>
-                                        {selected.billableType ?? '—'}
-                                    </p>
-                                    <p className="text-sm">
-                                        <span className="text-muted-foreground">
-                                            Amount to pay:{' '}
-                                        </span>
-                                        {currencySymbol}{' '}
-                                        {selected.total.toLocaleString()}
-                                    </p>
-                                    <p className="text-sm">
-                                        <span className="text-muted-foreground">
-                                            Category:{' '}
-                                        </span>
-                                        {selected.categoryName ?? '—'}
-                                    </p>
-                                    <p className="text-sm">
-                                        <span className="text-muted-foreground">
-                                            Discount:{' '}
-                                        </span>
-                                        {selected.discountPercentage}%
-                                    </p>
-                                </div>
-                            </div>
-                        ) : null}
-
-                        {selected ? (
-                            <div className="space-y-4">
-                                {payments.map((row, index) => {
-                                    const name = methodName(row);
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            className="space-y-3 rounded-lg border p-4"
+                                {selected && (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0">
+                                            <Label className="text-xs text-muted-foreground">Category</Label>
+                                            <p className="text-sm font-medium">{selected.categoryName ?? '—'}</p>
+                                        </div>
+                                        <Badge
+                                            variant={selected.isAdmitted ? 'default' : 'secondary'}
+                                            data-test="patient-admission-badge"
                                         >
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                <div className="space-y-2">
-                                                    <Label>
-                                                        Payment method
-                                                    </Label>
-                                                    <SelectNative
-                                                        value={row.method_id}
-                                                        onChange={(event) => {
-                                                            updatePayment(
-                                                                index,
-                                                                {
-                                                                    method_id:
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                },
-                                                            );
+                                            {selected.isAdmitted ? 'On Admission' : 'OPD'}
+                                        </Badge>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
-                                                            setPaymentMethodErrors(
-                                                                (current) =>
-                                                                    current.filter(
-                                                                        (i) =>
-                                                                            i !==
-                                                                            index,
-                                                                    ),
-                                                            );
-                                                        }}
-                                                        data-test="payment-method"
-                                                        className={
-                                                            paymentMethodErrors.includes(
-                                                                index,
-                                                            )
-                                                                ? 'border-destructive'
-                                                                : ''
-                                                        }
-                                                    >
-                                                        <option value="">
-                                                            Select method...
-                                                        </option>
-                                                        {methods.map(
-                                                            (method) => (
-                                                                <option
-                                                                    key={
-                                                                        method.id
-                                                                    }
-                                                                    value={
-                                                                        method.id
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        method.name
-                                                                    }
-                                                                </option>
-                                                            ),
-                                                        )}
-                                                    </SelectNative>
-                                                    {paymentMethodErrors.includes(
-                                                        index,
-                                                    ) ? (
-                                                        <p className="text-xs text-destructive">
-                                                            Please select a
-                                                            payment method.
-                                                        </p>
-                                                    ) : null}
+                    {/* Three-column layout */}
+                    {selected ? (
+                        <div className="grid grid-cols-1 gap-0 lg:grid-cols-12">
+                            {/* LEFT SIDEBAR - Calculator inline (col-span-2) */}
+                            <div className="border-r p-6 lg:col-span-2">
+                                <div className="space-y-4">
+                                    <div>
+                                        <h4 className="mb-3 text-sm font-semibold text-muted-foreground">
+                                            Calculator
+                                        </h4>
+                                        <div>
+                                            {/* Display */}
+                                            <div className="mb-2 rounded-md bg-muted p-2 text-right">
+                                                <div className="min-h-[1.25rem] text-[10px] text-muted-foreground">
+                                                    {calcPreviousValue !== null && calcOperation
+                                                        ? `${calcPreviousValue} ${calcOperation}`
+                                                        : ''}
                                                 </div>
-
-                                                {!SPECIAL_METHODS.includes(
-                                                    name,
-                                                ) ? (
-                                                    <div className="space-y-2">
-                                                        <Label>Amount</Label>
-                                                        <Input
-                                                            type="number"
-                                                            value={row.amount}
-                                                            onChange={(event) =>
-                                                                updatePayment(
-                                                                    index,
-                                                                    {
-                                                                        amount: event
-                                                                            .target
-                                                                            .value,
-                                                                    },
-                                                                )
-                                                            }
-                                                            data-test="payment-amount"
-                                                        />
-                                                    </div>
-                                                ) : null}
-
-                                                {name === 'Discount' ? (
-                                                    <>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Discount (%)
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                readOnly
-                                                                value={
-                                                                    selected.discountPercentage
-                                                                }
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Discount amount
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                value={
-                                                                    row.discount_amount
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updatePayment(
-                                                                        index,
-                                                                        {
-                                                                            discount_amount:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                                data-test="payment-discount"
-                                                            />
-                                                        </div>
-                                                    </>
-                                                ) : null}
-
-                                                {name === 'Wallet' ? (
-                                                    <div className="space-y-3">
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Wallet debit
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                value={
-                                                                    row.wallet_debit
-                                                                }
-                                                                onChange={(event) =>
-                                                                    updatePayment(
-                                                                        index,
-                                                                        {
-                                                                            wallet_debit:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                                data-test="payment-wallet"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-2" ref={(el) => {
-                                                            walletPatientSearchContainerRefs.current[index] = el;
-                                                        }}>
-                                                            <Label>
-                                                                Credit to patient
-                                                                <span className="text-muted-foreground ml-1">
-                                                                    (default: {selected?.patientId})
-                                                                </span>
-                                                            </Label>
-                                                            <div className="relative">
-                                                                <Input
-                                                                    data-test="wallet-patient"
-                                                                    ref={(el) => {
-                                                                        walletPatientSearchInputRefs.current[index] = el;
-                                                                    }}
-                                                                    placeholder="Search patient to credit wallet..."
-                                                                    value={row.wallet_patient_id ? getWalletPatientLabel(index, row.wallet_patient_id) : (walletPatientSearchQueries[index] ?? '')}
-                                                                    onClick={() => {
-                                                                        if (!row.wallet_patient_id) {
-                                                                            setWalletPatientSearchOpen((prev) => ({
-                                                                                ...prev,
-                                                                                [index]: true,
-                                                                            }));
-                                                                        }
-                                                                    }}
-                                                                    onChange={(event) => {
-                                                                        const value = event.target.value;
-                                                                        updatePayment(index, { wallet_patient_id: '' });
-                                                                        setWalletPatientSearchQueries((prev) => ({
-                                                                            ...prev,
-                                                                            [index]: value,
-                                                                        }));
-                                                                        searchWalletPatients(index, value);
-                                                                        setWalletPatientSearchOpen((prev) => ({
-                                                                            ...prev,
-                                                                            [index]: true,
-                                                                        }));
-                                                                    }}
-                                                                />
-                                                                {walletPatientSearchOpen[index] && !row.wallet_patient_id && (
-                                                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
-                                                                        {walletPatientSearchLoading[index] && (
-                                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                                                Searching…
-                                                                            </div>
-                                                                        )}
-                                                                        {!walletPatientSearchLoading[index] &&
-                                                                         (walletPatientSearchResults[index] ?? []).length === 0 &&
-                                                                         walletPatientSearchQueries[index]?.trim() && (
-                                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                                                No patients found.
-                                                                            </div>
-                                                                        )}
-                                                                        {(walletPatientSearchResults[index] ?? []).map((patient) => (
-                                                                            <button
-                                                                                key={patient.slug}
-                                                                                type="button"
-                                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                                                onClick={() => {
-                                                                                    updatePayment(index, {
-                                                                                        wallet_patient_id: patient.slug,
-                                                                                    });
-                                                                                    setWalletPatientSearchQueries((prev) => {
-                                                                                        const next = { ...prev };
-                                                                                        delete next[index];
-                                                                                        return next;
-                                                                                    });
-                                                                                    setWalletPatientSearchOpen((prev) => ({
-                                                                                        ...prev,
-                                                                                        [index]: false,
-                                                                                    }));
-                                                                                }}
-                                                                            >
-                                                                                {patient.label}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : null}
-
-                                                {name === 'Mercy Fund' ||
-                                                name === 'Infant Formula' ? (
-                                                    <>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Coupon
-                                                            </Label>
-                                                            <SelectNative
-                                                                value={
-                                                                    row.coupon_id
-                                                                }
-                                                                onChange={(event) => {
-                                                                    const selectedCoupon = coupons.find(
-                                                                        (c) => String(c.id) === event.target.value && c.patientId === selected?.patientId,
-                                                                    );
-
-                                                                    updatePayment(
-                                                                        index,
-                                                                        {
-                                                                            coupon_id:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                            coupon_discount_amount:
-                                                                                selectedCoupon
-                                                                                    ? String(selectedCoupon.value)
-                                                                                    : row.coupon_discount_amount,
-                                                                        },
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <option value="">
-                                                                    Select
-                                                                    coupon...
-                                                                </option>
-                                                                {coupons
-                                                                    .filter(
-                                                                        (c) =>
-                                                                            c.patientId ===
-                                                                            selected?.patientId &&
-                                                                            (name ===
-                                                                            'Mercy Fund'
-                                                                                ? c.fundType ===
-                                                                                  'mercy_fund'
-                                                                                : c.fundType ===
-                                                                                  'infant_formula'),
-                                                                    )
-                                                                    .map(
-                                                                        (
-                                                                            coupon,
-                                                                        ) => (
-                                                                            <option
-                                                                                key={
-                                                                                    coupon.id
-                                                                                }
-                                                                                value={
-                                                                                    coupon.id
-                                                                                }
-                                                                            >
-                                                                                {coupon.code} - {coupon.type === 'percentage' ? `${coupon.value}%` : `${currencySymbol} ${coupon.value}`} (Balance: {currencySymbol} {coupon.balance})
-                                                                            </option>
-                                                                        ),
-                                                                    )}
-                                                            </SelectNative>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Amount
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                value={
-                                                                    row.coupon_discount_amount
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updatePayment(
-                                                                        index,
-                                                                        {
-                                                                            coupon_discount_amount:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </>
-                                                ) : null}
+                                                <div className="truncate text-lg font-semibold tabular-nums">
+                                                    {calcDisplay}
+                                                </div>
                                             </div>
 
-                                            {payments.length > 1 ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        removePayment(index)
-                                                    }
-                                                >
-                                                    Remove payment
-                                                </Button>
-                                            ) : null}
+                                            {/* Button Grid */}
+                                            <div className="grid grid-cols-4 gap-1.5">
+                                                <button type="button" onClick={calcHandleClear} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 text-destructive font-semibold">C</button>
+                                                <button type="button" onClick={calcHandleToggleSign} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 text-muted-foreground">±</button>
+                                                <button type="button" onClick={calcHandlePercent} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 text-muted-foreground">%</button>
+                                                <button type="button" onClick={() => calcHandleOperation('÷')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 bg-primary/10 text-primary hover:bg-primary/20">÷</button>
+                                                <button type="button" onClick={() => calcHandleNumber('7')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">7</button>
+                                                <button type="button" onClick={() => calcHandleNumber('8')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">8</button>
+                                                <button type="button" onClick={() => calcHandleNumber('9')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">9</button>
+                                                <button type="button" onClick={() => calcHandleOperation('×')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 bg-primary/10 text-primary hover:bg-primary/20">×</button>
+                                                <button type="button" onClick={() => calcHandleNumber('4')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">4</button>
+                                                <button type="button" onClick={() => calcHandleNumber('5')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">5</button>
+                                                <button type="button" onClick={() => calcHandleNumber('6')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">6</button>
+                                                <button type="button" onClick={() => calcHandleOperation('-')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 bg-primary/10 text-primary hover:bg-primary/20">-</button>
+                                                <button type="button" onClick={() => calcHandleNumber('1')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">1</button>
+                                                <button type="button" onClick={() => calcHandleNumber('2')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">2</button>
+                                                <button type="button" onClick={() => calcHandleNumber('3')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">3</button>
+                                                <button type="button" onClick={() => calcHandleOperation('+')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 bg-primary/10 text-primary hover:bg-primary/20">+</button>
+                                                <button type="button" onClick={() => calcHandleNumber('0')} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">0</button>
+                                                <button type="button" onClick={calcHandleDecimal} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1">.</button>
+                                                <button type="button" onClick={calcHandleEquals} className="flex aspect-square items-center justify-center rounded-md text-xs font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 bg-primary text-primary-foreground hover:bg-primary/90">=</button>
+                                            </div>
                                         </div>
-                                    );
-                                })}
-
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={addPayment}
-                                >
-                                    Add payment
-                                </Button>
-                            </div>
-                        ) : null}
-
-                        {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
-                        ) : null}
-
-                        <div className="flex items-center gap-2">
-                            <Button
-                                type="button"
-                                onClick={submit}
-                                disabled={processing || !selected}
-                                data-test="submit-payment"
-                            >
-                                {processing ? 'Saving...' : 'Record payment'}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setPaymentCalculatorOpen(true)}
-                                aria-label="Open calculator"
-                            >
-                                <Calculator className="mr-2 size-4" />
-                                Calculator
-                            </Button>
-                        </div>
-
-                        <FloatingCalculator
-                            modal={true}
-                            showToggle={false}
-                            isOpen={paymentCalculatorOpen}
-                            onOpenChange={setPaymentCalculatorOpen}
-                        />
-                    </CardContent>
-                </Card>
-            </div>
-
-            <Sheet open={itemsOpen} onOpenChange={setItemsOpen}>
-                <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-                    <SheetHeader>
-                        <SheetTitle>Requested items</SheetTitle>
-                        <SheetDescription>
-                            {selected
-                                ? `${selected.patientId} ${selected.patientName ?? ''} - ${selected.billableType ?? 'Billing'}`
-                                : 'Items requested for this payment.'}
-                        </SheetDescription>
-                    </SheetHeader>
-
-                    {selected ? (
-                        <div className="space-y-4 px-4 pb-6">
-                            <div className="rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Item</TableHead>
-                                            <TableHead>Quantity</TableHead>
-                                            <TableHead>Price</TableHead>
-                                            <TableHead>Subtotal</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {selected.lines.length > 0 ? (
-                                            selected.lines.map((line) => (
-                                                <TableRow key={line.id}>
-                                                    <TableCell>
-                                                        {line.name ?? '-'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {line.quantity ?? 1}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {line.unitPrice.toLocaleString()}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {line.totalPrice.toLocaleString()}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={4}
-                                                    className="text-center text-muted-foreground"
-                                                >
-                                                    No items requested.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-                                <span className="text-muted-foreground">
-                                    Total
-                                </span>
-                                <span className="font-semibold">
-                                    {currencySymbol}{' '}
-                                    {selected.total.toLocaleString()}
-                                </span>
+                            {/* CENTER PANEL - Payment Methods as Tabs (col-span-5) */}
+                            <div className="p-6 lg:col-span-5">
+                                <div className="space-y-4">
+                                    {/* Billable type header */}
+                                    <div className="rounded-md border bg-muted/30 px-4 py-3">
+                                        <p className="text-sm font-semibold">
+                                            {selected.billableType ?? 'Billing'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Ordered by: {selected.requestedBy ?? '—'}
+                                        </p>
+                                    </div>
+
+                                    {/* Payment methods table */}
+                                    <div className="space-y-2">
+                                        <div className="overflow-visible rounded-lg border">
+                                            <Table overflow="overflow-visible">
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-[65%] text-sm">Payment Method</TableHead>
+                                                        <TableHead className="w-[35%] text-sm">Amount</TableHead>
+                                                        <TableHead className="w-10"></TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {payments.length > 0 ? (
+                                                        payments.map((row, index) => {
+                                                            const name = methodName(row);
+                                                            const rowElement = (
+                                                                <TableRow key={index}>
+                                                                    <TableCell className="py-3">
+                                                                        <div className="space-y-2">
+                                                                            <SelectNative
+                                                                                value={row.method_id}
+                                                                                className="w-full"
+                                                                                onChange={(event) => {
+                                                                                    updatePayment(
+                                                                                        index,
+                                                                                        {
+                                                                                            method_id:
+                                                                                                event
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        },
+                                                                                    );
+
+                                                                                    setPaymentMethodErrors(
+                                                                                        (current) =>
+                                                                                            current.filter(
+                                                                                                (i) =>
+                                                                                                    i !==
+                                                                                                    index,
+                                                                                            ),
+                                                                                    );
+                                                                                }}
+                                                                                data-test="payment-method"
+                                                                                className={
+                                                                                    paymentMethodErrors.includes(
+                                                                                        index,
+                                                                                    )
+                                                                                        ? 'border-destructive'
+                                                                                        : ''
+                                                                                }
+                                                                            >
+                                                                                <option value="">
+                                                                                    Select method...
+                                                                                </option>
+                                                                                {methods.map(
+                                                                                    (method) => (
+                                                                                        <option
+                                                                                            key={
+                                                                                                method.id
+                                                                                            }
+                                                                                            value={
+                                                                                                method.id
+                                                                                            }
+                                                                                        >
+                                                                                            {
+                                                                                                method.name
+                                                                                            }
+                                                                                        </option>
+                                                                                    ),
+                                                                                )}
+                                                                            </SelectNative>
+                                                                            {paymentMethodErrors.includes(
+                                                                                index,
+                                                                            ) ? (
+                                                                                <p className="text-xs text-destructive">
+                                                                                    Please select a payment method.
+                                                                                </p>
+                                                                            ) : null}
+
+                                                                            {name === 'Discount' && (
+                                                                                <div className="space-y-2">
+                                                                                    <Label>Discount amount</Label>
+                                                                                    <Input
+                                                                                        type="number"
+                                                                                        className="w-full"
+                                                                                        value={row.discount_amount}
+                                                                                        onChange={(event) =>
+                                                                                            updatePayment(
+                                                                                                index,
+                                                                                                {
+                                                                                                    discount_amount:
+                                                                                                        event
+                                                                                                            .target
+                                                                                                            .value,
+                                                                                                },
+                                                                                            )
+                                                                                        }
+                                                                                        data-test="payment-discount"
+                                                                                    />
+                                                                                </div>
+                                                                            )}
+
+                                                                            {name === 'Wallet' && (
+                                                                                <div className="space-y-2">
+                                                                                    <div ref={(el) => {
+                                                                                        walletPatientSearchContainerRefs.current[index] = el;
+                                                                                    }}>
+                                                                                        <Label>
+                                                                                            Credit to patient
+                                                                                            <span className="text-muted-foreground ml-1">
+                                                                                                (default: {selected?.patientId})
+                                                                                            </span>
+                                                                                        </Label>
+                                                                                        <div className="relative">
+                                                                                            <Input
+                                                                                                data-test="wallet-patient"
+                                                                                                className="w-full"
+                                                                                                ref={(el) => {
+                                                                                                    walletPatientSearchInputRefs.current[index] = el;
+                                                                                                }}
+                                                                                                placeholder="Search patient by name, code, or phone…"
+                                                                                                value={row.wallet_patient_id ? getWalletPatientLabel(index, row.wallet_patient_id) : (walletPatientSearchQueries[index] ?? '')}
+                                                                                                readOnly={!!row.wallet_patient_id}
+                                                                                                onClick={() => {
+                                                                                                    if (!row.wallet_patient_id) {
+                                                                                                        setWalletPatientSearchOpen((prev) => ({
+                                                                                                            ...prev,
+                                                                                                            [index]: true,
+                                                                                                        }));
+                                                                                                    }
+                                                                                                }}
+                                                                                                onChange={(event) => {
+                                                                                                    const value = event.target.value;
+                                                                                                    updatePayment(index, { wallet_patient_id: '' });
+                                                                                                    setWalletPatientSearchQueries((prev) => ({
+                                                                                                        ...prev,
+                                                                                                        [index]: value,
+                                                                                                    }));
+                                                                                                    searchWalletPatients(index, value);
+                                                                                                    setWalletPatientSearchOpen((prev) => ({
+                                                                                                        ...prev,
+                                                                                                        [index]: true,
+                                                                                                    }));
+                                                                                                }}
+                                                                                            />
+                                                                                            {walletPatientSearchOpen[index] && !row.wallet_patient_id && (
+                                                                                                <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                                                                                    <div className="flex flex-col">
+                                                                                                        {walletPatientSearchLoading[index] && (
+                                                                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                                                                                Searching…
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                        {!walletPatientSearchLoading[index] &&
+                                                                                                         (walletPatientSearchResults[index] ?? []).length === 0 &&
+                                                                                                         walletPatientSearchQueries[index]?.trim() && (
+                                                                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                                                                                No patients found
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                        {(walletPatientSearchResults[index] ?? []).map((patient) => (
+                                                                                                            <button
+                                                                                                                key={patient.slug}
+                                                                                                                type="button"
+                                                                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                                                                                onClick={() => {
+                                                                                                                    updatePayment(index, {
+                                                                                                                        wallet_patient_id: patient.slug,
+                                                                                                                    });
+                                                                                                                    setWalletPatientSearchQueries((prev) => {
+                                                                                                                        const next = { ...prev };
+                                                                                                                        delete next[index];
+                                                                                                                        return next;
+                                                                                                                    });
+                                                                                                                    setWalletPatientSearchOpen((prev) => ({
+                                                                                                                        ...prev,
+                                                                                                                        [index]: false,
+                                                                                                                    }));
+                                                                                                                }}
+                                                                                                            >
+                                                                                                                {patient.label}
+                                                                                                            </button>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell className="py-3">
+                                                                        {!SPECIAL_METHODS.includes(name) ? (
+                                                                            <Input
+                                                                                type="number"
+                                                                                className="w-full"
+                                                                                value={row.amount}
+                                                                                onChange={(event) =>
+                                                                                    updatePayment(
+                                                                                        index,
+                                                                                        {
+                                                                                            amount: event
+                                                                                                .target
+                                                                                                .value,
+                                                                                        },
+                                                                                    )
+                                                                                }
+                                                                                data-test="payment-amount"
+                                                                            />
+                                                                        ) : name === 'Discount' ? (
+                                                                            <Input
+                                                                                type="number"
+                                                                                className="w-full"
+                                                                                readOnly
+                                                                                value={selected.discountPercentage}
+                                                                            />
+                                                                        ) : name === 'Wallet' ? (
+                                                                            <Input
+                                                                                type="number"
+                                                                                className="w-full"
+                                                                                value={row.wallet_debit}
+                                                                                onChange={(event) =>
+                                                                                    updatePayment(
+                                                                                        index,
+                                                                                        {
+                                                                                            wallet_debit:
+                                                                                                event
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        },
+                                                                                    )
+                                                                                }
+                                                                                data-test="payment-wallet"
+                                                                            />
+                                                                        ) : (name === 'Mercy Fund' || name === 'Infant Formula') ? (
+                                                                            <Input
+                                                                                type="number"
+                                                                                className="w-full"
+                                                                                value={row.coupon_discount_amount}
+                                                                                onChange={(event) =>
+                                                                                    updatePayment(
+                                                                                        index,
+                                                                                        {
+                                                                                            coupon_discount_amount:
+                                                                                                event
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        },
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                        ) : null}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        {payments.length > 1 && (
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="size-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                                                                onClick={() => removePayment(index)}
+                                                                            >
+                                                                                <X className="size-4" />
+                                                                            </Button>
+                                                                        )}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            );
+
+                                                            if (name === 'Mercy Fund' || name === 'Infant Formula') {
+                                                                return (
+                                                                    <>
+                                                                        {rowElement}
+                                                                        <TableRow key={`coupon-${index}`}>
+                                                                            <TableCell className="py-2">
+                                                                                <SelectNative
+                                                                                    className="w-full"
+                                                                                    value={row.coupon_id}
+                                                                                    onChange={(event) => {
+                                                                                        const selectedCoupon = coupons.find(
+                                                                                            (c) => String(c.id) === event.target.value && c.patientId === selected?.patientId,
+                                                                                        );
+
+                                                                                        updatePayment(
+                                                                                            index,
+                                                                                            {
+                                                                                                coupon_id:
+                                                                                                    event
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                                coupon_discount_amount:
+                                                                                                    selectedCoupon
+                                                                                                        ? String(selectedCoupon.value)
+                                                                                                        : row.coupon_discount_amount,
+                                                                                            },
+                                                                                        );
+                                                                                    }}
+                                                                                >
+                                                                                    <option value="">
+                                                                                        Select coupon...
+                                                                                    </option>
+                                                                                    {coupons
+                                                                                        .filter(
+                                                                                            (c) =>
+                                                                                                c.patientId ===
+                                                                                                selected?.patientId &&
+                                                                                                (name === 'Mercy Fund'
+                                                                                                    ? c.fundType === 'mercy_fund'
+                                                                                                    : c.fundType === 'infant_formula'),
+                                                                                        )
+                                                                                        .map((coupon) => (
+                                                                                            <option
+                                                                                                key={coupon.id}
+                                                                                                value={coupon.id}
+                                                                                            >
+                                                                                                {coupon.code} - {coupon.type === 'percentage' ? `${coupon.value}%` : `${currencySymbol} ${coupon.value}`} (Balance: {currencySymbol} {coupon.balance})
+                                                                                            </option>
+                                                                                        ))}
+                                                                                </SelectNative>
+                                                                            </TableCell>
+                                                                            <TableCell colSpan={2}></TableCell>
+                                                                        </TableRow>
+                                                                    </>
+                                                                );
+                                                            }
+
+                                                            return rowElement;
+                                                        })
+                                                    ) : (
+                                                        <TableRow>
+                                                            <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
+                                                                No payment methods added.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={addPayment}
+                                        >
+                                            <Plus className="mr-1 size-3" />
+                                            Add Payment Method
+                                        </Button>
+                                    </div>
+
+                                    {error ? (
+                                        <p className="text-sm text-destructive">{error}</p>
+                                    ) : null}
+
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            onClick={submit}
+                                            disabled={processing}
+                                            data-test="submit-payment"
+                                        >
+                                            {processing ? 'Saving...' : 'Record payment'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* RIGHT SIDEBAR - Summary (col-span-5) */}
+                            <div className="p-6 lg:col-span-5">
+                                <div className="space-y-6">
+                                    {/* Timer-like summary card */}
+                                    <div className="rounded-lg border p-4 text-center">
+                                        <div className="mx-auto mb-3 flex h-24 w-24 items-center justify-center rounded-full border-4 border-orange-500">
+                                            <div className="text-center">
+                                                <p className="text-xs text-muted-foreground">Amount Due</p>
+                                                <p className="text-lg font-bold text-orange-600">
+                                                    {currencySymbol}
+                                                    {selected.total.toLocaleString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Discount: {selected.discountPercentage}%
+                                        </p>
+                                    </div>
+
+                                    {/* Line items panel */}
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-semibold text-muted-foreground">
+                                            Line Items Requested ({selected.lines.length})
+                                        </p>
+                                        <div className="max-h-60 overflow-y-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="text-xs">Item</TableHead>
+                                                        <TableHead className="text-xs">Qty</TableHead>
+                                                        <TableHead className="text-xs">Price</TableHead>
+                                                        <TableHead className="text-xs">Subtotal</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {selected.lines.length > 0 ? (
+                                                        selected.lines.map((line) => (
+                                                            <TableRow key={line.id}>
+                                                                <TableCell className="text-xs">
+                                                                    {line.name ?? '-'}
+                                                                </TableCell>
+                                                                <TableCell className="text-xs">
+                                                                    {line.quantity ?? 1}
+                                                                </TableCell>
+                                                                <TableCell className="text-xs">
+                                                                    {line.unitPrice.toLocaleString()}
+                                                                </TableCell>
+                                                                <TableCell className="text-xs">
+                                                                    {line.totalPrice.toLocaleString()}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    ) : (
+                                                        <TableRow>
+                                                            <TableCell
+                                                                colSpan={4}
+                                                                className="text-center text-xs text-muted-foreground"
+                                                            >
+                                                                No items requested.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+
+                                        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                                            <span className="text-muted-foreground">
+                                                Total
+                                            </span>
+                                            <span className="font-semibold">
+                                                {currencySymbol}{' '}
+                                                {selected.total.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ) : null}
-                </SheetContent>
-            </Sheet>
+                </Card>
+            </div>
 
             <Sheet open={newOpen} onOpenChange={setNewOpen}>
                 <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
@@ -1375,7 +1505,7 @@ export default function BillingIndex({
                                     }}
                                 />
                                 {patientSearchOpen && !existingPatientId && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                         {patientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
@@ -1905,7 +2035,7 @@ export default function BillingIndex({
                                     }}
                                 />
                                 {servicePatientSearchOpen && !serviceExistingPatientId && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                         {servicePatientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…

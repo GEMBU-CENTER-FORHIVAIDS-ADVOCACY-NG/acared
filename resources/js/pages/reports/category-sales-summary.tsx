@@ -152,7 +152,6 @@ export default function CategorySalesSummary({
                             />
                         </div>
                         <Button
-                            variant="secondary"
                             onClick={() => visit({ from, to })}
                         >
                             Apply

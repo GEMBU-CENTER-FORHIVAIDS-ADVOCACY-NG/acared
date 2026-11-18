@@ -64,6 +64,7 @@ class ConsultationController extends Controller
         $status = $this->statusFilter($request);
         $doctorId = $request->integer('doctor_id');
         $date = trim((string) $request->query('date', ''));
+        $search = trim((string) $request->query('q', ''));
 
         $consultations = Consultation::query()
             ->with(['patient', 'doctor'])
@@ -82,6 +83,7 @@ class ConsultationController extends Controller
                 'status' => $status,
                 'doctor_id' => $doctorId > 0 ? $doctorId : null,
                 'date' => $date,
+                'q' => $search,
             ],
             'statusOptions' => collect(self::STATUS_FILTERS)
                 ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
@@ -89,8 +91,8 @@ class ConsultationController extends Controller
                 ->all(),
             'doctorOptions' => $this->doctorOptions($request),
             'events' => $this->events(),
-            'dailyTimeline' => $this->dailyTimelineEvents($date, $status, $doctorId),
-            'sidebar' => $this->sidebar($date, $status, $doctorId),
+            'dailyTimeline' => $this->dailyTimelineEvents($date, $status, $doctorId, $search),
+            'sidebar' => $this->sidebar($date, $status, $doctorId, $search),
             'newBillingOptions' => $this->newBillingOptions(),
         ]);
     }
@@ -249,15 +251,15 @@ class ConsultationController extends Controller
             Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient transferred to doctor.']);
         } else {
             // Transfer from consultation to nurse creates a new nursing record
-            $consultation->update(['status' => 'transferred']);
+            $now = now();
 
             Nursing::create([
                 'team_id' => $consultation->team_id,
                 'billing_id' => $consultation->billing_id,
                 'patient_id' => $consultation->patient_id,
                 'nurse_id' => $validated['nurse_id'],
-                'starts_at' => $consultation->starts_at,
-                'ends_at' => $consultation->ends_at,
+                'starts_at' => $now,
+                'ends_at' => $now->copy()->addHour(),
                 'status' => 'scheduled',
             ]);
 
@@ -317,17 +319,26 @@ class ConsultationController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function dailyTimelineEvents(string $date = '', string $status = '', int $doctorId = 0): array
+    private function dailyTimelineEvents(string $date = '', string $status = '', int $doctorId = 0, string $search = ''): array
     {
         $now = CarbonImmutable::now();
         $filterDate = $date !== '' ? $date : $now->toDateString();
         $user = request()->user();
+        $isSearching = $search !== '';
 
         $consultations = Consultation::query()
             ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
             ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
             ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
-            ->whereDate('starts_at', $filterDate)
+            ->when(! $isSearching, fn (Builder $query) => $query->whereDate('starts_at', $filterDate))
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            })
             ->with(['patient.category'])
             ->orderBy('starts_at')
             ->get();
@@ -347,6 +358,7 @@ class ConsultationController extends Controller
                 'endsAt' => $consultation->ends_at?->format('g:i A') ?? null,
                 'status' => $consultation->status,
                 'visitType' => ($patientConsultationCounts->get($consultation->patient_id) ?? 0) <= 1 ? 'new' : 'revisit',
+                'type' => 'consultation',
                 'color' => $consultation->calendarColor(),
                 'url' => route('consultations.view', [
                     'current_team' => request()->user()->currentTeam->slug,
@@ -365,19 +377,30 @@ class ConsultationController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function sidebar(string $selectedDate = '', string $status = '', int $doctorId = 0): array
+    private function sidebar(string $selectedDate = '', string $status = '', int $doctorId = 0, string $search = ''): array
     {
         $now = CarbonImmutable::now();
         $monthStart = $now->startOfMonth();
         $monthEnd = $now->endOfMonth();
         $user = request()->user();
+        $isSearching = $search !== '';
 
         $monthConsultations = Consultation::query()
             ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
             ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
             ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
-            ->when($selectedDate !== '', fn (Builder $query) => $query->whereDate('starts_at', $selectedDate))
-            ->when($selectedDate === '', fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
+            ->when(! $isSearching, function (Builder $query) use ($selectedDate, $monthStart, $monthEnd): void {
+                $query->when($selectedDate !== '', fn (Builder $q) => $q->whereDate('starts_at', $selectedDate))
+                    ->when($selectedDate === '', fn (Builder $q) => $q->whereBetween('starts_at', [$monthStart, $monthEnd]));
+            })
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            })
             ->get(['id', 'starts_at', 'status']);
 
         $byDay = $monthConsultations->groupBy(fn (Consultation $consultation) => $consultation->starts_at?->format('Y-m-d') ?: 'unknown');
@@ -624,6 +647,8 @@ class ConsultationController extends Controller
                     'Surgery',
                     'Ophthalmic Services',
                     'Dental Services',
+                    'Imaging',
+                    'Imaging/Radiography',
                 ]))
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])

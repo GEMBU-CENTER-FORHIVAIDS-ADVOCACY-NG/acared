@@ -29,6 +29,7 @@ class ReceptionController extends Controller
     public function index(Request $request): Response
     {
         $selectedDate = $request->query('date');
+        $search = trim((string) $request->query('q', ''));
         [$start, $end] = $this->dateRange($selectedDate);
 
         return Inertia::render('reception/index', [
@@ -48,8 +49,11 @@ class ReceptionController extends Controller
                     'uom' => trim(strip_tags((string) $priceList->uom)),
                 ])
                 ->all(),
-            'dailyTimeline' => $this->dailyTimelineEvents($selectedDate),
-            'sidebar' => $this->sidebar($selectedDate),
+            'dailyTimeline' => $this->dailyTimelineEvents($selectedDate, $search),
+            'sidebar' => $this->sidebar($selectedDate, $search),
+            'filters' => [
+                'q' => $search,
+            ],
         ]);
     }
 
@@ -115,20 +119,26 @@ class ReceptionController extends Controller
             ->first();
 
         if ($appointment instanceof Appointment) {
+            $now = now();
+
             if ($transferTo === 'doctor') {
                 $appointment->update([
                     'doctor_id' => $data['doctor_id'],
                     'nurse_id' => null,
+                    'starts_at' => $now,
+                    'ends_at' => $now->copy()->addHour(),
                 ]);
 
                 // Update the linked Consultation so the doctor sees the transferred patient
                 Consultation::query()
                     ->where('appointment_id', $appointment->getKey())
-                    ->update(['doctor_id' => $data['doctor_id']]);
+                    ->update(['doctor_id' => $data['doctor_id'], 'starts_at' => $now, 'ends_at' => $now->copy()->addHour()]);
             } else {
                 $appointment->update([
                     'doctor_id' => null,
                     'nurse_id' => $data['nurse_id'],
+                    'starts_at' => $now,
+                    'ends_at' => $now->copy()->addHour(),
                 ]);
             }
 
@@ -145,19 +155,23 @@ class ReceptionController extends Controller
             ->first();
 
         if ($nursing instanceof Nursing) {
+            $now = now();
+
             if ($transferTo === 'nurse') {
-                $nursing->update(['nurse_id' => $data['nurse_id']]);
+                $nursing->update([
+                    'nurse_id' => $data['nurse_id'],
+                    'starts_at' => $now,
+                    'ends_at' => $now->copy()->addHour(),
+                ]);
             } else {
                 // Transfer from nursing to doctor creates a new appointment and consultation
-                $nursing->update(['status' => 'transferred']);
-
                 $appointment = Appointment::create([
                     'team_id' => $nursing->team_id,
                     'billing_id' => $nursing->billing_id,
                     'patient_id' => $nursing->patient_id,
                     'doctor_id' => $data['doctor_id'],
-                    'starts_at' => $nursing->starts_at,
-                    'ends_at' => $nursing->ends_at,
+                    'starts_at' => $now,
+                    'ends_at' => $now->copy()->addHour(),
                     'status' => 'scheduled',
                 ]);
 
@@ -167,8 +181,8 @@ class ReceptionController extends Controller
                     'patient_id' => $nursing->patient_id,
                     'doctor_id' => $data['doctor_id'],
                     'appointment_id' => $appointment->getKey(),
-                    'starts_at' => $nursing->starts_at,
-                    'ends_at' => $nursing->ends_at,
+                    'starts_at' => $now,
+                    'ends_at' => $now->copy()->addHour(),
                     'status' => 'scheduled',
                 ]);
             }
@@ -355,14 +369,23 @@ class ReceptionController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function dailyTimelineEvents(?string $selectedDate = null): array
+    private function dailyTimelineEvents(?string $selectedDate = null, string $search = ''): array
     {
         $date = $selectedDate ? CarbonImmutable::parse($selectedDate) : CarbonImmutable::now();
         $teamSlug = request()->user()->currentTeam->slug;
+        $isSearching = $search !== '';
 
         $appointmentEvents = Appointment::query()
             ->whereIn('status', ['scheduled', 'started', 'completed'])
-            ->whereDate('starts_at', $date->toDateString())
+            ->when(! $isSearching, fn (Builder $query) => $query->whereDate('starts_at', $date->toDateString()))
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            })
             ->with(['patient.category'])
             ->orderBy('starts_at')
             ->get()
@@ -383,7 +406,15 @@ class ReceptionController extends Controller
 
         $nursingEvents = Nursing::query()
             ->whereIn('status', ['scheduled', 'started', 'completed'])
-            ->whereDate('starts_at', $date->toDateString())
+            ->when(! $isSearching, fn (Builder $query) => $query->whereDate('starts_at', $date->toDateString()))
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            })
             ->with(['patient.category'])
             ->orderBy('starts_at')
             ->get()
@@ -405,7 +436,7 @@ class ReceptionController extends Controller
                 'categoryName' => $nursing->patient?->category?->name,
             ]);
 
-        return $appointmentEvents->merge($nursingEvents)->sortBy('startsAt')->values()->all();
+        return collect($appointmentEvents->all() + $nursingEvents->all())->sortBy('startsAt')->values()->all();
     }
 
     /**
@@ -413,20 +444,35 @@ class ReceptionController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function sidebar(?string $selectedDate = null): array
+    private function sidebar(?string $selectedDate = null, string $search = ''): array
     {
         $now = CarbonImmutable::now();
         $date = $selectedDate ? CarbonImmutable::parse($selectedDate) : $now;
         $monthStart = $date->startOfMonth();
         $monthEnd = $date->endOfMonth();
         $teamSlug = request()->user()->currentTeam->slug;
+        $isSearching = $search !== '';
 
         $monthAppointments = Appointment::query()
-            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            }, fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
             ->get(['id', 'starts_at', 'status']);
 
         $monthNursing = Nursing::query()
-            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            }, fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
             ->get(['id', 'starts_at', 'status']);
 
         $allRecords = $monthAppointments->merge($monthNursing);
@@ -500,7 +546,15 @@ class ReceptionController extends Controller
             'upcoming' => Appointment::query()
                 ->whereIn('status', ['scheduled', 'started'])
                 ->with(['patient', 'doctor'])
-                ->where('starts_at', '>=', $date->startOfDay())
+                ->when(! $isSearching, fn (Builder $query) => $query->where('starts_at', '>=', $date->startOfDay()))
+                ->when($isSearching, function (Builder $query) use ($search): void {
+                    $query->whereHas('patient', function (Builder $q) use ($search): void {
+                        $q->where('slug', 'like', "%{$search}%")
+                            ->orWhere('firstName', 'like', "%{$search}%")
+                            ->orWhere('lastName', 'like', "%{$search}%")
+                            ->orWhere('fullName', 'like', "%{$search}%");
+                    });
+                })
                 ->orderBy('starts_at')
                 ->limit(5)
                 ->get()

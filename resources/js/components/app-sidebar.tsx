@@ -68,8 +68,9 @@ import { index as financialReportsIndex } from '@/routes/reports/financial';
 import { index as clinicalReportsIndex } from '@/routes/reports/clinical';
 import { index as stockReportsIndex } from '@/routes/reports/stock';
 import { index as activityLogsIndex } from '@/routes/reports/activity-logs';
-import { index as wardRoundsIndex } from '@/routes/nursing/ward-rounds';
-import { index as chatIndex } from '@/routes/chat';
+import { history as admissionsHistory } from '@/routes/nursing/admissions';
+import { index as nursingWardRoundsIndex } from '@/routes/nursing/ward-rounds';
+import { index as consultantWardRoundsIndex } from '@/routes/consultant/ward-rounds';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -96,13 +97,6 @@ export function AppSidebar() {
             icon: Stethoscope,
         },
         {
-            title: 'Patients',
-            href: page.props.currentTeam
-                ? patientsIndex(page.props.currentTeam.slug)
-                : '/patients',
-            icon: Users,
-        },
-        {
             title: 'Categories',
             href: page.props.currentTeam
                 ? categoriesIndex(page.props.currentTeam.slug)
@@ -125,13 +119,6 @@ export function AppSidebar() {
                 ? consultationsHistory(page.props.currentTeam.slug)
                 : '/consultations/history',
             icon: ClipboardList,
-        },
-        {
-            title: 'Ward rounds',
-            href: page.props.currentTeam
-                ? wardRoundsIndex.url(page.props.currentTeam.slug)
-                : '/nursing/ward-rounds',
-            icon: ClipboardCheck,
         },
     ];
 
@@ -167,6 +154,13 @@ export function AppSidebar() {
     ];
 
     const financeNavItems: NavItem[] = [
+        {
+            title: 'Patients',
+            href: page.props.currentTeam
+                ? patientsIndex(page.props.currentTeam.slug)
+                : '/patients',
+            icon: Users,
+        },
         {
             title: 'Billings',
             href: page.props.currentTeam
@@ -216,6 +210,13 @@ export function AppSidebar() {
 
     const nursingNavItems: NavItem[] = [
         {
+            title: 'Ward rounds',
+            href: page.props.currentTeam
+                ? nursingWardRoundsIndex.url(page.props.currentTeam.slug)
+                : '/nursing/ward-rounds',
+            icon: ClipboardCheck,
+        },
+        {
             title: 'Maternity',
             href: page.props.currentTeam
                 ? nursingRecordsIndex.url(page.props.currentTeam.slug)
@@ -237,11 +238,11 @@ export function AppSidebar() {
             icon: Heart,
         },
         {
-            title: 'Ward rounds',
+            title: 'Admission History',
             href: page.props.currentTeam
-                ? wardRoundsIndex.url(page.props.currentTeam.slug)
-                : '/nursing/ward-rounds',
-            icon: ClipboardCheck,
+                ? admissionsHistory.url(page.props.currentTeam.slug)
+                : '/nursing/admissions/history',
+            icon: History,
         },
     ];
 
@@ -347,15 +348,23 @@ export function AppSidebar() {
                 {can.canViewPage('laboratories') && <NavMain items={laboratoryNavItems} label="Laboratory" />}
                 {can.canViewPage('pharmacy') && <NavMain items={pharmacyNavItems} label="Pharmacy" />}
                 {can.canViewPage('nursing') && <NavMain items={nursingNavItems} label="Nursing" />}
+                {can.canViewPage('consultant-ward-rounds') && <NavMain items={[
+                    {
+                        title: 'Patient WardRound',
+                        href: page.props.currentTeam
+                            ? consultantWardRoundsIndex.url(page.props.currentTeam.slug)
+                            : '/consultant/ward-rounds',
+                        icon: ClipboardCheck,
+                    },
+                ]} label="Patient WardRound" />}
                 {can.canViewPage('inventory') && <NavMain items={inventoryNavItems} label="Inventory" />}
                 {can.canViewPage('finance') && <NavMain items={financeNavItems} label="Finance" />}
                 <NavMain
                     items={[{
                         title: 'Chat',
-                        href: page.props.currentTeam
-                            ? chatIndex(page.props.currentTeam.slug)
-                            : '/chat',
+                        href: '/chatify',
                         icon: MessageSquare,
+                        external: true,
                     }]}
                     label="Chat"
                 />

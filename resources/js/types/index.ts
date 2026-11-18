@@ -1,6 +1,5 @@
 export type * from './auth';
 export type * from './categories';
-export type * from './chat';
 export type * from './consultations';
 export type * from './finance';
 export type * from './laboratories';

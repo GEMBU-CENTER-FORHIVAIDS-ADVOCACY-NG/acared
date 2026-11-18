@@ -24,13 +24,25 @@ export type LabPaidOption = {
     age: string | null;
 };
 
+export type LabSelectedLine = {
+    id: number;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    completed: boolean;
+};
+
 export type LabSelected = {
     id: number;
     patientId: string;
     patientName: string | null;
     gender: string | null;
     age: string | null;
+    birthDate: string | null;
+    doctorName: string | null;
+    createdAt: string | null;
     isAdmitted: boolean;
+    lines: LabSelectedLine[];
 };
 
 export type LabInventoryConsumption = {
@@ -112,12 +124,14 @@ export type LaboratoryShow = {
     patientName: string | null;
     gender: string | null;
     age: string | null;
+    birthDate: string | null;
     doctorName: string | null;
     status: string;
     total: number;
     createdAt: string | null;
     facilityName: string | null;
     facilityAddress: string | null;
+    lines: LabSelectedLine[];
 };
 
 export type LabInventoryListItem = {

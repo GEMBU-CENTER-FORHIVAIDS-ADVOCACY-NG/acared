@@ -219,7 +219,7 @@ export default function CategoryIndex({
                             className="max-w-sm"
                             data-test="category-search"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

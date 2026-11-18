@@ -694,7 +694,7 @@ refund.post = (args: { current_team?: string | number, prescription: number | { 
     refund.form = refundForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:474
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
  */
@@ -710,7 +710,7 @@ dispense.definition = {
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:474
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
  */
@@ -743,7 +743,7 @@ dispense.url = (args: { current_team?: string | number, prescription: number | {
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:474
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
  */
@@ -754,7 +754,7 @@ dispense.post = (args: { current_team?: string | number, prescription: number | 
 
     /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:474
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
  */
@@ -765,7 +765,7 @@ dispense.post = (args: { current_team?: string | number, prescription: number | 
 
             /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:474
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
  */
@@ -777,7 +777,7 @@ dispense.post = (args: { current_team?: string | number, prescription: number | 
     dispense.form = dispenseForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:533
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
  */
@@ -793,7 +793,7 @@ dispenseNewLines.definition = {
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:533
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
  */
@@ -826,7 +826,7 @@ dispenseNewLines.url = (args: { current_team?: string | number, prescription: nu
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:533
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
  */
@@ -837,7 +837,7 @@ dispenseNewLines.post = (args: { current_team?: string | number, prescription: n
 
     /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:533
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
  */
@@ -848,7 +848,7 @@ dispenseNewLines.post = (args: { current_team?: string | number, prescription: n
 
             /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:533
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
  */
@@ -860,7 +860,7 @@ dispenseNewLines.post = (args: { current_team?: string | number, prescription: n
     dispenseNewLines.form = dispenseNewLinesForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:618
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
  */
@@ -876,7 +876,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:618
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
  */
@@ -909,7 +909,7 @@ destroy.url = (args: { current_team?: string | number, prescription: number | { 
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:618
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
  */
@@ -920,7 +920,7 @@ destroy.delete = (args: { current_team?: string | number, prescription: number |
 
     /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:618
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
  */
@@ -936,7 +936,7 @@ destroy.delete = (args: { current_team?: string | number, prescription: number |
 
             /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:618
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
  */

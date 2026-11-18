@@ -268,11 +268,11 @@ export default function FloatingCalculator({
             {modal && isOpen && (
                 <div
                     ref={ref}
-                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 animate-in fade-in-0"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center animate-in fade-in-0"
                     onClick={() => setIsOpen(false)}
                 >
                     <Card
-                        className="w-60 animate-in zoom-in-95 fade-in-0 shadow-2xl"
+                        className="w-60 bg-[#FFF1E3] animate-in zoom-in-95 fade-in-0 shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <CardContent className="p-3">

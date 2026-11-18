@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -17,7 +17,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -50,7 +50,7 @@ index.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -60,7 +60,7 @@ index.get = (args?: { current_team?: string | number } | [current_team: string |
 })
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -71,7 +71,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -82,7 +82,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -92,7 +92,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
         })
             /**
 * @see \App\Http\Controllers\CategorySalesReportController::index
- * @see app/Http/Controllers/CategorySalesReportController.php:19
+ * @see app/Http/Controllers/CategorySalesReportController.php:18
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary'
  */
@@ -109,7 +109,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */
@@ -125,7 +125,7 @@ exportMethod.definition = {
 
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */
@@ -158,7 +158,7 @@ exportMethod.url = (args?: { current_team?: string | number } | [current_team: s
 
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */
@@ -168,7 +168,7 @@ exportMethod.get = (args?: { current_team?: string | number } | [current_team: s
 })
 /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */
@@ -179,7 +179,7 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
 
     /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */
@@ -190,7 +190,7 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
 
             /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */
@@ -200,7 +200,7 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
         })
             /**
 * @see \App\Http\Controllers\CategorySalesReportController::exportMethod
- * @see app/Http/Controllers/CategorySalesReportController.php:33
+ * @see app/Http/Controllers/CategorySalesReportController.php:32
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/category-sales-summary/export'
  */

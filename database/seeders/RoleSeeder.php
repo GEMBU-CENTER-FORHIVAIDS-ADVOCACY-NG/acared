@@ -107,6 +107,7 @@ class RoleSeeder extends Seeder
         $permissions[] = 'view laboratories';
         $permissions[] = 'view pharmacy';
         $permissions[] = 'view nursing';
+        $permissions[] = 'view consultant-ward-rounds';
         $permissions[] = 'view reports';
         $permissions[] = 'view markups';
         $permissions[] = 'view methods';
@@ -166,6 +167,7 @@ class RoleSeeder extends Seeder
         $permissions[] = 'view reception';
         $permissions[] = 'view consultations';
         $permissions[] = 'view nursing';
+        $permissions[] = 'view ward-rounds';
         $permissions[] = 'view laboratories';
 
         return $permissions;

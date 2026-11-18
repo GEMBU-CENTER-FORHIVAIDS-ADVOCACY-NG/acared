@@ -46,7 +46,7 @@ function SignalBarsIcon({ quality }: { quality: Quality }) {
 function OfflineOverlay() {
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 backdrop-blur-sm">
-            <div className="mx-4 max-w-sm rounded-xl bg-white p-8 text-center shadow-2xl dark:bg-gray-900 animate-in fade-in zoom-in-95 duration-250">
+            <div className="mx-4 max-w-sm rounded-xl bg-[#FFF1E3] p-8 text-center shadow-2xl dark:bg-gray-900 animate-in fade-in zoom-in-95 duration-250">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8">
                         <path d="M12 20h.01" />

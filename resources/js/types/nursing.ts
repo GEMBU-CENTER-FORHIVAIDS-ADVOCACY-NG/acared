@@ -1,11 +1,16 @@
 export type NursingDailyTimelineEvent = {
     id: number;
     title: string;
+    patientId: string;
     startsAt: string;
     endsAt: string | null;
     status: string;
+    visitType: 'new' | 'revisit';
     color: string;
     url: string;
+    birthDate: string | null;
+    age: string | null;
+    categoryName: string | null;
 };
 
 export type NursingCalendarDay = {

@@ -409,7 +409,7 @@ edit.head = (args: { current_team?: string | number, price_list: number | { id: 
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::update
- * @see app/Http/Controllers/LabIntakeController.php:222
+ * @see app/Http/Controllers/LabIntakeController.php:224
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -425,7 +425,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\LabIntakeController::update
- * @see app/Http/Controllers/LabIntakeController.php:222
+ * @see app/Http/Controllers/LabIntakeController.php:224
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -458,7 +458,7 @@ update.url = (args: { current_team?: string | number, price_list: number | { id:
 
 /**
 * @see \App\Http\Controllers\LabIntakeController::update
- * @see app/Http/Controllers/LabIntakeController.php:222
+ * @see app/Http/Controllers/LabIntakeController.php:224
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -469,7 +469,7 @@ update.patch = (args: { current_team?: string | number, price_list: number | { i
 
     /**
 * @see \App\Http\Controllers\LabIntakeController::update
- * @see app/Http/Controllers/LabIntakeController.php:222
+ * @see app/Http/Controllers/LabIntakeController.php:224
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -485,7 +485,7 @@ update.patch = (args: { current_team?: string | number, price_list: number | { i
 
             /**
 * @see \App\Http\Controllers\LabIntakeController::update
- * @see app/Http/Controllers/LabIntakeController.php:222
+ * @see app/Http/Controllers/LabIntakeController.php:224
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -502,7 +502,7 @@ update.patch = (args: { current_team?: string | number, price_list: number | { i
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::destroy
- * @see app/Http/Controllers/LabIntakeController.php:313
+ * @see app/Http/Controllers/LabIntakeController.php:324
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -518,7 +518,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\LabIntakeController::destroy
- * @see app/Http/Controllers/LabIntakeController.php:313
+ * @see app/Http/Controllers/LabIntakeController.php:324
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -551,7 +551,7 @@ destroy.url = (args: { current_team?: string | number, price_list: number | { id
 
 /**
 * @see \App\Http\Controllers\LabIntakeController::destroy
- * @see app/Http/Controllers/LabIntakeController.php:313
+ * @see app/Http/Controllers/LabIntakeController.php:324
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -562,7 +562,7 @@ destroy.delete = (args: { current_team?: string | number, price_list: number | {
 
     /**
 * @see \App\Http\Controllers\LabIntakeController::destroy
- * @see app/Http/Controllers/LabIntakeController.php:313
+ * @see app/Http/Controllers/LabIntakeController.php:324
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */
@@ -578,7 +578,7 @@ destroy.delete = (args: { current_team?: string | number, price_list: number | {
 
             /**
 * @see \App\Http\Controllers\LabIntakeController::destroy
- * @see app/Http/Controllers/LabIntakeController.php:313
+ * @see app/Http/Controllers/LabIntakeController.php:324
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/lab-intake/{price_list}'
  */

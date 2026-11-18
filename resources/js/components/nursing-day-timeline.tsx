@@ -17,6 +17,45 @@ const STATUS_BADGE: Record<string, string> = {
     completed: 'bg-emerald-100 text-emerald-800',
 };
 
+const VISIT_LABEL: Record<string, string> = {
+    new: 'New',
+    revisit: 'Revisit',
+};
+
+const VISIT_BADGE: Record<string, string> = {
+    new: 'bg-emerald-100 text-emerald-800',
+    revisit: 'bg-amber-100 text-amber-800',
+};
+
+const CATEGORY_BADGE: Record<string, string> = {
+    art: 'bg-red-100 text-red-800',
+    employee: 'bg-indigo-100 text-indigo-800',
+    'employee relation': 'bg-teal-100 text-teal-800',
+    general: 'bg-gray-100 text-gray-800',
+};
+
+function getCategoryBadge(categoryName: string | null): { label: string; className: string } {
+    if (!categoryName) {
+        return { label: 'General', className: CATEGORY_BADGE.general };
+    }
+
+    const lower = categoryName.toLowerCase();
+
+    if (lower.includes('art')) {
+        return { label: categoryName, className: CATEGORY_BADGE.art };
+    }
+
+    if (lower.includes('employee relation')) {
+        return { label: categoryName, className: CATEGORY_BADGE['employee relation'] };
+    }
+
+    if (lower.includes('employee')) {
+        return { label: categoryName, className: CATEGORY_BADGE.employee };
+    }
+
+    return { label: categoryName, className: CATEGORY_BADGE.general };
+}
+
 export default function NursingDayTimeline({ events }: Props) {
     const sortedEvents = [...events].sort((a, b) =>
         a.startsAt.localeCompare(b.startsAt)
@@ -62,14 +101,40 @@ export default function NursingDayTimeline({ events }: Props) {
                             <span className="truncate text-sm font-medium text-foreground">
                                 {event.title}
                             </span>
-                            <span
-                                className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                    STATUS_BADGE[event.status] ??
-                                    'bg-muted text-muted-foreground'
-                                }`}
-                            >
-                                {STATUS_LABEL[event.status] ?? event.status}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                        VISIT_BADGE[event.visitType] ??
+                                        'bg-muted text-muted-foreground'
+                                    }`}
+                                >
+                                    {VISIT_LABEL[event.visitType] ?? event.visitType}
+                                </span>
+                                <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                        STATUS_BADGE[event.status] ??
+                                        'bg-muted text-muted-foreground'
+                                    }`}
+                                >
+                                    {STATUS_LABEL[event.status] ?? event.status}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            {event.birthDate && (
+                                <span>DOB: {event.birthDate}</span>
+                            )}
+                            {event.age && (
+                                <span>• {event.age}</span>
+                            )}
+                            {(() => {
+                                const { label, className } = getCategoryBadge(event.categoryName);
+                                return (
+                                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${className}`}>
+                                        {label}
+                                    </span>
+                                );
+                            })()}
                         </div>
                     </div>
                 </Link>

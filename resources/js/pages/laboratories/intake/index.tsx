@@ -82,7 +82,8 @@ export default function LabIntakeIndex({
     subcategoryStoreUrl,
     showSkuInsteadOfCategory = false,
     sortableSubcategory = false,
-}: LabIntakePageProps & { padded?: boolean; subcategoryStoreUrl?: (teamSlug: string) => string; showSkuInsteadOfCategory?: boolean; sortableSubcategory?: boolean }) {
+    hideParameters = false,
+}: LabIntakePageProps & { padded?: boolean; subcategoryStoreUrl?: (teamSlug: string) => string; showSkuInsteadOfCategory?: boolean; sortableSubcategory?: boolean; hideParameters?: boolean }) {
     const { currentTeam } = usePage<LayoutProps>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
@@ -97,6 +98,7 @@ export default function LabIntakeIndex({
         name: '',
     });
     const [subcategoryProcessing, setSubcategoryProcessing] = useState(false);
+    const [subcategoryError, setSubcategoryError] = useState<string | null>(null);
 
 
     function baseUrl(path = '') {
@@ -141,6 +143,7 @@ export default function LabIntakeIndex({
 
     function createSubcategory() {
         setSubcategoryProcessing(true);
+        setSubcategoryError(null);
         const url = subcategoryStoreUrl
             ? subcategoryStoreUrl(teamSlug)
             : labIntakeSubcategoryStore.url(teamSlug);
@@ -149,6 +152,12 @@ export default function LabIntakeIndex({
             onSuccess: () => {
                 setShowSubcategoryModal(false);
                 setSubcategoryForm({ category_id: '', name: '' });
+                setSubcategoryError(null);
+            },
+            onError: (errors) => {
+                setSubcategoryError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                );
             },
             onFinish: () => {
                 setSubcategoryProcessing(false);
@@ -268,7 +277,7 @@ export default function LabIntakeIndex({
                                 </option>
                             ))}
                         </SelectNative>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -522,7 +531,7 @@ export default function LabIntakeIndex({
                                     {viewing.ranges || 'Not provided'}
                                 </p>
                             </section>
-                            {viewing.parameters.length > 0 ? (
+                            {!hideParameters && viewing.parameters.length > 0 ? (
                                 <section className="space-y-2">
                                     <h3 className="text-sm font-semibold">
                                         Parameters
@@ -562,6 +571,7 @@ export default function LabIntakeIndex({
                     if (!open) {
                         setShowSubcategoryModal(false);
                         setSubcategoryForm({ category_id: '', name: '' });
+                        setSubcategoryError(null);
                     }
                 }}
             >
@@ -614,6 +624,11 @@ export default function LabIntakeIndex({
                                     }))
                                 }
                             />
+                            {subcategoryError && (
+                                <p className="text-sm text-red-600">
+                                    {subcategoryError}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>

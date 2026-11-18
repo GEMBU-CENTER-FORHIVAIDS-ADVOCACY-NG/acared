@@ -119,7 +119,7 @@ export default function LaboratoryReport({
                             placeholder="Search patient, consultant..."
                             className="w-72"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -145,7 +145,6 @@ export default function LaboratoryReport({
                     </div>
                     <Button
                         type="button"
-                        variant="secondary"
                         onClick={() =>
                             applyFilters({
                                 from: from || null,

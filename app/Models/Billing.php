@@ -66,6 +66,7 @@ class Billing extends Model
                 'App\\Models\\Billing',
             ])
             ->where('is_scheduled', false)
+            ->where('status', 'paid')
             ->whereNotIn('status', ['started', 'completed'])
             ->whereDoesntHave('appointments', function (Builder $q) {
                 $q->whereIn('status', ['started', 'completed', 'scheduled']);

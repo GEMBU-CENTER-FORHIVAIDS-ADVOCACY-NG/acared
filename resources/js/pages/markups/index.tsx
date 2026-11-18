@@ -169,7 +169,7 @@ export default function MarkupsIndex({
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search markups..."
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

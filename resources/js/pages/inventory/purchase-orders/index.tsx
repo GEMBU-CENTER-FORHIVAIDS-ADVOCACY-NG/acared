@@ -168,18 +168,7 @@ export default function PurchaseOrdersIndex({
     const [posting, setPosting] = useState<PurchaseOrder | null>(null);
     const [receivedBy, setReceivedBy] = useState<string>('');
     const [expiryDates, setExpiryDates] = useState<Record<number, string>>({});
-    const [inventorySearch, setInventorySearch] = useState<Record<string, string>>({});
     const { auth } = usePage<{ auth: { user: { id: number; name: string } } }>().props;
-
-    // Filter inventories based on search per item
-    const getFilteredInventories = useCallback(
-        (itemId: string) => {
-            const search = (inventorySearch[itemId] ?? '').toLowerCase();
-            if (!search) return inventories;
-            return inventories.filter((inv) => inv.label.toLowerCase().includes(search));
-        },
-        [inventories, inventorySearch],
-    );
 
     // Calculate totals from items
     const { subPrice, subCost } = useMemo(() => {
@@ -207,7 +196,6 @@ export default function PurchaseOrdersIndex({
         setDiscount('0');
         setItems([createEmptyItem()]);
         setError(null);
-        setInventorySearch({});
         setFormOpen(true);
     }
 
@@ -226,7 +214,6 @@ export default function PurchaseOrdersIndex({
         }));
         setItems(formItems.length ? formItems : [createEmptyItem()]);
         setError(null);
-        setInventorySearch({});
         setFormOpen(true);
     }
 
@@ -269,11 +256,19 @@ export default function PurchaseOrdersIndex({
             .filter((item) => item.inventory_id && item.quantity)
             .map((item) => ({
                 inventory_id: parseInt(item.inventory_id),
-                markup_id: item.markup_id ? parseInt(item.markup_id) : null,
+                markup_id: parseInt(item.markup_id),
                 quantity: parseFloat(item.quantity),
                 unitPrice: parseFloat(item.unitPrice) || 0,
                 unitCost: parseFloat(item.unitCost) || 0,
             }));
+
+        // Validate that all items have a markup selected
+        const missingMarkup = validItems.find((item) => !item.markup_id);
+        if (missingMarkup) {
+            setError('Please select a markup for all order items.');
+            setProcessing(false);
+            return;
+        }
 
         const payload = {
             slug,
@@ -474,7 +469,7 @@ export default function PurchaseOrdersIndex({
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search purchase orders..."
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -694,7 +689,7 @@ export default function PurchaseOrdersIndex({
 
             {/* Create/Edit Sheet */}
             <Sheet open={formOpen} onOpenChange={setFormOpen}>
-                <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+                <SheetContent className="w-full overflow-y-auto sm:max-w-5xl">
                     <SheetHeader>
                         <SheetTitle>
                             {editing ? 'Edit purchase order' : 'Create purchase order'}
@@ -724,125 +719,121 @@ export default function PurchaseOrdersIndex({
                             </Select>
                         </div>
 
-                        {/* Items Repeater */}
+                        {/* Items Table */}
                         <div className="space-y-2">
                             <Label>Items</Label>
-                            <div className="space-y-3">
-                                {items.map((item, index) => (
-                                    <div key={item.id} className="rounded-lg border p-3 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-muted-foreground">
-                                                Item {index + 1}
-                                            </span>
-                                            {items.length > 1 && (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => removeItem(item.id)}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                        </div>
-
-                                        {/* Inventory search + select */}
-                                        <div className="space-y-2">
-                                            <Label>Item</Label>
-                                            <Input
-                                                placeholder="Search inventory..."
-                                                value={inventorySearch[item.id] ?? ''}
-                                                onChange={(e) =>
-                                                    setInventorySearch({
-                                                        ...inventorySearch,
-                                                        [item.id]: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                            <Select
-                                                value={item.inventory_id}
-                                                onValueChange={(value) =>
-                                                    updateItem(item.id, 'inventory_id', value)
-                                                }
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select inventory item" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {getFilteredInventories(item.id).map((inv) => (
-                                                        <SelectItem key={inv.id} value={String(inv.id)}>
-                                                            {inv.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Markup, Quantity, Cost, Price, Expiry */}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-2">
-                                                <Label>Markup</Label>
-                                                <Select
-                                                    value={item.markup_id}
-                                                    onValueChange={(value) =>
-                                                        updateItem(item.id, 'markup_id', value)
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select markup" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {markups.map((m) => (
-                                                            <SelectItem key={m.id} value={String(m.id)}>
-                                                                {m.name} ({m.value}%)
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Quantity</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="1"
-                                                    placeholder="Qty"
-                                                    value={item.quantity}
-                                                    onChange={(e) =>
-                                                        updateItem(item.id, 'quantity', e.target.value)
-                                                    }
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Unit Cost</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    placeholder="Cost"
-                                                    value={item.unitCost}
-                                                    onChange={(e) =>
-                                                        updateItem(item.id, 'unitCost', e.target.value)
-                                                    }
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Unit Price</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    placeholder="Price"
-                                                    value={item.unitPrice}
-                                                    onChange={(e) =>
-                                                        updateItem(item.id, 'unitPrice', e.target.value)
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-
-                                    </div>
-                                ))}
+                            <div className="rounded-lg border overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-12">#</TableHead>
+                                            <TableHead className="min-w-[280px]">Item</TableHead>
+                                            <TableHead className="min-w-[160px]">Markup <span className="text-destructive">*</span></TableHead>
+                                            <TableHead className="text-right w-20">Qty</TableHead>
+                                            <TableHead className="text-right w-28">Unit Cost</TableHead>
+                                            <TableHead className="text-right w-28">Unit Price</TableHead>
+                                            <TableHead className="w-12"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {items.map((item, index) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                                                <TableCell>
+                                                    <Select
+                                                        value={item.inventory_id}
+                                                        onValueChange={(value) =>
+                                                            updateItem(item.id, 'inventory_id', value)
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-8 w-full">
+                                                            <SelectValue placeholder="Select item" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {inventories.map((inv) => (
+                                                                <SelectItem key={inv.id} value={String(inv.id)}>
+                                                                    {inv.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Select
+                                                        required
+                                                        value={item.markup_id}
+                                                        onValueChange={(value) =>
+                                                            updateItem(item.id, 'markup_id', value)
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-8 w-full">
+                                                            <SelectValue placeholder="Markup" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {markups.map((m) => (
+                                                                <SelectItem key={m.id} value={String(m.id)}>
+                                                                    {m.name} ({m.value}%)
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input
+                                                        type="number"
+                                                        min="1"
+                                                        value={item.quantity}
+                                                        onChange={(e) =>
+                                                            updateItem(item.id, 'quantity', e.target.value)
+                                                        }
+                                                        className="h-8 w-full text-right"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={item.unitCost}
+                                                        onChange={(e) =>
+                                                            updateItem(item.id, 'unitCost', e.target.value)
+                                                        }
+                                                        className="h-8 w-full text-right"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={item.unitPrice}
+                                                        onChange={(e) =>
+                                                            updateItem(item.id, 'unitPrice', e.target.value)
+                                                        }
+                                                        className="h-8 w-full text-right"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    {items.length > 1 && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => removeItem(item.id)}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
+                            <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-full">
+                                <Plus className="mr-1 h-4 w-4" /> Add item
+                            </Button>
                         </div>
 
                         {/* Summary */}
@@ -882,9 +873,6 @@ export default function PurchaseOrdersIndex({
                             onClick={() => setFormOpen(false)}
                         >
                             Cancel
-                        </Button>
-                        <Button type="button" variant="outline" onClick={addItem}>
-                            <Plus className="mr-1 h-4 w-4" /> Add item
                         </Button>
                         <Button disabled={processing || !vendorId} onClick={submit}>
                             {processing ? 'Saving...' : 'Save purchase order'}
@@ -983,7 +971,7 @@ export default function PurchaseOrdersIndex({
                     if (!open) setPrinting(null);
                 }}
             >
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-5xl">
                     <DialogHeader>
                         <DialogTitle>
                             {printing?.slug ?? 'Purchase order'}
@@ -993,7 +981,7 @@ export default function PurchaseOrdersIndex({
                         </DialogDescription>
                     </DialogHeader>
                     {printing ? (
-                        <div className="space-y-4">
+                        <div className="max-h-[70vh] overflow-y-auto space-y-4">
                             <div className="flex justify-between">
                                 <div>
                                     <p className="text-sm font-semibold">

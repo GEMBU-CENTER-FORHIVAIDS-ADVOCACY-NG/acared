@@ -337,7 +337,6 @@ export default function FinanceReport({
                     </div>
                     <Button
                         type="button"
-                        variant="secondary"
                         onClick={() =>
                             apply({ from: from || null, to: to || null })
                         }

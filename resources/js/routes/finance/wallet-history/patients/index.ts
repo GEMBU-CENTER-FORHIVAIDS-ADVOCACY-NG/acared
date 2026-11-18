@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */
@@ -17,7 +17,7 @@ search.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */
@@ -50,7 +50,7 @@ search.url = (args?: { current_team?: string | number } | [current_team: string 
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */
@@ -60,7 +60,7 @@ search.get = (args?: { current_team?: string | number } | [current_team: string 
 })
 /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */
@@ -71,7 +71,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */
@@ -82,7 +82,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */
@@ -92,7 +92,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
         })
             /**
 * @see \App\Http\Controllers\WalletHistoryController::search
- * @see app/Http/Controllers/WalletHistoryController.php:93
+ * @see app/Http/Controllers/WalletHistoryController.php:102
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/patients/search'
  */

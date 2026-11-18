@@ -111,7 +111,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -127,7 +127,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -160,7 +160,7 @@ show.url = (args: { current_team?: string | number, wallet_history: number | { i
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -170,7 +170,7 @@ show.get = (args: { current_team?: string | number, wallet_history: number | { i
 })
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -181,7 +181,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -192,7 +192,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -202,7 +202,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
         })
             /**
 * @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:260
+ * @see app/Http/Controllers/WalletHistoryController.php:269
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -219,7 +219,7 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
     show.form = showForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:122
+ * @see app/Http/Controllers/WalletHistoryController.php:131
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -235,7 +235,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:122
+ * @see app/Http/Controllers/WalletHistoryController.php:131
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -268,7 +268,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:122
+ * @see app/Http/Controllers/WalletHistoryController.php:131
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -279,7 +279,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:122
+ * @see app/Http/Controllers/WalletHistoryController.php:131
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -290,7 +290,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:122
+ * @see app/Http/Controllers/WalletHistoryController.php:131
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history'
  */
@@ -302,7 +302,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:274
+ * @see app/Http/Controllers/WalletHistoryController.php:283
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -318,7 +318,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:274
+ * @see app/Http/Controllers/WalletHistoryController.php:283
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -351,7 +351,7 @@ update.url = (args: { current_team?: string | number, wallet_history: number | {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:274
+ * @see app/Http/Controllers/WalletHistoryController.php:283
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -362,7 +362,7 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:274
+ * @see app/Http/Controllers/WalletHistoryController.php:283
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -378,7 +378,7 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:274
+ * @see app/Http/Controllers/WalletHistoryController.php:283
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -395,7 +395,7 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:267
+ * @see app/Http/Controllers/WalletHistoryController.php:276
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -411,7 +411,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:267
+ * @see app/Http/Controllers/WalletHistoryController.php:276
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -444,7 +444,7 @@ destroy.url = (args: { current_team?: string | number, wallet_history: number | 
 
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:267
+ * @see app/Http/Controllers/WalletHistoryController.php:276
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -455,7 +455,7 @@ destroy.delete = (args: { current_team?: string | number, wallet_history: number
 
     /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:267
+ * @see app/Http/Controllers/WalletHistoryController.php:276
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */
@@ -471,7 +471,7 @@ destroy.delete = (args: { current_team?: string | number, wallet_history: number
 
             /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:267
+ * @see app/Http/Controllers/WalletHistoryController.php:276
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
  */

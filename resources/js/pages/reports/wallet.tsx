@@ -164,7 +164,7 @@ export default function WalletReport({
                                 placeholder="Search patients"
                             />
                         </div>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

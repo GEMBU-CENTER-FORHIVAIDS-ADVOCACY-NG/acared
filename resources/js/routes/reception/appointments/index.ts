@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:59
+ * @see app/Http/Controllers/ReceptionController.php:63
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments'
  */
@@ -17,7 +17,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:59
+ * @see app/Http/Controllers/ReceptionController.php:63
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments'
  */
@@ -50,7 +50,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:59
+ * @see app/Http/Controllers/ReceptionController.php:63
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments'
  */
@@ -61,7 +61,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:59
+ * @see app/Http/Controllers/ReceptionController.php:63
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments'
  */
@@ -72,7 +72,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:59
+ * @see app/Http/Controllers/ReceptionController.php:63
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments'
  */

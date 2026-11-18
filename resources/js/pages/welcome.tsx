@@ -33,9 +33,9 @@ export default function Welcome() {
     return (
         <>
             <Head title="AldidsCared — Modern Healthcare Management" />
-            <div className="flex min-h-screen flex-col bg-white dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
+            <div className="flex min-h-screen flex-col dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
                 {/* Navigation */}
-                <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-[#0a0a0a]/80">
+                <header className="sticky top-0 z-50 w-full border-b border-gray-200 backdrop-blur dark:border-gray-800 dark:bg-[#0a0a0a]/80">
                     <div className="container mx-auto flex h-16 items-center justify-between px-4">
                         <div className="flex items-center gap-3">
                             <AppLogoIcon className="h-9 w-9 rounded-lg object-cover" />
@@ -115,7 +115,7 @@ export default function Welcome() {
                 </section>
 
                 {/* Features Section */}
-                <section className="py-20 bg-gray-50 dark:bg-[#161615]">
+                <section className="py-20 dark:bg-[#161615]">
                     <div className="container mx-auto px-4">
                         <div className="mx-auto max-w-2xl text-center">
                             <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
@@ -421,7 +421,7 @@ export default function Welcome() {
                 </section>
 
                 {/* Footer */}
-                <footer className="border-t border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-[#161615]">
+                <footer className="border-t border-gray-200 dark:border-gray-800 dark:bg-[#161615]">
                     <div className="container mx-auto px-4 py-12">
                         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
                             <div className="flex items-center gap-3">

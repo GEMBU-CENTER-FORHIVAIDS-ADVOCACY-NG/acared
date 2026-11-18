@@ -278,7 +278,7 @@ export default function PatientIndex({
                             className="w-64"
                             data-test="patient-search"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

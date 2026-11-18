@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\Billing;
+use App\Models\Consultation;
 use App\Models\History;
 use App\Models\Nursing;
 use App\Models\Patient;
@@ -345,16 +346,27 @@ class NursingController extends Controller
 
             Inertia::flash('toast', ['type' => 'success', 'message' => 'Patient transferred to nurse.']);
         } else {
-            // Transfer from nursing to doctor creates a new appointment
-            $nursing->update(['status' => 'transferred']);
+            // Transfer from nursing to doctor creates a new appointment and consultation
+            $now = now();
 
-            Appointment::create([
+            $appointment = Appointment::create([
                 'team_id' => $nursing->team_id,
                 'billing_id' => $nursing->billing_id,
                 'patient_id' => $nursing->patient_id,
                 'doctor_id' => $validated['doctor_id'],
-                'starts_at' => $nursing->starts_at,
-                'ends_at' => $nursing->ends_at,
+                'starts_at' => $now,
+                'ends_at' => $now->copy()->addHour(),
+                'status' => 'scheduled',
+            ]);
+
+            Consultation::create([
+                'team_id' => $nursing->team_id,
+                'billing_id' => $nursing->billing_id,
+                'patient_id' => $nursing->patient_id,
+                'doctor_id' => $validated['doctor_id'],
+                'appointment_id' => $appointment->getKey(),
+                'starts_at' => $now,
+                'ends_at' => $now->copy()->addHour(),
                 'status' => 'scheduled',
             ]);
 
@@ -428,6 +440,7 @@ class NursingController extends Controller
     {
         $team = $request->user()->currentTeam;
         $date = trim((string) $request->query('date', ''));
+        $search = trim((string) $request->query('q', ''));
         $user = $request->user();
 
         return Inertia::render('nursing/records/index', [
@@ -448,9 +461,10 @@ class NursingController extends Controller
                     'patientName' => $billing->patient?->fullName,
                     'status' => $billing->status,
                 ]),
-            'dailyTimeline' => $this->dailyTimelineEvents($date),
-            'sidebar' => $this->sidebar($date),
+            'dailyTimeline' => $this->dailyTimelineEvents($date, $search),
+            'sidebar' => $this->sidebar($date, $search),
             'currentUserIsNurse' => $user->hasRole('Nurse'),
+            'filters' => ['q' => $search],
         ]);
     }
 
@@ -490,30 +504,53 @@ class NursingController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function dailyTimelineEvents(string $date = ''): array
+    private function dailyTimelineEvents(string $date = '', string $search = ''): array
     {
         $now = CarbonImmutable::now();
         $filterDate = $date !== '' ? $date : $now->toDateString();
         $user = request()->user();
+        $isSearching = $search !== '';
 
-        return Nursing::query()
+        $nursings = Nursing::query()
             ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
             ->whereIn('status', ['scheduled', 'in_progress', 'completed'])
-            ->whereDate('starts_at', $filterDate)
-            ->with('patient')
+            ->when(! $isSearching, fn (Builder $query) => $query->whereDate('starts_at', $filterDate))
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                })->orWhere('purpose', 'like', "%{$search}%");
+            })
+            ->with(['patient.category'])
             ->orderBy('starts_at')
-            ->get()
+            ->get();
+
+        // Get count of prior nursings per patient to determine new vs revisit
+        $patientNursingCounts = Nursing::query()
+            ->select('patient_id', \DB::raw('count(*) as cnt'))
+            ->groupBy('patient_id')
+            ->pluck('cnt', 'patient_id');
+
+        return $nursings
             ->map(fn (Nursing $nursing) => [
                 'id' => $nursing->getKey(),
                 'title' => $nursing->patient_id.' - '.($nursing->patient->fullName ?? 'Unknown patient'),
+                'patientId' => $nursing->patient_id,
                 'startsAt' => $nursing->starts_at?->format('g:i A'),
                 'endsAt' => $nursing->ends_at?->format('g:i A') ?? null,
                 'status' => $nursing->status,
+                'visitType' => ($patientNursingCounts->get($nursing->patient_id) ?? 0) <= 1 ? 'new' : 'revisit',
+                'type' => 'anc',
                 'color' => $nursing->calendarColor(),
                 'url' => route('nursing.records.view', [
                     'current_team' => request()->user()->currentTeam->slug,
                     'nursing' => $nursing->getKey(),
                 ]),
+                'birthDate' => $nursing->patient?->birthDate?->format('Y-m-d'),
+                'age' => $nursing->patient?->age,
+                'categoryName' => $nursing->patient?->category?->name,
             ])
             ->values()
             ->all();
@@ -524,17 +561,28 @@ class NursingController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function sidebar(string $selectedDate = ''): array
+    private function sidebar(string $selectedDate = '', string $search = ''): array
     {
         $now = CarbonImmutable::now();
         $monthStart = $now->startOfMonth();
         $monthEnd = $now->endOfMonth();
         $user = request()->user();
+        $isSearching = $search !== '';
 
         $monthNursings = Nursing::query()
             ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
-            ->when($selectedDate !== '', fn (Builder $query) => $query->whereDate('starts_at', $selectedDate))
-            ->when($selectedDate === '', fn (Builder $query) => $query->whereBetween('starts_at', [$monthStart, $monthEnd]))
+            ->when(! $isSearching, function (Builder $query) use ($selectedDate, $monthStart, $monthEnd): void {
+                $query->when($selectedDate !== '', fn (Builder $q) => $q->whereDate('starts_at', $selectedDate))
+                    ->when($selectedDate === '', fn (Builder $q) => $q->whereBetween('starts_at', [$monthStart, $monthEnd]));
+            })
+            ->when($isSearching, function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                })->orWhere('purpose', 'like', "%{$search}%");
+            })
             ->get(['id', 'starts_at', 'status']);
 
         $byDay = $monthNursings->groupBy(fn (Nursing $nursing) => $nursing->starts_at?->format('Y-m-d') ?: 'unknown');

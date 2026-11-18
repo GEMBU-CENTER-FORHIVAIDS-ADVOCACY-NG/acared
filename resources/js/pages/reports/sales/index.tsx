@@ -266,7 +266,7 @@ export default function SalesReport({
                                 placeholder="Search"
                             />
                         </div>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -289,7 +289,6 @@ export default function SalesReport({
                         />
                     </div>
                     <Button
-                        variant="secondary"
                         onClick={() => visit({ q: search, from, to, page: 1 })}
                     >
                         Apply

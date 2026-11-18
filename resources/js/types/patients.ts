@@ -76,6 +76,17 @@ export type PatientFilters = {
     page?: number;
 };
 
+export type PriceListItem = {
+    id: number;
+    name: string;
+    price: number;
+};
+
+export type BillingLine = {
+    price_list_id: string;
+    unitPrice: string;
+};
+
 export type PatientFormOptions = {
     categories: PatientCategoryRef[];
     countries: PatientLocationRef[];

@@ -1,13 +1,7 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import QRCode from 'qrcode';
-import { ArrowLeft, Printer } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { index } from '@/routes/reception';
-import type { Team } from '@/types';
-
-type LayoutProps = {
-    currentTeam?: Team | null;
-};
+import { Printer } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 type PatientCardProps = {
     team: {
@@ -27,9 +21,6 @@ export default function PatientCard({
     team,
     patient,
 }: PatientCardProps) {
-    const page = usePage<LayoutProps>();
-    const teamSlug = page.props.currentTeam?.slug ?? '';
-
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -168,7 +159,7 @@ export default function PatientCard({
                             border: 1px solid #e5e7eb;
                         }
                         .bg-white {
-                            background-color: white;
+                            background-color: transparent;
                         }
                         .p-2 {
                             padding: 8px;
@@ -205,10 +196,6 @@ export default function PatientCard({
         }
     }
 
-    function handleBack() {
-        router.get(index.url(teamSlug));
-    }
-
     return (
         <>
             <Head title="Patient Card" />
@@ -216,23 +203,14 @@ export default function PatientCard({
             <div className="min-h-screen bg-muted/30 p-8">
                 <div className="mx-auto max-w-2xl space-y-6">
                     {/* Actions */}
-                    <div className="no-print space-y-4">
-                        <div className="flex items-center justify-between">
-                            <button
-                                onClick={handleBack}
-                                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Back to Reception
-                            </button>
-                            <button
-                                onClick={handlePrint}
-                                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-                            >
-                                <Printer className="h-4 w-4" />
-                                Print Card
-                            </button>
-                        </div>
+                    <div className="no-print flex justify-center">
+                        <button
+                            onClick={handlePrint}
+                            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                        >
+                            <Printer className="h-4 w-4" />
+                            Print Card
+                        </button>
                     </div>
 
                     {/* Patient Card - Wrapper for print */}
@@ -289,7 +267,7 @@ export default function PatientCard({
 
                                 {/* QR Code */}
                                 <div className="flex-shrink-0">
-                                    <div className="rounded-lg border bg-white p-2">
+                                    <div className="rounded-lg border p-2">
                                         <canvas ref={canvasRef} />
                                     </div>
                                 </div>

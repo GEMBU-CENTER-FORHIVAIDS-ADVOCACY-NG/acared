@@ -110,7 +110,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -126,7 +126,7 @@ history.definition = {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -159,7 +159,7 @@ history.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -169,7 +169,7 @@ history.get = (args?: { current_team?: string | number } | [current_team: string
 })
 /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -180,7 +180,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
     /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -191,7 +191,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
             /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -201,7 +201,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
         })
             /**
 * @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:101
+ * @see app/Http/Controllers/ConsultationController.php:103
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/history'
  */
@@ -218,7 +218,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     history.form = historyForm
 /**
 * @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:192
+ * @see app/Http/Controllers/ConsultationController.php:194
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/start'
  */
@@ -234,7 +234,7 @@ start.definition = {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:192
+ * @see app/Http/Controllers/ConsultationController.php:194
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/start'
  */
@@ -267,7 +267,7 @@ start.url = (args: { current_team?: string | number, consultation: number | { id
 
 /**
 * @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:192
+ * @see app/Http/Controllers/ConsultationController.php:194
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/start'
  */
@@ -278,7 +278,7 @@ start.patch = (args: { current_team?: string | number, consultation: number | { 
 
     /**
 * @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:192
+ * @see app/Http/Controllers/ConsultationController.php:194
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/start'
  */
@@ -294,7 +294,7 @@ start.patch = (args: { current_team?: string | number, consultation: number | { 
 
             /**
 * @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:192
+ * @see app/Http/Controllers/ConsultationController.php:194
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/start'
  */
@@ -311,7 +311,7 @@ start.patch = (args: { current_team?: string | number, consultation: number | { 
     start.form = startForm
 /**
 * @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:211
+ * @see app/Http/Controllers/ConsultationController.php:213
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/end'
  */
@@ -327,7 +327,7 @@ end.definition = {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:211
+ * @see app/Http/Controllers/ConsultationController.php:213
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/end'
  */
@@ -360,7 +360,7 @@ end.url = (args: { current_team?: string | number, consultation: number | { id: 
 
 /**
 * @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:211
+ * @see app/Http/Controllers/ConsultationController.php:213
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/end'
  */
@@ -371,7 +371,7 @@ end.patch = (args: { current_team?: string | number, consultation: number | { id
 
     /**
 * @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:211
+ * @see app/Http/Controllers/ConsultationController.php:213
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/end'
  */
@@ -387,7 +387,7 @@ end.patch = (args: { current_team?: string | number, consultation: number | { id
 
             /**
 * @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:211
+ * @see app/Http/Controllers/ConsultationController.php:213
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/end'
  */
@@ -404,7 +404,7 @@ end.patch = (args: { current_team?: string | number, consultation: number | { id
     end.form = endForm
 /**
 * @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:225
+ * @see app/Http/Controllers/ConsultationController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/transfer'
  */
@@ -420,7 +420,7 @@ transfer.definition = {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:225
+ * @see app/Http/Controllers/ConsultationController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/transfer'
  */
@@ -453,7 +453,7 @@ transfer.url = (args: { current_team?: string | number, consultation: number | {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:225
+ * @see app/Http/Controllers/ConsultationController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/transfer'
  */
@@ -464,7 +464,7 @@ transfer.patch = (args: { current_team?: string | number, consultation: number |
 
     /**
 * @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:225
+ * @see app/Http/Controllers/ConsultationController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/transfer'
  */
@@ -480,7 +480,7 @@ transfer.patch = (args: { current_team?: string | number, consultation: number |
 
             /**
 * @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:225
+ * @see app/Http/Controllers/ConsultationController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/transfer'
  */
@@ -497,7 +497,7 @@ transfer.patch = (args: { current_team?: string | number, consultation: number |
     transfer.form = transferForm
 /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -513,7 +513,7 @@ viewAll.definition = {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -546,7 +546,7 @@ viewAll.url = (args: { current_team?: string | number, consultation: number | { 
 
 /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -556,7 +556,7 @@ viewAll.get = (args: { current_team?: string | number, consultation: number | { 
 })
 /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -567,7 +567,7 @@ viewAll.head = (args: { current_team?: string | number, consultation: number | {
 
     /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -578,7 +578,7 @@ viewAll.head = (args: { current_team?: string | number, consultation: number | {
 
             /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -588,7 +588,7 @@ viewAll.head = (args: { current_team?: string | number, consultation: number | {
         })
             /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:174
+ * @see app/Http/Controllers/ConsultationController.php:176
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/all'
  */
@@ -605,7 +605,7 @@ viewAll.head = (args: { current_team?: string | number, consultation: number | {
     viewAll.form = viewAllForm
 /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */
@@ -621,7 +621,7 @@ view.definition = {
 
 /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */
@@ -658,7 +658,7 @@ view.url = (args: { current_team?: string | number, consultation: number | { id:
 
 /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */
@@ -668,7 +668,7 @@ view.get = (args: { current_team?: string | number, consultation: number | { id:
 })
 /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */
@@ -679,7 +679,7 @@ view.head = (args: { current_team?: string | number, consultation: number | { id
 
     /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */
@@ -690,7 +690,7 @@ view.head = (args: { current_team?: string | number, consultation: number | { id
 
             /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */
@@ -700,7 +700,7 @@ view.head = (args: { current_team?: string | number, consultation: number | { id
         })
             /**
 * @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:138
+ * @see app/Http/Controllers/ConsultationController.php:140
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/consultations/{consultation}/{section?}'
  */

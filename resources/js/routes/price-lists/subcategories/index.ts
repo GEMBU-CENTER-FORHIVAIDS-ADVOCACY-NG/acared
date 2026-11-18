@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LabIntakeController::store
- * @see app/Http/Controllers/LabIntakeController.php:341
+ * @see app/Http/Controllers/LabIntakeController.php:352
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/price-lists/subcategories'
  */
@@ -17,7 +17,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\LabIntakeController::store
- * @see app/Http/Controllers/LabIntakeController.php:341
+ * @see app/Http/Controllers/LabIntakeController.php:352
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/price-lists/subcategories'
  */
@@ -50,7 +50,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\LabIntakeController::store
- * @see app/Http/Controllers/LabIntakeController.php:341
+ * @see app/Http/Controllers/LabIntakeController.php:352
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/price-lists/subcategories'
  */
@@ -61,7 +61,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\LabIntakeController::store
- * @see app/Http/Controllers/LabIntakeController.php:341
+ * @see app/Http/Controllers/LabIntakeController.php:352
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/price-lists/subcategories'
  */
@@ -72,7 +72,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\LabIntakeController::store
- * @see app/Http/Controllers/LabIntakeController.php:341
+ * @see app/Http/Controllers/LabIntakeController.php:352
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/price-lists/subcategories'
  */

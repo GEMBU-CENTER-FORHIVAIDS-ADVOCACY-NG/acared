@@ -140,6 +140,7 @@ export type ConsultationDailyTimelineEvent = {
     endsAt: string | null;
     status: string;
     visitType: 'new' | 'revisit';
+    type: 'anc' | 'consultation';
     color: string;
     url: string;
     birthDate: string | null;
@@ -176,6 +177,7 @@ export type ConsultationFilters = {
     status: string;
     doctor_id: number | null;
     date: string;
+    q: string;
     perPage: number;
     page?: number;
 };

@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
 import ConsultationDayTimeline from '@/components/consultation-day-timeline';
@@ -64,6 +64,19 @@ export default function ConsultationsIndex({
     const { currentTeam } = usePage().props;
     const { currencySymbol = '₦' } = usePage().props;
     const teamSlug = currentTeam?.slug;
+    const [search, setSearch] = useState(filters.q);
+
+    function applySearch() {
+        router.get(
+            index.url(teamSlug, {
+                query: {
+                    q: search || undefined,
+                },
+            }),
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
 
     function applyFilters(next: Partial<ConsultationFilters>) {
         const merged = { ...filters, ...next };
@@ -327,6 +340,27 @@ export default function ConsultationsIndex({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <form
+                                className="flex items-center gap-2"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    applySearch();
+                                }}
+                            >
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        className="pl-10"
+                                        value={search}
+                                        placeholder="Search visits..."
+                                        onChange={(event) => setSearch(event.target.value)}
+                                    />
+                                </div>
+                                <Button type="submit" size="sm" className="shrink-0" variant="default">
+                                    <Search className="h-4 w-4" />
+                                </Button>
+                            </form>
+
                             <div className="grid grid-cols-7 gap-1 text-center text-xs">
                                 {sidebar.weekdays.map((day) => (
                                     <span
@@ -465,7 +499,7 @@ export default function ConsultationsIndex({
                                         }}
                                     />
                                     {billingPatientSearchOpen && !billingExistingPatientId && (
-                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                             {billingPatientSearchLoading && (
                                                 <div className="px-3 py-2 text-xs text-muted-foreground">
                                                     Searching…

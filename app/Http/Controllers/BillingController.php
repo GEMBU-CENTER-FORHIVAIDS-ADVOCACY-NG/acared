@@ -135,6 +135,8 @@ class BillingController extends Controller
                         'Surgery',
                         'Ophthalmic Services',
                         'Dental Services',
+                        'Imaging',
+                        'Imaging/Radiography',
                     ]))
                     ->orderBy('name')
                     ->get(['id', 'name', 'price'])
@@ -164,7 +166,6 @@ class BillingController extends Controller
                 });
             })
             ->orderBy('slug')
-            ->limit(50)
             ->get([
                 'slug',
                 'fullName',
@@ -672,11 +673,12 @@ class BillingController extends Controller
                 ->orWhereHas('user', fn (Builder $query) => $query->where('name', 'like', $like)));
         }
 
-        if ($filters['from'] !== null) {
+        // Search query bypasses date filtering so it searches across all dates
+        if ($filters['q'] === '' && $filters['from'] !== null) {
             $query->where('created_at', '>=', Carbon::parse($filters['from'])->startOfDay()->toDateTimeString());
         }
 
-        if ($filters['to'] !== null) {
+        if ($filters['q'] === '' && $filters['to'] !== null) {
             $query->where('created_at', '<=', Carbon::parse($filters['to'])->endOfDay()->toDateTimeString());
         }
 
@@ -717,10 +719,12 @@ class BillingController extends Controller
             'id' => $billing->getKey(),
             'patientId' => $billing->patient_id,
             'patientName' => $billing->patient?->fullName,
+            'requestedBy' => $billing->user?->name,
             'billableType' => $billing->billable_type ? class_basename($billing->billable_type) : null,
             'categoryName' => $billing->patient?->category?->name,
             'discountPercentage' => (int) ($billing->patient?->category->discount_percentage ?? 0),
             'total' => (float) $billing->total,
+            'status' => $billing->status,
             'isAdmitted' => $billing->patient?->isAdmitted() ?? false,
             'lines' => $billableLines->map(fn ($line) => [
                 'id' => $line->getKey(),

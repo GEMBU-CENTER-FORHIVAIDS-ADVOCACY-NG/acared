@@ -111,7 +111,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:103
+ * @see app/Http/Controllers/ReceptionController.php:107
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/transfer'
  */
@@ -127,7 +127,7 @@ transfer.definition = {
 
 /**
 * @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:103
+ * @see app/Http/Controllers/ReceptionController.php:107
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/transfer'
  */
@@ -160,7 +160,7 @@ transfer.url = (args?: { current_team?: string | number } | [current_team: strin
 
 /**
 * @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:103
+ * @see app/Http/Controllers/ReceptionController.php:107
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/transfer'
  */
@@ -171,7 +171,7 @@ transfer.patch = (args?: { current_team?: string | number } | [current_team: str
 
     /**
 * @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:103
+ * @see app/Http/Controllers/ReceptionController.php:107
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/transfer'
  */
@@ -187,7 +187,7 @@ transfer.patch = (args?: { current_team?: string | number } | [current_team: str
 
             /**
 * @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:103
+ * @see app/Http/Controllers/ReceptionController.php:107
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/transfer'
  */

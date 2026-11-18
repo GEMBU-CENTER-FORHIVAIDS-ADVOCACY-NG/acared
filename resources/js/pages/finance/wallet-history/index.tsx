@@ -432,7 +432,9 @@ export default function WalletHistoryIndex({
                         className="flex flex-1 items-end gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            visit({ q: search, page: 1 });
+                            setFrom(today);
+                            setTo(today);
+                            visit({ q: search, from: null, to: null, page: 1 });
                         }}
                     >
                         <div className="space-y-1">
@@ -449,7 +451,7 @@ export default function WalletHistoryIndex({
                                 className="max-w-sm"
                             />
                         </div>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -479,7 +481,6 @@ export default function WalletHistoryIndex({
                         </div>
                         <Button
                             type="button"
-                            variant="secondary"
                             onClick={() =>
                                 visit({
                                     from: from || null,
@@ -492,7 +493,6 @@ export default function WalletHistoryIndex({
                         </Button>
                         <Button
                             type="button"
-                            variant="outline"
                             onClick={() => {
                                 setFrom(today);
                                 setTo(today);
@@ -735,7 +735,7 @@ export default function WalletHistoryIndex({
                                     />
                                 )}
                                 {patientSearchOpen && !form.patient_id && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                         {patientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
@@ -890,7 +890,7 @@ export default function WalletHistoryIndex({
                                             />
                                         )}
                                         {walletPatientSearchOpen && !form.wallet_patient_id && (
-                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                                 {walletPatientSearchLoading && (
                                                     <div className="px-3 py-2 text-xs text-muted-foreground">
                                                         Searching…

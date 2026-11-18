@@ -199,7 +199,7 @@ export default function DrugFormsIndex({
                             placeholder="Search drug forms"
                             onChange={(event) => setSearch(event.target.value)}
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

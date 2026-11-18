@@ -44,10 +44,12 @@ export type FinanceBillingOption = {
     id: number;
     patientId: string;
     patientName: string | null;
+    requestedBy: string | null;
     billableType: string | null;
     categoryName: string | null;
     discountPercentage: number;
     total: number;
+    status: string;
     isAdmitted: boolean;
     lines: BillingLine[];
 };

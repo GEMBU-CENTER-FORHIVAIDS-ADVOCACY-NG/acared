@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Check, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
@@ -20,7 +20,21 @@ type Props = {
     onChange: (next: Props['values']) => void;
     onSaveStep?: (stepIndex: number, stepName: string) => void;
     onSubmitResults?: () => void;
+    onTestIndexChange?: (index: number) => void;
+    defaultTestIndex?: number;
     readOnly?: boolean;
+};
+
+export type FlatTest = {
+    id: number;
+    name: string;
+    kind: 'parameters' | 'simple';
+    rows?: LabResultParameterRow[];
+    result_type?: string;
+    options?: string[];
+    unit?: string | null;
+    result?: string | null;
+    category: string;
 };
 
 function ResultInput({
@@ -448,6 +462,7 @@ function StepFooter({
     onSubmitResults,
     readOnly,
     isLastStep,
+    allPreviousCompleted,
 }: {
     currentStep: number;
     totalSteps: number;
@@ -457,9 +472,22 @@ function StepFooter({
     onSubmitResults?: () => void;
     readOnly: boolean;
     isLastStep: boolean;
+    allPreviousCompleted: boolean;
 }) {
     if (readOnly) {
         return null;
+    }
+
+    function handleSaveAndNext() {
+        onSaveStep?.();
+        if (!isLastStep) {
+            onNext();
+        }
+    }
+
+    function handleSaveAndSubmit() {
+        onSaveStep?.();
+        onSubmitResults?.();
     }
 
     return (
@@ -473,42 +501,75 @@ function StepFooter({
                 <ChevronLeft className="h-4 w-4" />
                 Previous
             </button>
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                    {currentStep + 1} of {totalSteps}
-                </span>
-                {onSaveStep && !isLastStep ? (
-                    <button
-                        type="button"
-                        onClick={onSaveStep}
-                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                    >
-                        <Check className="h-4 w-4" />
-                        Save
-                    </button>
-                ) : null}
-            </div>
-            {isLastStep && onSubmitResults ? (
+            <span className="text-sm text-muted-foreground">
+                {currentStep + 1} of {totalSteps}
+            </span>
+            {isLastStep && allPreviousCompleted && onSubmitResults ? (
                 <button
                     type="button"
-                    onClick={onSubmitResults}
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                >
-                    <Check className="h-4 w-4" />
-                    Submit results
-                </button>
-            ) : !isLastStep ? (
-                <button
-                    type="button"
-                    onClick={onNext}
+                    onClick={handleSaveAndSubmit}
                     className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                    Next
+                    <Check className="h-4 w-4" />
+                    Save & Submit
+                </button>
+            ) : (
+                <button
+                    type="button"
+                    onClick={handleSaveAndNext}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                    Save & Next
                     <ChevronRight className="h-4 w-4" />
                 </button>
-            ) : null}
+            )}
         </div>
     );
+}
+
+function isTestCompleted(test: FlatTest, values: Props['values']): boolean {
+    if (test.kind === 'simple') {
+        const value = values.lines[String(test.id)];
+        return Boolean(value && value.trim() !== '');
+    }
+
+    if (test.kind === 'parameters') {
+        const testResultMap = values.testResults[String(test.id)] ?? {};
+        const rows = test.rows ?? [];
+        return rows.every((row) => {
+            const val = testResultMap[String(row.price_list_id)];
+            return Boolean(val && val.trim() !== '');
+        });
+    }
+
+    return false;
+}
+
+export function flattenTests(form: LabResultForm): FlatTest[] {
+    const flat: FlatTest[] = [];
+
+    for (const step of form.steps) {
+        for (const test of step.tests) {
+            flat.push({
+                ...test,
+                category: step.name,
+            });
+        }
+    }
+
+    return flat;
+}
+
+export function calculateProgressPercentage(
+    flatTests: FlatTest[],
+    values: Props['values'],
+): number {
+    if (flatTests.length === 0) {
+        return 0;
+    }
+
+    const completed = flatTests.filter((test) => isTestCompleted(test, values)).length;
+    return Math.round((completed / flatTests.length) * 100);
 }
 
 export default function LabResultFields({
@@ -517,6 +578,8 @@ export default function LabResultFields({
     onChange,
     onSaveStep,
     onSubmitResults,
+    onTestIndexChange,
+    defaultTestIndex = 0,
     readOnly = false,
 }: Props) {
     if (!form.hasPending || form.steps.length === 0) {
@@ -527,153 +590,179 @@ export default function LabResultFields({
         );
     }
 
-    const [currentStep, setCurrentStep] = useState(0);
+    const [currentTestIndex, setCurrentTestIndex] = useState(defaultTestIndex);
+    const flatTests = useMemo(() => flattenTests(form), [form]);
+    const currentTest = flatTests[currentTestIndex];
 
-    const totalSteps = form.steps.length;
-    const step = form.steps[currentStep];
+    useEffect(() => {
+        setCurrentTestIndex(defaultTestIndex);
+    }, [defaultTestIndex]);
+
+    function setInternalTestIndex(index: number) {
+        setCurrentTestIndex(index);
+    }
+
+    if (!currentTest) {
+        return (
+            <p className="text-sm text-muted-foreground">
+                No test results found.
+            </p>
+        );
+    }
 
     function handlePrevious() {
-        if (currentStep > 0) {
-            setCurrentStep((prev) => prev - 1);
+        if (currentTestIndex > 0) {
+            const newIndex = currentTestIndex - 1;
+            setInternalTestIndex(newIndex);
+            onTestIndexChange?.(newIndex);
         }
     }
 
     function handleNext() {
-        if (currentStep < totalSteps - 1) {
-            setCurrentStep((prev) => prev + 1);
+        if (currentTestIndex < flatTests.length - 1) {
+            const newIndex = currentTestIndex + 1;
+            setInternalTestIndex(newIndex);
+            onTestIndexChange?.(newIndex);
         }
     }
 
-    function handleStepClick(index: number) {
-        setCurrentStep(index);
+    function handleTestClick(index: number) {
+        setInternalTestIndex(index);
+        onTestIndexChange?.(index);
+    }
+
+    function handleSaveCurrentTest() {
+        onSaveStep?.(currentTestIndex, currentTest.name);
     }
 
     return (
         <div className="space-y-0">
-            <StepNavigation
-                steps={form.steps}
-                currentStep={currentStep}
-                onStepClick={handleStepClick}
-            />
-
-            <section className="space-y-4">
-                <h3 className="text-lg font-semibold">{step.name}</h3>
-                <div className="space-y-4">
-                    {step.tests.map((test) =>
-                        test.kind === 'parameters' ? (
-                            <div
-                                key={test.id}
-                            >
-                                <ParameterTable
-                                    test={test}
-                                    rows={test.rows ?? []}
-                                    values={
-                                        values.testResults[String(test.id)] ?? {}
-                                    }
-                                    readOnly={readOnly}
-                                    onChange={(priceListId, value) => {
-                                        const key = String(test.id);
-                                        onChange({
-                                            ...values,
-                                            testResults: {
-                                                ...values.testResults,
-                                                [key]: {
-                                                    ...values.testResults[key],
-                                                    [String(priceListId)]:
-                                                        value,
-                                                },
-                                            },
-                                        });
-                                    }}
-                                />
-                                <InventoryConsumptionRepeater
-                                    testId={test.id}
-                                    testName={test.name}
-                                    inventoryItems={form.inventoryItems ?? []}
-                                    rows={
-                                        values.inventoryConsumption[
-                                            String(test.id)
-                                        ] ?? []
-                                    }
-                                    readOnly={readOnly}
-                                    onChange={(rows) => {
-                                        onChange({
-                                            ...values,
-                                            inventoryConsumption: {
-                                                ...values.inventoryConsumption,
-                                                [String(test.id)]: rows,
-                                            },
-                                        });
-                                    }}
-                                />
-                            </div>
-                        ) : null
-                    )}
-                    {step.tests.filter((t) => t.kind === 'simple').length > 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2">
-                            {step.tests
-                                .filter((t) => t.kind === 'simple')
-                                .map((test) => (
-                                    <div key={test.id} className="space-y-3">
-                                        <ResultInput
-                                            id={`line-${test.id}`}
-                                            label={test.name}
-                                            resultType={test.result_type ?? 'text'}
-                                            options={test.options ?? []}
-                                            unit={test.unit}
-                                            value={
-                                                values.lines[String(test.id)] ??
-                                                test.result ??
-                                                ''
-                                            }
-                                            readOnly={readOnly}
-                                            onChange={(value) =>
-                                                onChange({
-                                                    ...values,
-                                                    lines: {
-                                                        ...values.lines,
-                                                        [String(test.id)]: value,
-                                                    },
-                                                })
-                                            }
-                                        />
-                                        <InventoryConsumptionRepeater
-                                            testId={test.id}
-                                            testName={test.name}
-                                            inventoryItems={form.inventoryItems ?? []}
-                                            rows={
-                                                values.inventoryConsumption[
-                                                    String(test.id)
-                                                ] ?? []
-                                            }
-                                            readOnly={readOnly}
-                                            onChange={(rows) => {
-                                                onChange({
-                                                    ...values,
-                                                    inventoryConsumption: {
-                                                        ...values.inventoryConsumption,
-                                                        [String(test.id)]: rows,
-                                                    },
-                                                });
-                                            }}
-                                        />
-                                    </div>
-                                ))}
-                        </div>
-                    ) : null}
+            {/* Test navigation header */}
+            <div className="mb-4 flex items-center">
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-muted-foreground">
+                        Test {currentTestIndex + 1} of {flatTests.length}
+                    </span>
+                    <span className="text-muted-foreground">—</span>
+                    <span className="font-semibold">{currentTest.category}</span>
                 </div>
+            </div>
+
+            {/* Current test content */}
+            <section className="space-y-4">
+
+                {currentTest.kind === 'parameters' ? (
+                    <div>
+                        <ParameterTable
+                            test={currentTest}
+                            rows={currentTest.rows ?? []}
+                            values={
+                                values.testResults[String(currentTest.id)] ?? {}
+                            }
+                            readOnly={readOnly}
+                            onChange={(priceListId, value) => {
+                                const key = String(currentTest.id);
+                                onChange({
+                                    ...values,
+                                    testResults: {
+                                        ...values.testResults,
+                                        [key]: {
+                                            ...values.testResults[key],
+                                            [String(priceListId)]: value,
+                                        },
+                                    },
+                                });
+                            }}
+                        />
+                        <InventoryConsumptionRepeater
+                            testId={currentTest.id}
+                            testName={currentTest.name}
+                            inventoryItems={form.inventoryItems ?? []}
+                            rows={
+                                values.inventoryConsumption[
+                                    String(currentTest.id)
+                                ] ?? []
+                            }
+                            readOnly={readOnly}
+                            onChange={(rows) => {
+                                onChange({
+                                    ...values,
+                                    inventoryConsumption: {
+                                        ...values.inventoryConsumption,
+                                        [String(currentTest.id)]: rows,
+                                    },
+                                });
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <ResultInput
+                            id={`line-${currentTest.id}`}
+                            label={currentTest.name}
+                            resultType={currentTest.result_type ?? 'text'}
+                            options={currentTest.options ?? []}
+                            unit={currentTest.unit}
+                            value={
+                                values.lines[String(currentTest.id)] ??
+                                currentTest.result ??
+                                ''
+                            }
+                            readOnly={readOnly}
+                            onChange={(value) =>
+                                onChange({
+                                    ...values,
+                                    lines: {
+                                        ...values.lines,
+                                        [String(currentTest.id)]: value,
+                                    },
+                                })
+                            }
+                        />
+                        <InventoryConsumptionRepeater
+                            testId={currentTest.id}
+                            testName={currentTest.name}
+                            inventoryItems={form.inventoryItems ?? []}
+                            rows={
+                                values.inventoryConsumption[
+                                    String(currentTest.id)
+                                ] ?? []
+                            }
+                            readOnly={readOnly}
+                            onChange={(rows) => {
+                                onChange({
+                                    ...values,
+                                    inventoryConsumption: {
+                                        ...values.inventoryConsumption,
+                                        [String(currentTest.id)]: rows,
+                                    },
+                                });
+                            }}
+                        />
+                    </div>
+                )}
             </section>
 
+            {/* Navigation footer */}
             <StepFooter
-                currentStep={currentStep}
-                totalSteps={totalSteps}
+                currentStep={currentTestIndex}
+                totalSteps={flatTests.length}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
-                onSaveStep={() => onSaveStep?.(currentStep, step.name)}
+                onSaveStep={handleSaveCurrentTest}
                 onSubmitResults={onSubmitResults}
                 readOnly={readOnly}
-                isLastStep={currentStep === totalSteps - 1}
+                isLastStep={currentTestIndex === flatTests.length - 1}
+                allPreviousCompleted={
+                    currentTestIndex === 0 ||
+                    flatTests.slice(0, currentTestIndex).every((test) => isTestCompleted(test, values))
+                }
             />
+
+            {/* Expose flat tests and progress for parent component */}
+            <div className="hidden">
+                {/* Parent can access via ref if needed */}
+            </div>
         </div>
     );
 }

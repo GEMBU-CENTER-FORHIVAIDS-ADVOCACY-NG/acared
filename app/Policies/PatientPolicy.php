@@ -11,51 +11,51 @@ class PatientPolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->hasPermission($user, 'viewAny patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function view(User $user, Patient $patient): bool
     {
-        return $this->hasPermission($user, 'view patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function create(User $user): bool
     {
-        return $this->hasPermission($user, 'create patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function update(User $user, Patient $patient): bool
     {
-        return $this->hasPermission($user, 'update patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function delete(User $user, Patient $patient): bool
     {
-        return $this->hasPermission($user, 'delete patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function deleteAny(User $user): bool
     {
-        return $this->hasPermission($user, 'deleteAny patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function restore(User $user, Patient $patient): bool
     {
-        return $this->hasPermission($user, 'restore patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function restoreAny(User $user): bool
     {
-        return $this->hasPermission($user, 'restoreAny patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function forceDelete(User $user, Patient $patient): bool
     {
-        return $this->hasPermission($user, 'forceDelete patient');
+        return $this->hasPermission($user, 'view finance');
     }
 
     public function forceDeleteAny(User $user): bool
     {
-        return $this->hasPermission($user, 'forceDeleteAny patient');
+        return $this->hasPermission($user, 'view finance');
     }
 }

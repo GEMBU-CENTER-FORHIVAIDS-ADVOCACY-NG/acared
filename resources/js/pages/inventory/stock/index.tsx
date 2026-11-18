@@ -631,7 +631,7 @@ export default function InventoryStockIndex({
                                 </option>
                             ))}
                         </SelectNative>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Filter
                         </Button>
                     </form>

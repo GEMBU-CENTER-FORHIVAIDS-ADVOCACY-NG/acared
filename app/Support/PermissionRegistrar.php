@@ -67,6 +67,8 @@ class PermissionRegistrar
         'view pharmacy',
         'view inventory',
         'view nursing',
+        'view ward-rounds',
+        'view consultant-ward-rounds',
         'view reports',
         'view finance',
         'view roles',

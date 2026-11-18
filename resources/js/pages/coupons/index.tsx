@@ -334,7 +334,7 @@ export default function CouponsIndex({
                                 <SelectItem value="rejected">Rejected</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -598,7 +598,7 @@ export default function CouponsIndex({
                                         }}
                                     />
                                     {patientSearchOpen && !form.patient_id && (
-                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
+                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                             {patientSearchLoading && (
                                                 <div className="px-3 py-2 text-xs text-muted-foreground">
                                                     Searching…

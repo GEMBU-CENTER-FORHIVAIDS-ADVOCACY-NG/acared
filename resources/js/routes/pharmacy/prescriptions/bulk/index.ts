@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:636
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/bulk'
  */
@@ -17,7 +17,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:636
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/bulk'
  */
@@ -50,7 +50,7 @@ destroy.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:636
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/bulk'
  */
@@ -61,7 +61,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
 
     /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:636
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/bulk'
  */
@@ -77,7 +77,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
 
             /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:636
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/pharmacy/prescriptions/bulk'
  */

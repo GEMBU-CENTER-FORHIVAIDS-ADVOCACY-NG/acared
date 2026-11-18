@@ -1,6 +1,4 @@
 import { Link } from '@inertiajs/react';
-import { Search, X } from 'lucide-react';
-import { useState } from 'react';
 import type { ConsultationDailyTimelineEvent } from '@/types';
 
 type Props = {
@@ -28,6 +26,16 @@ const VISIT_LABEL: Record<string, string> = {
 const VISIT_BADGE: Record<string, string> = {
     new: 'bg-emerald-100 text-emerald-800',
     revisit: 'bg-amber-100 text-amber-800',
+};
+
+const TYPE_LABEL: Record<string, string> = {
+    anc: 'ANC',
+    consultation: 'Consultation',
+};
+
+const TYPE_BADGE: Record<string, string> = {
+    anc: 'bg-purple-100 text-purple-800',
+    consultation: 'bg-blue-100 text-blue-800',
 };
 
 const CATEGORY_BADGE: Record<string, string> = {
@@ -60,8 +68,6 @@ function getCategoryBadge(categoryName: string | null): { label: string; classNa
 }
 
 export default function ConsultationDayTimeline({ events, onEventClick }: Props) {
-    const [searchQuery, setSearchQuery] = useState('');
-
     const sortedEvents = [...events].sort((a, b) => {
         const parseTime = (time: string) => {
             const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -76,19 +82,6 @@ export default function ConsultationDayTimeline({ events, onEventClick }: Props)
         return parseTime(a.startsAt) - parseTime(b.startsAt);
     });
 
-    const filteredEvents = searchQuery.trim()
-        ? sortedEvents.filter((event) => {
-            const q = searchQuery.toLowerCase();
-            return (
-                event.title.toLowerCase().includes(q) ||
-                event.patientId.toLowerCase().includes(q) ||
-                (event.birthDate ?? '').toLowerCase().includes(q) ||
-                (event.age ?? '').toLowerCase().includes(q) ||
-                (event.categoryName ?? '').toLowerCase().includes(q)
-            );
-        })
-        : sortedEvents;
-
     if (sortedEvents.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -101,43 +94,7 @@ export default function ConsultationDayTimeline({ events, onEventClick }: Props)
 
     return (
         <div className="flex flex-col space-y-3">
-            {/* Patient search / filter */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search scheduled patients by name or number..."
-                    className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-8 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-ring/50 focus:ring-[3px]"
-                />
-                {searchQuery && (
-                    <button
-                        type="button"
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                        <X className="size-4" />
-                    </button>
-                )}
-            </div>
-
-            {searchQuery.trim() && filteredEvents.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        No scheduled patients match &ldquo;{searchQuery}&rdquo;.
-                    </p>
-                </div>
-            )}
-
-            {searchQuery.trim() && (
-                <p className="text-xs text-muted-foreground">
-                    Showing {filteredEvents.length} of {sortedEvents.length} scheduled patient{sortedEvents.length !== 1 ? 's' : ''}.
-                </p>
-            )}
-
-            <div className="flex flex-col space-y-3">
-            {filteredEvents.map((event) => (
+            {sortedEvents.map((event) => (
                 onEventClick ? (
                     <div
                         key={event.id}
@@ -175,6 +132,14 @@ export default function ConsultationDayTimeline({ events, onEventClick }: Props)
                                     {event.title}
                                 </span>
                                 <div className="flex items-center gap-1.5">
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                            TYPE_BADGE[event.type] ??
+                                            'bg-muted text-muted-foreground'
+                                        }`}
+                                    >
+                                        {TYPE_LABEL[event.type] ?? event.type}
+                                    </span>
                                     <span
                                         className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                             VISIT_BADGE[event.visitType] ??
@@ -242,6 +207,14 @@ export default function ConsultationDayTimeline({ events, onEventClick }: Props)
                                 <div className="flex items-center gap-1.5">
                                     <span
                                         className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                            TYPE_BADGE[event.type] ??
+                                            'bg-muted text-muted-foreground'
+                                        }`}
+                                    >
+                                        {TYPE_LABEL[event.type] ?? event.type}
+                                    </span>
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                             VISIT_BADGE[event.visitType] ??
                                             'bg-muted text-muted-foreground'
                                         }`}
@@ -278,7 +251,6 @@ export default function ConsultationDayTimeline({ events, onEventClick }: Props)
                     </Link>
                 )
             ))}
-            </div>
         </div>
     );
 }

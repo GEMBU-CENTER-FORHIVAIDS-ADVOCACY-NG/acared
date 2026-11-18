@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:160
+ * @see app/Http/Controllers/PatientController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk'
  */
@@ -17,7 +17,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:160
+ * @see app/Http/Controllers/PatientController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk'
  */
@@ -50,7 +50,7 @@ destroy.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:160
+ * @see app/Http/Controllers/PatientController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk'
  */
@@ -61,7 +61,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
 
     /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:160
+ * @see app/Http/Controllers/PatientController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk'
  */
@@ -77,7 +77,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
 
             /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:160
+ * @see app/Http/Controllers/PatientController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk'
  */
@@ -94,7 +94,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
     destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:232
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk-force'
  */
@@ -110,7 +110,7 @@ forceDelete.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:232
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk-force'
  */
@@ -143,7 +143,7 @@ forceDelete.url = (args?: { current_team?: string | number } | [current_team: st
 
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:232
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk-force'
  */
@@ -154,7 +154,7 @@ forceDelete.delete = (args?: { current_team?: string | number } | [current_team:
 
     /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:232
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk-force'
  */
@@ -170,7 +170,7 @@ forceDelete.delete = (args?: { current_team?: string | number } | [current_team:
 
             /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:232
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/bulk-force'
  */

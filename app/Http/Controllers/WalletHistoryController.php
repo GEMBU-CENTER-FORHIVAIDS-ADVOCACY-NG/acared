@@ -35,16 +35,23 @@ class WalletHistoryController extends Controller
         ];
         $teamId = $request->user()->currentTeam->getKey();
 
+        // Search query bypasses date filtering so it searches across all dates
+        $isSearching = $filters['q'] !== '';
+
         $fromDateTime = Carbon::parse($filters['from'])->startOfDay()->toDateTimeString();
         $toDateTime = Carbon::parse($filters['to'])->endOfDay()->toDateTimeString();
+
+        $hasDateFilter = ! $isSearching;
 
         $query = WalletHistory::query()
             ->when($filters['q'] !== '', fn (Builder $builder) => $builder->where(fn (Builder $builder) => $builder
                 ->where('patient_id', 'like', '%'.$filters['q'].'%')
                 ->orWhereHas('patient', fn (Builder $patient) => $patient->where('fullName', 'like', '%'.$filters['q'].'%'))
                 ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', '%'.$filters['q'].'%'))))
-            ->where('created_at', '>=', $fromDateTime)
-            ->where('created_at', '<=', $toDateTime);
+            ->when($hasDateFilter, function (Builder $builder) use ($fromDateTime, $toDateTime): void {
+                $builder->where('created_at', '>=', $fromDateTime)
+                    ->where('created_at', '<=', $toDateTime);
+            });
 
         $stats = [
             'total_credit' => (float) $query->sum('credit'),
@@ -59,8 +66,10 @@ class WalletHistoryController extends Controller
                 ->where('patient_id', 'like', '%'.$filters['q'].'%')
                 ->orWhereHas('patient', fn (Builder $patient) => $patient->where('fullName', 'like', '%'.$filters['q'].'%'))
                 ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', '%'.$filters['q'].'%'))))
-            ->where('created_at', '>=', $fromDateTime)
-            ->where('created_at', '<=', $toDateTime)
+            ->when($hasDateFilter, function (Builder $builder) use ($fromDateTime, $toDateTime): void {
+                $builder->where('created_at', '>=', $fromDateTime)
+                    ->where('created_at', '<=', $toDateTime);
+            })
             ->latest()
             ->paginate($filters['perPage'])
             ->withQueryString()
@@ -172,8 +181,8 @@ class WalletHistoryController extends Controller
                         'unitPrice' => $debit,
                         'quantity' => 1,
                         'paid' => true,
-                        'lineable_type' => Billing::class,
-                        'lineable_id' => $billing->getKey(),
+                        'lineable_type' => WalletHistory::class,
+                        'lineable_id' => $walletHistory->getKey(),
                     ]);
                 }
             } else {
@@ -244,8 +253,8 @@ class WalletHistoryController extends Controller
                         'unitPrice' => $credit,
                         'quantity' => 1,
                         'paid' => true,
-                        'lineable_type' => Billing::class,
-                        'lineable_id' => $billing->getKey(),
+                        'lineable_type' => WalletHistory::class,
+                        'lineable_id' => $walletHistory->getKey(),
                     ]);
                 }
             }

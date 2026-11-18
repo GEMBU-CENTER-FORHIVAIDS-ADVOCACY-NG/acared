@@ -175,19 +175,21 @@ class LabIntakeController extends Controller
 
             if (! $data['is_category'] && ! empty($data['parameters'])) {
                 foreach ($data['parameters'] as $parameter) {
-                    $item->parameters()->create([
-                        'team_id' => $request->user()->currentTeam->getKey(),
-                        'name' => $parameter['name'],
-                        'ranges' => $parameter['ranges'] ?? null,
-                        'uom' => $parameter['uom'] ?? null,
-                        'result_type' => $parameter['result_type'] ?? 'text',
-                        'options' => $this->normalizeParameterOptions($parameter),
-                        'category_id' => $data['category_id'] ?? null,
-                        'subcategory_id' => $data['subcategory_id'] ?? null,
-                        'is_category' => false,
-                        'is_inventory' => false,
-                        'price' => 0,
-                    ]);
+                    PriceList::updateOrCreate(
+                        ['name' => $parameter['name'], 'team_id' => $request->user()->currentTeam->getKey()],
+                        [
+                            'parameter_id' => $item->getKey(),
+                            'ranges' => $parameter['ranges'] ?? null,
+                            'uom' => $parameter['uom'] ?? null,
+                            'result_type' => $parameter['result_type'] ?? 'text',
+                            'options' => $this->normalizeParameterOptions($parameter),
+                            'category_id' => $data['category_id'] ?? null,
+                            'subcategory_id' => $data['subcategory_id'] ?? null,
+                            'is_category' => false,
+                            'is_inventory' => false,
+                            'price' => 0,
+                        ]
+                    );
                 }
             }
 
@@ -254,22 +256,31 @@ class LabIntakeController extends Controller
             ]);
 
             if (! $data['is_category'] && array_key_exists('parameters', $data)) {
-                $price_list->parameters()->delete();
+                $newParameterNames = array_map(fn ($p) => $p['name'], $data['parameters'] ?? []);
+                $oldParameters = $price_list->parameters()->get();
+
+                foreach ($oldParameters as $oldParam) {
+                    if (! in_array($oldParam->name, $newParameterNames, true)) {
+                        $oldParam->delete();
+                    }
+                }
 
                 foreach ($data['parameters'] ?? [] as $parameter) {
-                    $price_list->parameters()->create([
-                        'team_id' => $request->user()->currentTeam->getKey(),
-                        'name' => $parameter['name'],
-                        'ranges' => $parameter['ranges'] ?? null,
-                        'uom' => $parameter['uom'] ?? null,
-                        'result_type' => $parameter['result_type'] ?? 'text',
-                        'options' => $this->normalizeParameterOptions($parameter),
-                        'category_id' => $data['category_id'] ?? null,
-                        'subcategory_id' => $data['subcategory_id'] ?? null,
-                        'is_category' => false,
-                        'is_inventory' => false,
-                        'price' => 0,
-                    ]);
+                    PriceList::updateOrCreate(
+                        ['name' => $parameter['name'], 'team_id' => $request->user()->currentTeam->getKey()],
+                        [
+                            'parameter_id' => $price_list->getKey(),
+                            'ranges' => $parameter['ranges'] ?? null,
+                            'uom' => $parameter['uom'] ?? null,
+                            'result_type' => $parameter['result_type'] ?? 'text',
+                            'options' => $this->normalizeParameterOptions($parameter),
+                            'category_id' => $data['category_id'] ?? null,
+                            'subcategory_id' => $data['subcategory_id'] ?? null,
+                            'is_category' => false,
+                            'is_inventory' => false,
+                            'price' => 0,
+                        ]
+                    );
                 }
             }
 

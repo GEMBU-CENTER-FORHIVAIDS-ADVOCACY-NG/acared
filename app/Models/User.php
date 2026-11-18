@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasTeams;
+use Chatify\Traits\InteractsWithChatify;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -31,18 +32,19 @@ use Spatie\Permission\Traits\HasRoles;
  * @property int|null $current_team_id
  * @property Carbon|null $created_at
  * @property bool $is_online
+ * @property Carbon|null $last_activity_at
  * @property Carbon|null $updated_at
  * @property-read Team|null $currentTeam
  * @property-read Collection<int, Team> $ownedTeams
  * @property-read Collection<int, Membership> $teamMemberships
  * @property-read Collection<int, Team> $teams
  */
-#[Fillable(['name', 'email', 'password', 'current_team_id', 'is_online'])]
+#[Fillable(['name', 'email', 'password', 'current_team_id', 'is_online', 'last_activity_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, HasTeams, LogsActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable {
+    use HasApiTokens, HasFactory, HasRoles, HasTeams, InteractsWithChatify, LogsActivity, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable {
         HasTeams::teams insteadof HasRoles;
     }
 
@@ -58,6 +60,26 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'is_online' => 'boolean',
+            'last_activity_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Check if the user is currently online based on active session.
+     */
+    public function isCurrentlyOnline(): bool
+    {
+        // Must have is_online flag set (logged in)
+        if (! $this->is_online) {
+            return false;
+        }
+
+        // If no last_activity_at, fall back to is_online flag
+        if ($this->last_activity_at === null) {
+            return true;
+        }
+
+        // Consider online if last activity was within the last 5 minutes
+        return $this->last_activity_at->gte(now()->subMinutes(5));
     }
 }

@@ -505,7 +505,7 @@ export default function PharmacyIndex({
                             <option value="expired">Expired</option>
                             <option value="expiring">Expiring soon</option>
                         </SelectNative>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

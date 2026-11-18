@@ -103,7 +103,7 @@
 
     --theme-surface: #faf9f6;
     --theme-surface-dim: #f2f0eb;
-    --theme-surface-card: #ffffff;
+    --theme-surface-card: transparent;
     --theme-surface-inset: #eae7e0;
     --theme-surface-deep: #e3dfd6;
 
@@ -112,6 +112,7 @@
     --theme-brass-light: #c4a94d;
     --theme-brass-dim: rgba(168, 135, 42, 0.08);
     --theme-brass-ring: rgba(168, 135, 42, 0.2);
+    --theme-primary-surface: #fff1e3;
 
     --theme-slate: #3a362e;
     --theme-slate-dim: #635d52;
@@ -127,9 +128,9 @@
 
     --background: var(--theme-body-bg);
     --foreground: var(--theme-slate);
-    --card: var(--theme-surface-card);
+    --card: transparent;
     --card-foreground: var(--theme-slate);
-    --popover: var(--theme-surface-card);
+    --popover: var(--theme-primary-surface);
     --popover-foreground: var(--theme-slate);
     --primary: var(--theme-brass);
     --primary-foreground: #ffffff;
@@ -184,6 +185,7 @@
     --theme-brass-light: #daba5e;
     --theme-brass-dim: rgba(201, 164, 58, 0.06);
     --theme-brass-ring: rgba(201, 164, 58, 0.15);
+    --theme-primary-surface: #3a2e1a;
 
     --theme-slate: #d4cfc4;
     --theme-slate-dim: #8e887c;
@@ -226,7 +228,7 @@
     }
 
     body {
-        background: white !important;
+        background: transparent !important;
         color: black !important;
     }
 
@@ -329,7 +331,7 @@
         left: 0 !important;
         width: 100% !important;
         z-index: 99999 !important;
-        background: white !important;
+        background: transparent !important;
         overflow: visible !important;
         margin: 0 !important;
         padding: 0 !important;

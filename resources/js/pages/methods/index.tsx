@@ -176,7 +176,7 @@ export default function MethodsIndex({
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search payment methods..."
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

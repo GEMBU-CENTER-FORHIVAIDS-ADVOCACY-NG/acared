@@ -107,7 +107,21 @@ class LaboratoryController extends Controller
                 'patientName' => $selected->patient?->fullName,
                 'gender' => $selected->patient?->gender,
                 'age' => $selected->patient?->age,
+                'birthDate' => $selected->patient?->birthDate?->format('Y-m-d'),
+                'doctorName' => $selected->doctor?->name,
+                'createdAt' => $selected->created_at?->toIso8601String(),
                 'isAdmitted' => $selected->patient?->isAdmitted() ?? false,
+                'lines' => $selected->lines()
+                    ->with(['priceList', 'testResults'])
+                    ->get()
+                    ->map(fn (Line $line) => [
+                        'id' => $line->getKey(),
+                        'name' => $line->priceList->name ?? 'Unknown',
+                        'unitPrice' => (float) $line->unitPrice,
+                        'quantity' => (int) $line->quantity,
+                        'completed' => ! is_null($line->results) || ! $line->testResults->isEmpty(),
+                    ])
+                    ->values(),
             ] : null,
             'resultForm' => $selected ? $this->resultForm($selected, pendingOnly: true) : null,
             'createOptions' => [
@@ -191,12 +205,24 @@ class LaboratoryController extends Controller
                 'patientName' => $laboratory->patient?->fullName,
                 'gender' => $laboratory->patient?->gender,
                 'age' => $laboratory->patient?->age,
+                'birthDate' => $laboratory->patient?->birth_date?->toIso8601String(),
                 'doctorName' => $laboratory->doctor?->name,
                 'status' => $laboratory->status,
                 'total' => (float) $laboratory->total,
                 'createdAt' => $laboratory->created_at?->toIso8601String(),
                 'facilityName' => $laboratory->team?->name,
                 'facilityAddress' => $laboratory->team?->address,
+                'lines' => $laboratory->lines()
+                    ->with(['priceList', 'testResults'])
+                    ->get()
+                    ->map(fn (Line $line) => [
+                        'id' => $line->getKey(),
+                        'name' => $line->priceList->name ?? 'Unknown',
+                        'unitPrice' => (float) $line->unitPrice,
+                        'quantity' => (int) $line->quantity,
+                        'completed' => ! is_null($line->results) || ! $line->testResults->isEmpty(),
+                    ])
+                    ->values(),
             ],
             'resultForm' => $this->resultForm($laboratory, pendingOnly: false),
             'canEdit' => in_array($laboratory->status, ['paid', 'submitted'], true),
@@ -334,6 +360,78 @@ class LaboratoryController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Results updated successfully.']);
 
         return back();
+    }
+
+    /**
+     * Cancel a laboratory request and create a negative billing for refund.
+     * Only refunds tests that have not been completed (no results entered).
+     */
+    public function cancel(Request $request, string $current_team, Laboratory $laboratory): RedirectResponse
+    {
+        abort_unless(in_array($laboratory->status, ['paid', 'submitted'], true), 422, 'Only paid or submitted laboratory requests can be cancelled.');
+
+        $teamId = $request->user()->currentTeam->getKey();
+        $patientId = $laboratory->patient_id;
+        $userId = $request->user()->getKey();
+
+        // Optionally accept specific line IDs to refund; otherwise default to lines without results
+        $refundLineIds = $request->input('refund_line_ids');
+        if (is_array($refundLineIds)) {
+            $refundLineIds = array_map('intval', array_filter($refundLineIds));
+        }
+
+        $lines = $laboratory->lines()->with(['priceList', 'testResults'])->get();
+
+        // Filter to only lines that should be refunded
+        $refundLines = $lines->filter(function (Line $line) use ($refundLineIds): bool {
+            // If specific line IDs were provided, only refund those
+            if (is_array($refundLineIds) && $refundLineIds !== []) {
+                return in_array($line->id, $refundLineIds, true);
+            }
+
+            // Otherwise, auto-refund lines without any results
+            return is_null($line->results) && $line->testResults->isEmpty();
+        });
+
+        // If no lines to refund, there's nothing to cancel
+        if ($refundLines->isEmpty()) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => 'All tests have been completed. Nothing to refund.']);
+
+            return back();
+        }
+
+        DB::transaction(function () use ($laboratory, $teamId, $patientId, $userId, $refundLines): void {
+            // Mark the laboratory as cancelled so it no longer appears in result entry queues
+            $laboratory->update(['status' => 'cancelled']);
+
+            // Create negative billing lines for each uncompleted test so the cashier can process the refund
+            foreach ($refundLines as $line) {
+                $laboratory->lines()->create([
+                    'team_id' => $teamId,
+                    'patient_id' => $patientId,
+                    'user_id' => $userId,
+                    'price_list_id' => $line->price_list_id,
+                    'quantity' => $line->quantity,
+                    'unitPrice' => -(float) $line->unitPrice,
+                    'unitCost' => $line->unitCost,
+                ]);
+            }
+
+            // Create a billing record with negative total for refund at cashier
+            $total = $refundLines->sum(fn (Line $line) => (float) $line->quantity * -(float) $line->unitPrice);
+
+            $laboratory->billings()->create([
+                'team_id' => $teamId,
+                'patient_id' => $patientId,
+                'user_id' => $userId,
+                'total' => $total,
+                'status' => 'billed',
+            ]);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Laboratory request cancelled. Negative billing created for refund.']);
+
+        return to_route('laboratories.index', $request->user()->currentTeam->slug);
     }
 
     /**
@@ -523,15 +621,69 @@ class LaboratoryController extends Controller
             }
         });
 
-        $allResultsFilled = $laboratory->lines()
-            ->where(fn (Builder $query) => $query
-                ->whereNull('results')
-                ->orWhere('results', ''))
-            ->doesntExist();
+        $allResultsFilled = $this->areAllResultsFilled($laboratory);
 
         if ($allResultsFilled) {
             $laboratory->update(['status' => 'submitted']);
         }
+    }
+
+    /**
+     * Check whether every test in the laboratory request has a result.
+     *
+     * Mirrors the frontend resultForm logic which deduplicates lines by
+     * price_list_id – so when multiple lines share the same test, the test
+     * is considered filled if **any** of those lines has a result.
+     *
+     * For simple tests the line's `results` column must be filled.
+     * For parameterised tests every expected parameter must have a
+     * corresponding TestResult row with a non-empty result.
+     */
+    private function areAllResultsFilled(Laboratory $laboratory): bool
+    {
+        $lines = $laboratory->lines()
+            ->with(['priceList.parameters', 'testResults'])
+            ->get();
+
+        // Group lines by price_list_id to match the frontend's unique('id') deduplication
+        $grouped = $lines->groupBy('price_list_id');
+
+        foreach ($grouped as $priceListId => $linesGroup) {
+            $firstLine = $linesGroup->first();
+            $priceList = $firstLine->priceList;
+
+            // If the test has parameters, check that every parameter has a result
+            // Aggregate testResults across all lines in the group
+            if ($priceList !== null && $priceList->parameters->isNotEmpty()) {
+                $expectedParamIds = $priceList->parameters->pluck('id')->map(fn ($id) => (int) $id);
+
+                // Collect filled parameter IDs from all lines sharing this price_list_id
+                $filledParamIds = collect();
+                foreach ($linesGroup as $line) {
+                    $filledParamIds = $filledParamIds->merge(
+                        $line->testResults
+                            ->filter(fn (TestResult $tr) => $tr->result !== null && $tr->result !== '')
+                            ->pluck('price_list_id')
+                            ->map(fn ($id) => (int) $id)
+                    );
+                }
+
+                // Check that every expected parameter has a corresponding result
+                if ($expectedParamIds->isNotEmpty() && ! $expectedParamIds->every(fn ($id) => $filledParamIds->contains($id))) {
+                    return false;
+                }
+
+                continue;
+            }
+
+            // Simple test – check if any line in the group has a result
+            $hasResult = $linesGroup->some(fn (Line $line) => $line->results !== null && $line->results !== '');
+            if (! $hasResult) {
+                return false;
+            }
+        }
+
+        return $lines->isNotEmpty();
     }
 
     /**
@@ -578,27 +730,21 @@ class LaboratoryController extends Controller
                             'result' => null,
                         ])->values()->all();
                     } else {
-                        if (! $line || $line->testResults->isEmpty()) {
-                            $rows = $test->parameters->map(fn (PriceList $param) => [
-                                'price_list_id' => $param->id,
-                                'name' => $param->name,
-                                'range' => $param->ranges ?? null,
-                                'uom' => Str::of((string) ($param->uom ?? ''))->stripTags()->squish()->toString() ?: null,
-                                'result_type' => $param->result_type ?? 'text',
-                                'options' => $this->resultOptions($param),
-                                'result' => null,
-                            ])->values()->all();
-                        } else {
-                            $rows = $line->testResults->map(fn (TestResult $testResult) => [
-                                'price_list_id' => $testResult->price_list_id,
-                                'name' => $testResult->priceList->name ?? '—',
-                                'range' => $testResult->priceList->ranges ?? null,
-                                'uom' => Str::of((string) ($testResult->priceList->uom ?? ''))->stripTags()->squish()->toString() ?: null,
-                                'result_type' => $testResult->priceList->result_type ?? 'text',
-                                'options' => $this->resultOptions($testResult->priceList),
-                                'result' => $testResult->result,
-                            ])->values()->all();
-                        }
+                        // Build a map of saved results keyed by price_list_id
+                        $savedResults = $line
+                            ? $line->testResults->keyBy('price_list_id')
+                            : collect();
+
+                        // Always show all expected parameters, filling in saved results where available
+                        $rows = $test->parameters->map(fn (PriceList $param) => [
+                            'price_list_id' => $param->id,
+                            'name' => $param->name,
+                            'range' => $param->ranges ?? null,
+                            'uom' => Str::of((string) ($param->uom ?? ''))->stripTags()->squish()->toString() ?: null,
+                            'result_type' => $param->result_type ?? 'text',
+                            'options' => $this->resultOptions($param),
+                            'result' => $savedResults->get($param->id)?->result ?? null,
+                        ])->values()->all();
                     }
 
                     $stepTests[] = [
@@ -784,11 +930,12 @@ class LaboratoryController extends Controller
             $query->where('status', $filters['status']);
         }
 
-        if ($filters['from'] !== null) {
+        // Search query bypasses date filtering so it searches across all dates
+        if ($filters['q'] === '' && $filters['from'] !== null) {
             $query->whereDate('created_at', '>=', $filters['from']);
         }
 
-        if ($filters['to'] !== null) {
+        if ($filters['q'] === '' && $filters['to'] !== null) {
             $query->whereDate('created_at', '<=', $filters['to']);
         }
 

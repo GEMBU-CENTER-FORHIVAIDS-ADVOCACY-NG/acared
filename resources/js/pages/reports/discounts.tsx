@@ -157,7 +157,6 @@ export default function Discounts({
                         </SelectNative>
                     </div>
                     <Button
-                        variant="secondary"
                         onClick={() => visit({ from, to, discountType, page: 1 })}
                     >
                         Apply

@@ -456,6 +456,7 @@ class PrescriptionController extends Controller
                     'patient_id' => $prescription->patient_id,
                     'user_id' => $request->user()->getKey(),
                     'total' => -1 * $refundTotal,
+                    'status' => 'billed',
                 ]);
             }
         });

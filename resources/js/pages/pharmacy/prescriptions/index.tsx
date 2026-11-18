@@ -34,7 +34,6 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { SelectNative } from '@/components/ui/select-native';
 import {
     Table,
     TableBody,
@@ -99,7 +98,7 @@ export default function PrescriptionsIndex({
         per_page: number;
         total: number;
     };
-    filters: { q: string; status: string; perPage: number; startDate: string; endDate: string };
+    filters: { q: string; perPage: number; startDate: string; endDate: string };
     summary: {
         total: number;
         pending: number;
@@ -112,7 +111,6 @@ export default function PrescriptionsIndex({
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
-    const [status, setStatus] = useState(filters.status);
     const [startDate, setStartDate] = useState(filters.startDate || todayDate());
     const [endDate, setEndDate] = useState(filters.endDate || todayDate());
     const [deleting, setDeleting] = useState<Prescription | null>(null);
@@ -125,7 +123,6 @@ export default function PrescriptionsIndex({
             prescriptionsIndex.url(teamSlug),
             {
                 q: search || undefined,
-                status,
                 start_date: startDate || undefined,
                 end_date: endDate || undefined,
                 page: options?.page ?? 1,
@@ -133,17 +130,15 @@ export default function PrescriptionsIndex({
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
-    }, [search, status, startDate, endDate, teamSlug]);
+    }, [search, startDate, endDate, teamSlug]);
 
     const resetFilters = useCallback(() => {
         setSearch('');
-        setStatus('all');
         setStartDate(todayDate());
         setEndDate(todayDate());
         router.get(
             prescriptionsIndex.url(teamSlug),
             {
-                status: 'all',
                 start_date: todayDate(),
                 end_date: todayDate(),
                 page: 1,
@@ -234,62 +229,58 @@ export default function PrescriptionsIndex({
 
 
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative flex-1 min-w-[200px]">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            className="pl-10"
-                            value={search}
-                            placeholder="Search prescriptions..."
-                            onChange={(event) => setSearch(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                    event.preventDefault();
-                                    applyFilters();
-                                }
-                            }}
-                        />
-                    </div>
-                    <SelectNative
-                        className="w-36 shrink-0"
-                        value={status}
-                        onChange={(event) => setStatus(event.target.value)}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <form
+                        className="flex items-center gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            applyFilters();
+                        }}
                     >
-                        <option value="all">All statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="billed">Billed</option>
-                        <option value="paid">Paid</option>
-                        <option value="dispensed">Dispensed</option>
-                        <option value="refunded">Refunded</option>
-                    </SelectNative>
-                    <div className="flex items-center gap-1">
-                        <label htmlFor="start-date" className="text-sm text-muted-foreground">From</label>
-                        <Input
-                            id="start-date"
-                            type="date"
-                            className="w-36 shrink-0"
-                            value={startDate}
-                            onChange={(event) => setStartDate(event.target.value)}
-                        />
+                        <div className="relative w-72">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                className="pl-10"
+                                value={search}
+                                placeholder="Search prescriptions..."
+                                onChange={(event) => setSearch(event.target.value)}
+                            />
+                        </div>
+                        <Button type="submit" size="sm" className="shrink-0">
+                            <Search className="mr-2 h-4 w-4" />
+                            Search
+                        </Button>
+                    </form>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1">
+                            <label htmlFor="start-date" className="text-sm text-muted-foreground">From</label>
+                            <Input
+                                id="start-date"
+                                type="date"
+                                className="w-36 shrink-0"
+                                value={startDate}
+                                onChange={(event) => setStartDate(event.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <label htmlFor="end-date" className="text-sm text-muted-foreground">To</label>
+                            <Input
+                                id="end-date"
+                                type="date"
+                                className="w-36 shrink-0"
+                                value={endDate}
+                                onChange={(event) => setEndDate(event.target.value)}
+                            />
+                        </div>
+                        <Button onClick={applyFilters} className="shrink-0">
+                            <Filter className="mr-2 h-4 w-4" />
+                            Filter
+                        </Button>
+                        <Button onClick={resetFilters} className="shrink-0">
+                            <X className="mr-2 h-4 w-4" />
+                            Reset
+                        </Button>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <label htmlFor="end-date" className="text-sm text-muted-foreground">To</label>
-                        <Input
-                            id="end-date"
-                            type="date"
-                            className="w-36 shrink-0"
-                            value={endDate}
-                            onChange={(event) => setEndDate(event.target.value)}
-                        />
-                    </div>
-                    <Button onClick={applyFilters} className="shrink-0">
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filter
-                    </Button>
-                    <Button variant="outline" onClick={resetFilters} className="shrink-0">
-                        <X className="mr-2 h-4 w-4" />
-                        Reset
-                    </Button>
                 </div>
                 <Card>
                     <CardHeader>

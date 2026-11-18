@@ -165,7 +165,9 @@ export default function LaboratoryHistory({
                         className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            applyFilters({ q: search });
+                            setFrom('');
+                            setTo('');
+                            applyFilters({ q: search, from: null, to: null });
                         }}
                     >
                         <Input
@@ -174,7 +176,7 @@ export default function LaboratoryHistory({
                             placeholder="Search patient, doctor..."
                             className="max-w-sm"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -221,7 +223,6 @@ export default function LaboratoryHistory({
                     </div>
                     <Button
                         type="button"
-                        variant="secondary"
                         onClick={() =>
                             applyFilters({
                                 from: from || null,

@@ -128,7 +128,6 @@ export default function CouponUsages({
                         />
                     </div>
                     <Button
-                        variant="secondary"
                         onClick={() => visit({ from, to, page: 1 })}
                     >
                         Apply

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Billing;
 use App\Models\PriceList;
 use App\Models\WalletHistory;
 use App\Service\DashboardCurrency;
@@ -75,6 +74,7 @@ class CategorySalesReportController extends Controller
         $billingRows = DB::table('payments')
             ->whereBetween('payments.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
             ->join('billings', 'billings.id', '=', 'payments.billing_id')
+            ->where('billings.billable_type', '<>', WalletHistory::class)
             ->join('lines', function (JoinClause $join): void {
                 $join->on('lines.lineable_id', '=', 'billings.billable_id')
                     ->on('lines.lineable_type', '=', DB::raw('billings.billable_type'));
@@ -105,32 +105,8 @@ class CategorySalesReportController extends Controller
             ->groupBy('category_key')
             ->get();
 
-        // Get billings with WalletHistory as billable (deposit transactions).
-        // These billings are created by wallet transactions and have lines attached
-        // directly to the billing (lineable_type = Billing::class).
-        $depositBillingRows = DB::table('billings')
-            ->where('billings.billable_type', WalletHistory::class)
-            ->whereBetween('billings.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
-            ->join('lines', function (JoinClause $join): void {
-                $join->on('lines.lineable_id', '=', 'billings.id')
-                    ->on('lines.lineable_type', '=', DB::raw("'".Billing::class."'"));
-            })
-            ->where('lines.paid', true)
-            ->where('lines.unitPrice', '<>', 0)
-            ->join('price_lists as pl', 'pl.id', '=', 'lines.price_list_id')
-            ->selectRaw('
-                CASE WHEN pl.is_category = 1 THEN pl.id ELSE COALESCE(pl.category_id, 0) END as category_key,
-                SUM(lines.quantity) as quantity,
-                SUM(lines.totalCost) as cost,
-                SUM(lines.unitPrice) as price,
-                SUM(lines.totalPrice) as amount
-            ')
-            ->groupBy('category_key')
-            ->get();
-
         // Get deposit payments (no billing_id) that have WalletHistory lines.
-        // Kept for backward compatibility with existing data where lines were
-        // attached directly to WalletHistory instead of through a Billing record.
+        // All deposit lines use lineable_type = WalletHistory::class.
         $depositRows = DB::table('payments')
             ->whereNull('billing_id')
             ->whereBetween('payments.created_at', [$filters['from'].' 00:00:00', $filters['to'].' 23:59:59'])
@@ -150,12 +126,9 @@ class CategorySalesReportController extends Controller
             ->groupBy('category_key')
             ->get();
 
-        // Merge billing rows, deposit billing rows, and deposit rows into a unified result set.
+        // Merge billing rows and deposit rows into a unified result set.
         $allRows = collect();
         foreach ($billingRows as $row) {
-            $allRows->push((array) $row);
-        }
-        foreach ($depositBillingRows as $row) {
             $allRows->push((array) $row);
         }
         foreach ($depositRows as $row) {

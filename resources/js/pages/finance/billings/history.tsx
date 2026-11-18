@@ -178,7 +178,9 @@ export default function BillingHistory({
                         className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            applyFilters({ q: search });
+                            setFrom(today);
+                            setTo(today);
+                            applyFilters({ q: search, from: null, to: null });
                         }}
                     >
                         <Input
@@ -188,7 +190,7 @@ export default function BillingHistory({
                             className="max-w-sm"
                             data-test="billing-search"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -218,7 +220,6 @@ export default function BillingHistory({
                         </div>
                         <Button
                             type="button"
-                            variant="secondary"
                             onClick={() =>
                                 applyFilters({
                                     from: from || null,
@@ -230,7 +231,6 @@ export default function BillingHistory({
                         </Button>
                         <Button
                             type="button"
-                            variant="outline"
                             onClick={() => {
                                 setFrom(today);
                                 setTo(today);

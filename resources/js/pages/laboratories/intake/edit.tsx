@@ -614,6 +614,9 @@ export default function LabIntakeEdit({
                                                             Ranges
                                                         </th>
                                                         <th className="px-3 py-2 text-left font-medium">
+                                                            UOM
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left font-medium">
                                                             Result Type
                                                         </th>
                                                         <th className="px-3 py-2 text-left font-medium w-20">
@@ -692,6 +695,42 @@ export default function LabIntakeEdit({
                                                                                                         ? {
                                                                                                               ...row,
                                                                                                               ranges: event
+                                                                                                                  .target
+                                                                                                                  .value,
+                                                                                                          }
+                                                                                                        : row,
+                                                                                            ),
+                                                                                    }),
+                                                                                )
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <Input
+                                                                        placeholder="UOM"
+                                                                        value={
+                                                                            parameter.uom
+                                                                        }
+                                                                        onChange={
+                                                                            (
+                                                                                event,
+                                                                            ) =>
+                                                                                setForm(
+                                                                                    (
+                                                                                        current,
+                                                                                    ) => ({
+                                                                                        ...current,
+                                                                                        parameters:
+                                                                                            current.parameters.map(
+                                                                                                (
+                                                                                                    row,
+                                                                                                    rowIndex,
+                                                                                                ) =>
+                                                                                                    rowIndex ===
+                                                                                                    index
+                                                                                                        ? {
+                                                                                                              ...row,
+                                                                                                              uom: event
                                                                                                                   .target
                                                                                                                   .value,
                                                                                                           }

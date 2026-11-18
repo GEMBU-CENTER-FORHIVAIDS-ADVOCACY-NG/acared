@@ -14,11 +14,11 @@ import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import ConsultationRecordController from '@/actions/App/Http/Controllers/ConsultationRecordController';
 import {
     show as wardRoundShow,
     view as wardRoundView,
 } from '@/routes/nursing/ward-rounds';
+import { store, update, destroy } from '@/routes/nursing/ward-rounds/records';
 import { ConsultationRecordForm } from '@/pages/consultations/record-form';
 import type {
     ConsultationFormValues,
@@ -221,7 +221,7 @@ export default function WardRoundView({
 
         if (activeRecord) {
             router.patch(
-                ConsultationRecordController.updateForAdmission.url({
+                update.url({
                     current_team: teamSlug,
                     admission: admission.id,
                     type: recordType,
@@ -232,7 +232,7 @@ export default function WardRoundView({
             );
         } else {
             router.post(
-                ConsultationRecordController.storeForAdmission.url({
+                store.url({
                     current_team: teamSlug,
                     admission: admission.id,
                     type: recordType,
@@ -249,7 +249,7 @@ export default function WardRoundView({
         }
 
         router.delete(
-            ConsultationRecordController.destroyForAdmission.url({
+            destroy.url({
                 current_team: teamSlug,
                 admission: admission.id,
                 type: recordType,

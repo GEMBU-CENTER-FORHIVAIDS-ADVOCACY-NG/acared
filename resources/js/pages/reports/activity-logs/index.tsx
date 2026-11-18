@@ -220,7 +220,7 @@ export default function ActivityLogsReport({
                                 placeholder="Search description…"
                             />
                         </div>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>
@@ -242,7 +242,6 @@ export default function ActivityLogsReport({
                     </div>
 
                     <Button
-                        variant="secondary"
                         onClick={() => visit({ event, page: 1 })}
                     >
                         Filter
@@ -267,7 +266,6 @@ export default function ActivityLogsReport({
                         />
                     </div>
                     <Button
-                        variant="secondary"
                         onClick={() => visit({ from, to, page: 1 })}
                     >
                         Apply

@@ -136,7 +136,7 @@ export default function EmployeeDeductionReport({
                                 placeholder="Search employees"
                             />
                         </div>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

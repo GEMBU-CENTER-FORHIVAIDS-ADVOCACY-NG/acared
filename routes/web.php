@@ -4,9 +4,9 @@ use App\Http\Controllers\ActivityLogReportController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategorySalesReportController;
-use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClinicalReportController;
 use App\Http\Controllers\ConnectionBadgePingController;
+use App\Http\Controllers\ConsultantWardRoundController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationRecordController;
 use App\Http\Controllers\CouponController;
@@ -45,6 +45,7 @@ use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\WalletHistoryController;
 use App\Http\Controllers\WardController;
+use App\Http\Controllers\WardRoundBillingController;
 use App\Http\Controllers\WardRoundController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
@@ -60,8 +61,8 @@ Route::prefix('{current_team}')
     ->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
 
-        // Patients
-        Route::middleware('permission:viewAny patient')->group(function () {
+        // Patients - Moved to Finance
+        Route::middleware('permission:view finance')->group(function () {
             Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
             Route::get('patients/export', [PatientImportExportController::class, 'export'])->name('patients.export');
             Route::post('patients/import', [PatientImportExportController::class, 'import'])->name('patients.import');
@@ -105,10 +106,11 @@ Route::prefix('{current_team}')
             Route::get('reception/appointments/{appointment}/card/{type}', [ReceptionController::class, 'patientCard'])->name('reception.patient.card');
         });
 
-        // Billings
+        // Billings - Patient search is accessible without 'view finance' permission
+        Route::get('billings/patients/search', [BillingController::class, 'searchPatients'])->name('billings.patients.search');
+
         Route::middleware('permission:view finance')->group(function () {
             Route::get('billings', [BillingController::class, 'index'])->name('billings.index');
-            Route::get('billings/patients/search', [BillingController::class, 'searchPatients'])->name('billings.patients.search');
             Route::get('billings/history', [BillingController::class, 'history'])->name('billings.history');
             Route::post('billings', [BillingController::class, 'store'])->name('billings.store');
             Route::post('billings/new', [BillingController::class, 'newBilling'])->name('billings.new');
@@ -164,6 +166,7 @@ Route::prefix('{current_team}')
             Route::get('laboratories/{laboratory}/print', [LaboratoryController::class, 'print'])->name('laboratories.print');
             Route::post('laboratories/{laboratory}/results', [LaboratoryController::class, 'storeResults'])->name('laboratories.results.store');
             Route::patch('laboratories/{laboratory}/results', [LaboratoryController::class, 'updateResults'])->name('laboratories.results.update');
+            Route::post('laboratories/{laboratory}/cancel', [LaboratoryController::class, 'cancel'])->name('laboratories.cancel');
             Route::delete('laboratories/{laboratory}', [LaboratoryController::class, 'destroy'])->name('laboratories.destroy');
         });
 
@@ -282,14 +285,49 @@ Route::prefix('{current_team}')
         Route::middleware('permission:view nursing')->group(function () {
             Route::get('nursing/admissions', [WardRoundController::class, 'admissionsIndex'])->name('nursing.admissions.index');
             Route::get('nursing/wards', [WardController::class, 'index'])->name('nursing.wards.index');
+            Route::get('nursing/admissions/history', [WardRoundController::class, 'history'])->name('nursing.admissions.history');
+        });
+
+        // Ward rounds - independent access
+        Route::middleware('permission:view ward-rounds')->group(function () {
             Route::get('nursing/ward-rounds', [WardRoundController::class, 'index'])->name('nursing.ward-rounds.index');
             Route::get('nursing/ward-rounds/{ward}', [WardRoundController::class, 'show'])->name('nursing.ward-rounds.show');
+            Route::get('nursing/ward-rounds/admissions/search', [WardRoundController::class, 'searchAdmission'])->name('nursing.ward-rounds.admissions.search');
+            Route::get('nursing/ward-rounds/patients/search', [WardRoundController::class, 'searchPatients'])->name('nursing.ward-rounds.patients.search');
             Route::get('nursing/ward-rounds/admissions/{admission}/{section?}', [WardRoundController::class, 'view'])->name('nursing.ward-rounds.view');
+            Route::post('nursing/ward-rounds/{ward}/admit', [WardRoundController::class, 'admit'])->name('nursing.ward-rounds.admit');
+            Route::patch('nursing/ward-rounds/admissions/{admission}/discharge', [WardRoundController::class, 'discharge'])->name('nursing.ward-rounds.discharge');
             Route::post('nursing/ward-rounds/admissions/{admission}/records/{type}', [ConsultationRecordController::class, 'storeForAdmission'])->name('nursing.ward-rounds.records.store');
             Route::patch('nursing/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'updateForAdmission'])->name('nursing.ward-rounds.records.update');
             Route::delete('nursing/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'destroyForAdmission'])->name('nursing.ward-rounds.records.destroy');
-            Route::post('nursing/ward-rounds/{ward}/admit', [WardRoundController::class, 'admit'])->name('nursing.ward-rounds.admit');
-            Route::patch('nursing/ward-rounds/admissions/{admission}/discharge', [WardRoundController::class, 'discharge'])->name('nursing.ward-rounds.discharge');
+            Route::get('nursing/ward-rounds/billing/patients/search', [WardRoundController::class, 'searchPatients'])->name('nursing.ward-rounds.billing.patients.search');
+            Route::post('nursing/ward-rounds/billing', [WardRoundBillingController::class, 'newBilling'])->name('nursing.ward-rounds.billing');
+        });
+
+        // Consultant ward rounds
+        Route::middleware('permission:view consultant-ward-rounds')->group(function () {
+            Route::get('consultant/ward-rounds', [ConsultantWardRoundController::class, 'index'])->name('consultant.ward-rounds.index');
+            Route::get('consultant/ward-rounds/{ward}', [ConsultantWardRoundController::class, 'show'])->name('consultant.ward-rounds.show');
+            Route::get('consultant/ward-rounds/admissions/search', [ConsultantWardRoundController::class, 'searchAdmission'])->name('consultant.ward-rounds.admissions.search');
+            Route::get('consultant/ward-rounds/patients/search', [ConsultantWardRoundController::class, 'searchPatients'])->name('consultant.ward-rounds.patients.search');
+            Route::get('consultant/ward-rounds/admissions/{admission}/{section?}', [ConsultantWardRoundController::class, 'view'])->name('consultant.ward-rounds.view');
+            Route::post('consultant/ward-rounds/{ward}/admit', [ConsultantWardRoundController::class, 'admit'])->name('consultant.ward-rounds.admit');
+            Route::patch('consultant/ward-rounds/admissions/{admission}/discharge', [ConsultantWardRoundController::class, 'discharge'])->name('consultant.ward-rounds.discharge');
+            Route::post('consultant/ward-rounds/admissions/{admission}/records/{type}', [ConsultationRecordController::class, 'storeForAdmission'])->name('consultant.ward-rounds.records.store');
+            Route::patch('consultant/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'updateForAdmission'])->name('consultant.ward-rounds.records.update');
+            Route::delete('consultant/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'destroyForAdmission'])->name('consultant.ward-rounds.records.destroy');
+            Route::get('consultant/ward-rounds/billing/patients/search', [ConsultantWardRoundController::class, 'searchPatients'])->name('consultant.ward-rounds.billing.patients.search');
+            Route::post('consultant/ward-rounds/billing', [WardRoundBillingController::class, 'newBilling'])->name('consultant.ward-rounds.billing');
+        });
+
+        // Consultant admissions
+        Route::middleware('permission:view consultant-ward-rounds')->group(function () {
+            Route::get('consultant/admissions', [ConsultantWardRoundController::class, 'admissionsIndex'])->name('consultant.admissions.index');
+            Route::get('consultant/admissions/history', [ConsultantWardRoundController::class, 'history'])->name('consultant.admissions.history');
+        });
+
+        // Nursing Records
+        Route::middleware('permission:view nursing')->group(function () {
             Route::get('nursing/records', [NursingController::class, 'index'])->name('nursing.records.index');
             Route::get('nursing/records/history', [NursingController::class, 'history'])->name('nursing.records.history');
             Route::get('nursing/records/{nursing}/{section?}', [NursingController::class, 'view'])->name('nursing.records.view');
@@ -399,11 +437,6 @@ Route::prefix('{current_team}')
             Route::delete('coupons/{coupon}', [CouponController::class, 'destroy'])->name('coupons.destroy');
         });
 
-        // Chat
-        Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
-        Route::post('chat/conversations', [ChatController::class, 'store'])->name('chat.conversations.store');
-        Route::get('chat/conversations/{conversation}', [ChatController::class, 'show'])->name('chat.conversations.show');
-        Route::post('chat/conversations/{conversation}/messages', [ChatController::class, 'message'])->name('chat.conversations.messages.store');
     });
 
 Route::middleware(['auth'])->group(function () {

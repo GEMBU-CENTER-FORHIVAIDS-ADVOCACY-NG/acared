@@ -154,7 +154,7 @@ function StockDashboard({
                         onChange={(event) => setTo(event.target.value)}
                     />
                 </div>
-                <Button variant="secondary" onClick={applyDateFilter}>
+                <Button onClick={applyDateFilter}>
                     Apply
                 </Button>
             </div>

@@ -264,7 +264,7 @@ export default function RolesIndex({
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search roles..."
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

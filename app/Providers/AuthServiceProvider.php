@@ -178,7 +178,10 @@ class AuthServiceProvider extends ServiceProvider
 
             // Mark user as online
             if ($user !== null) {
-                $user->forceFill(['is_online' => true])->save();
+                $user->forceFill([
+                    'is_online' => true,
+                    'last_activity_at' => now(),
+                ])->save();
             }
         });
 
@@ -202,7 +205,12 @@ class AuthServiceProvider extends ServiceProvider
     protected function syncPermissions(): void
     {
         // Only sync if the permissions table exists (e.g. skip during tests with in-memory SQLite)
-        if (! \Schema::hasTable('permissions')) {
+        try {
+            if (! \Schema::hasTable('permissions')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            // Database connection not available (e.g. missing driver), skip syncing
             return;
         }
 

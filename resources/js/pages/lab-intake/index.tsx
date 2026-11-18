@@ -14,6 +14,7 @@ export default function LabIntakeIndexPage(props: LabIntakePageProps) {
                 `${index.url(teamSlug)}${suffix}`
             }
             showSkuInsteadOfCategory
+            hideParameters
         />
     );
 }

@@ -360,7 +360,7 @@ export default function LabInventoriesIndex({
                             placeholder="Search product, form, SKU..."
                             className="max-w-sm"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

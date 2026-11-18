@@ -1,8 +1,10 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import admissions from './admissions'
+import patients from './patients'
 import records from './records'
 /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -18,7 +20,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -51,7 +53,7 @@ index.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -61,7 +63,7 @@ index.get = (args?: { current_team?: string | number } | [current_team: string |
 })
 /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -72,7 +74,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -83,7 +85,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -93,7 +95,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
         })
             /**
 * @see \App\Http\Controllers\WardRoundController::index
- * @see app/Http/Controllers/WardRoundController.php:64
+ * @see app/Http/Controllers/WardRoundController.php:80
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds'
  */
@@ -110,7 +112,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -126,7 +128,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -159,7 +161,7 @@ show.url = (args: { current_team?: string | number, ward: number | { id: number 
 
 /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -169,7 +171,7 @@ show.get = (args: { current_team?: string | number, ward: number | { id: number 
 })
 /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -180,7 +182,7 @@ show.head = (args: { current_team?: string | number, ward: number | { id: number
 
     /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -191,7 +193,7 @@ show.head = (args: { current_team?: string | number, ward: number | { id: number
 
             /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -201,7 +203,7 @@ show.head = (args: { current_team?: string | number, ward: number | { id: number
         })
             /**
 * @see \App\Http\Controllers\WardRoundController::show
- * @see app/Http/Controllers/WardRoundController.php:109
+ * @see app/Http/Controllers/WardRoundController.php:156
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}'
  */
@@ -218,7 +220,7 @@ show.head = (args: { current_team?: string | number, ward: number | { id: number
     show.form = showForm
 /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -234,7 +236,7 @@ view.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -271,7 +273,7 @@ view.url = (args: { current_team?: string | number, admission: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -281,7 +283,7 @@ view.get = (args: { current_team?: string | number, admission: number | { id: nu
 })
 /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -292,7 +294,7 @@ view.head = (args: { current_team?: string | number, admission: number | { id: n
 
     /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -303,7 +305,7 @@ view.head = (args: { current_team?: string | number, admission: number | { id: n
 
             /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -313,7 +315,7 @@ view.head = (args: { current_team?: string | number, admission: number | { id: n
         })
             /**
 * @see \App\Http\Controllers\WardRoundController::view
- * @see app/Http/Controllers/WardRoundController.php:156
+ * @see app/Http/Controllers/WardRoundController.php:204
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/{section?}'
  */
@@ -330,7 +332,7 @@ view.head = (args: { current_team?: string | number, admission: number | { id: n
     view.form = viewForm
 /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:211
+ * @see app/Http/Controllers/WardRoundController.php:259
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -346,7 +348,7 @@ admit.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:211
+ * @see app/Http/Controllers/WardRoundController.php:259
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -379,7 +381,7 @@ admit.url = (args: { current_team?: string | number, ward: number | { id: number
 
 /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:211
+ * @see app/Http/Controllers/WardRoundController.php:259
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -390,7 +392,7 @@ admit.post = (args: { current_team?: string | number, ward: number | { id: numbe
 
     /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:211
+ * @see app/Http/Controllers/WardRoundController.php:259
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -401,7 +403,7 @@ admit.post = (args: { current_team?: string | number, ward: number | { id: numbe
 
             /**
 * @see \App\Http\Controllers\WardRoundController::admit
- * @see app/Http/Controllers/WardRoundController.php:211
+ * @see app/Http/Controllers/WardRoundController.php:259
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/{ward}/admit'
  */
@@ -413,7 +415,7 @@ admit.post = (args: { current_team?: string | number, ward: number | { id: numbe
     admit.form = admitForm
 /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:242
+ * @see app/Http/Controllers/WardRoundController.php:290
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -429,7 +431,7 @@ discharge.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:242
+ * @see app/Http/Controllers/WardRoundController.php:290
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -462,7 +464,7 @@ discharge.url = (args: { current_team?: string | number, admission: number | { i
 
 /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:242
+ * @see app/Http/Controllers/WardRoundController.php:290
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -473,7 +475,7 @@ discharge.patch = (args: { current_team?: string | number, admission: number | {
 
     /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:242
+ * @see app/Http/Controllers/WardRoundController.php:290
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -489,7 +491,7 @@ discharge.patch = (args: { current_team?: string | number, admission: number | {
 
             /**
 * @see \App\Http\Controllers\WardRoundController::discharge
- * @see app/Http/Controllers/WardRoundController.php:242
+ * @see app/Http/Controllers/WardRoundController.php:290
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/discharge'
  */
@@ -504,13 +506,99 @@ discharge.patch = (args: { current_team?: string | number, admission: number | {
         })
     
     discharge.form = dischargeForm
+/**
+* @see \App\Http\Controllers\WardRoundBillingController::billing
+ * @see app/Http/Controllers/WardRoundBillingController.php:21
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/billing'
+ */
+export const billing = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: billing.url(args, options),
+    method: 'post',
+})
+
+billing.definition = {
+    methods: ["post"],
+    url: '/{current_team?}/nursing/ward-rounds/billing',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\WardRoundBillingController::billing
+ * @see app/Http/Controllers/WardRoundBillingController.php:21
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/billing'
+ */
+billing.url = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { current_team: args }
+    }
+
+    
+    if (Array.isArray(args)) {
+        args = {
+                    current_team: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    validateParameters(args, [
+            "current_team",
+        ])
+
+    const parsedArgs = {
+                        current_team: args?.current_team ?? '$currentTeam',
+                }
+
+    return billing.definition.url
+            .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\WardRoundBillingController::billing
+ * @see app/Http/Controllers/WardRoundBillingController.php:21
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/billing'
+ */
+billing.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: billing.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\WardRoundBillingController::billing
+ * @see app/Http/Controllers/WardRoundBillingController.php:21
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/billing'
+ */
+    const billingForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: billing.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardRoundBillingController::billing
+ * @see app/Http/Controllers/WardRoundBillingController.php:21
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/billing'
+ */
+        billingForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: billing.url(args, options),
+            method: 'post',
+        })
+    
+    billing.form = billingForm
 const wardRounds = {
     index: Object.assign(index, index),
 show: Object.assign(show, show),
+admissions: Object.assign(admissions, admissions),
+patients: Object.assign(patients, patients),
 view: Object.assign(view, view),
-records: Object.assign(records, records),
 admit: Object.assign(admit, admit),
 discharge: Object.assign(discharge, discharge),
+records: Object.assign(records, records),
+billing: Object.assign(billing, billing),
 }
 
 export default wardRounds

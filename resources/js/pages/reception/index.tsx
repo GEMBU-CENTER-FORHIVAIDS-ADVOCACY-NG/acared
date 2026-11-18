@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AlertCircle, CalendarPlus, X } from 'lucide-react';
+import { AlertCircle, CalendarPlus, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import ReceptionController from '@/actions/App/Http/Controllers/ReceptionController';
 import ConsultationDayTimeline from '@/components/consultation-day-timeline';
@@ -20,7 +20,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
 import { Textarea } from '@/components/ui/textarea';
-import { index as nursingRecordsIndex } from '@/routes/nursing/records';
 import { index } from '@/routes/reception';
 import type {
     BillingOption,
@@ -82,6 +81,7 @@ export default function ReceptionIndex({
     vitalSigns,
     dailyTimeline,
     sidebar,
+    filters,
 }: {
     stats: ReceptionStats;
     appointments: ReceptionAppointment[];
@@ -92,9 +92,23 @@ export default function ReceptionIndex({
     vitalSigns: VitalSignOption[];
     dailyTimeline: ConsultationDailyTimelineEvent[];
     sidebar: ConsultationSidebar;
+    filters: { q: string };
 }) {
     const page = usePage<LayoutProps>();
     const teamSlug = page.props.currentTeam?.slug ?? '';
+    const [search, setSearch] = useState(filters.q);
+
+    function applySearch() {
+        router.get(
+            index.url(teamSlug, {
+                query: {
+                    q: search || undefined,
+                },
+            }),
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
 
     const [appointmentForm, setAppointmentForm] = useState(EMPTY_APPOINTMENT);
     const [staffType, setStaffType] = useState<'doctor' | 'nurse'>('doctor');
@@ -138,7 +152,7 @@ export default function ReceptionIndex({
 
     function applyDate(date: string) {
         router.get(
-            index.url(teamSlug, { query: { date } }),
+            index.url(teamSlug, { query: { date, q: search || undefined } }),
             {},
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -192,8 +206,6 @@ export default function ReceptionIndex({
                 })),
         };
 
-        const isNurseAppointment = !!appointmentForm.nurse_id;
-
         router.post(
             ReceptionController.storeAppointment.url(teamSlug),
             payload,
@@ -205,11 +217,6 @@ export default function ReceptionIndex({
                     ),
                 onSuccess: () => {
                     setAppointmentForm(EMPTY_APPOINTMENT);
-                    // If not redirected to patient card (e.g., nurse appointment
-                    // was handled differently), navigate to nursing records
-                    if (isNurseAppointment && page.props.page !== 'reception/patient-card') {
-                        router.get(nursingRecordsIndex.url(teamSlug));
-                    }
                 },
                 onFinish: () => setProcessing(false),
             },
@@ -482,11 +489,6 @@ export default function ReceptionIndex({
                                                 ))}
                                             </SelectNative>
                                         )}
-                                        {staffType === 'nurse' && (
-                                            <p className="text-xs text-muted-foreground">
-                                                Nurse appointments will redirect to the maternity page after scheduling.
-                                            </p>
-                                        )}
                                     </div>
 
                                     <div className="space-y-2">
@@ -647,6 +649,27 @@ export default function ReceptionIndex({
                                 </div>
                             ) : (
                                 <div className="space-y-4">
+                                    <form
+                                        className="flex items-center gap-2"
+                                        onSubmit={(event) => {
+                                            event.preventDefault();
+                                            applySearch();
+                                        }}
+                                    >
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                            <Input
+                                                className="pl-10"
+                                                value={search}
+                                                placeholder="Search visits..."
+                                                onChange={(event) => setSearch(event.target.value)}
+                                            />
+                                        </div>
+                                        <Button type="submit" size="sm" className="shrink-0" variant="default">
+                                            <Search className="h-4 w-4" />
+                                        </Button>
+                                    </form>
+
                                     <div className="grid grid-cols-7 gap-1 text-center text-xs">
                                         {sidebar.weekdays.map((day) => (
                                             <span

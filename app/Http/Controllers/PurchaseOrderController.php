@@ -112,7 +112,7 @@ class PurchaseOrderController extends Controller
                     'team_id' => $teamId,
                     'purchase_order_id' => $purchaseOrder->id,
                     'inventory_id' => $itemData['inventory_id'],
-                    'markup_id' => $itemData['markup_id'] ?? null,
+                    'markup_id' => $itemData['markup_id'],
                     'quantity' => $itemData['quantity'],
                     'unitPrice' => $itemData['unitPrice'],
                     'unitCost' => $itemData['unitCost'],
@@ -145,7 +145,7 @@ class PurchaseOrderController extends Controller
                     'team_id' => $teamId,
                     'purchase_order_id' => $purchaseOrder->id,
                     'inventory_id' => $itemData['inventory_id'],
-                    'markup_id' => $itemData['markup_id'] ?? null,
+                    'markup_id' => $itemData['markup_id'],
                     'quantity' => $itemData['quantity'],
                     'unitPrice' => $itemData['unitPrice'],
                     'unitCost' => $itemData['unitCost'],
@@ -282,12 +282,14 @@ class PurchaseOrderController extends Controller
             'status' => ['required', 'string', 'max:50'],
             'items' => ['nullable', 'array'],
             'items.*.inventory_id' => ['required_with:items', 'integer', 'exists:inventories,id'],
-            'items.*.markup_id' => ['nullable', 'integer', 'exists:mark_ups,id'],
+            'items.*.markup_id' => ['required_with:items', 'integer', 'exists:mark_ups,id'],
             'items.*.quantity' => ['required_with:items', 'numeric', 'min:1'],
             'items.*.unitPrice' => ['required_with:items', 'numeric', 'min:0'],
             'items.*.unitCost' => ['required_with:items', 'numeric', 'min:0'],
             'items.*.totalPrice' => ['nullable', 'numeric', 'min:0'],
             'items.*.totalCost' => ['nullable', 'numeric', 'min:0'],
+        ], [
+            'items.*.markup_id.required_with' => 'Each order item must have a markup selected.',
         ]);
     }
 }

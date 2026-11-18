@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */
@@ -17,7 +17,7 @@ card.definition = {
 
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */
@@ -51,7 +51,7 @@ card.url = (args: { current_team?: string | number, appointment: string | number
 
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */
@@ -61,7 +61,7 @@ card.get = (args: { current_team?: string | number, appointment: string | number
 })
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */
@@ -72,7 +72,7 @@ card.head = (args: { current_team?: string | number, appointment: string | numbe
 
     /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */
@@ -83,7 +83,7 @@ card.head = (args: { current_team?: string | number, appointment: string | numbe
 
             /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */
@@ -93,7 +93,7 @@ card.head = (args: { current_team?: string | number, appointment: string | numbe
         })
             /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:75
+ * @see app/Http/Controllers/ReceptionController.php:79
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
  */

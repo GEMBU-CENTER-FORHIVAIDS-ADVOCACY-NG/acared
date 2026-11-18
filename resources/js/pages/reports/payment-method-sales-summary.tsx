@@ -169,7 +169,6 @@ export default function PaymentMethodSalesSummary({
                             />
                         </div>
                         <Button
-                            variant="secondary"
                             onClick={() => visit({ from, to })}
                         >
                             Apply

@@ -112,7 +112,7 @@ export default function PriceListReport({
                                 placeholder="Search price list"
                             />
                         </div>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

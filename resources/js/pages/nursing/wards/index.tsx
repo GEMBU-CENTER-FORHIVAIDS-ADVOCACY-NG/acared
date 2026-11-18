@@ -177,7 +177,7 @@ export default function WardsIndex({
                             placeholder="Search wards and beds"
                             className="max-w-sm"
                         />
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit">
                             Search
                         </Button>
                     </form>

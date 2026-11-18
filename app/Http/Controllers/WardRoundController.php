@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Admission;
+use App\Models\Patient;
+use App\Models\PriceList;
+use App\Models\User;
 use App\Models\Ward;
 use App\Service\ClinicalRecordData;
 use App\Service\DashboardCurrency;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +22,19 @@ use Inertia\Response;
 
 class WardRoundController extends Controller
 {
+    public function __construct(private readonly ClinicalRecordData $clinicalRecords) {}
+
+    /**
+     * The admission status filters and their labels.
+     *
+     * @var array<string, string>
+     */
+    private const STATUS_FILTERS = [
+        'pending' => 'Pending',
+        'admitted' => 'Admitted',
+        'discharged' => 'Discharged',
+    ];
+
     /**
      * The clinical record sections available on a ward round.
      *
@@ -32,8 +50,6 @@ class WardRoundController extends Controller
         'laboratories',
         'prescriptions',
     ];
-
-    public function __construct(private readonly ClinicalRecordData $clinicalRecords) {}
 
     /**
      * Show an admissions overview dashboard.
@@ -78,6 +94,7 @@ class WardRoundController extends Controller
             ->withCount('beds')
             ->withCount(['beds as occupied_beds_count' => fn ($beds) => $beds
                 ->where(fn ($beds) => $beds->where('status', 'occupied')->orWhereHas('bedAdmissions', fn ($admissions) => $admissions->active()))])
+            ->whereHas('admissions', fn ($query) => $query->active())
             ->addSelect(['patients_count' => Admission::query()
                 ->selectRaw('count(distinct patient_id)')
                 ->whereColumn('admissions.ward_id', 'wards.id')
@@ -91,8 +108,35 @@ class WardRoundController extends Controller
                 'occupiedBedsCount' => $ward->occupied_beds_count,
                 'patientsCount' => $ward->patients_count,
                 'status' => $this->occupancyStatus((int) $ward->occupied_beds_count, (int) $ward->beds_count),
-                'beds' => $ward->beds->map(fn (Ward $bed) => $this->bedData($bed))->values(),
-            ]);
+                'beds' => $ward->beds->filter(fn (Ward $bed) => $this->bedData($bed)['admissionId'] !== null)
+                    ->map(fn (Ward $bed) => $this->bedData($bed))->values()->toArray(),
+            ])->values()->toArray();
+
+        // Get all pending admissions across all wards
+        $pendingAdmissions = Admission::query()->where('status', 'pending')
+            ->with(['patient', 'ward'])->latest()->get()->map(fn (Admission $admission) => [
+                'id' => $admission->id,
+                'patientId' => $admission->patient_id,
+                'patientName' => $admission->patient?->fullName,
+                'requestedWardId' => $admission->ward_id,
+                'requestedWardName' => $admission->ward?->name,
+                'notes' => $admission->notes,
+            ])->values()->toArray();
+
+        // Load all wards with their available beds for ward selection during admission
+        $allWards = Ward::query()->wards()
+            ->with(['beds' => fn (HasMany $beds) => $beds->with(['bedAdmissions' => fn (HasMany $admissions) => $admissions->active()])])
+            ->orderBy('name')->get()
+            ->map(fn (Ward $w) => [
+                'id' => $w->id,
+                'name' => $w->name,
+                'beds' => $w->beds->filter(fn (Ward $bed) => ! $bed->is_ward && $bed->status !== 'occupied' && ! $bed->bedAdmissions->isNotEmpty())
+                    ->map(fn (Ward $bed) => [
+                        'id' => $bed->id,
+                        'name' => $bed->name,
+                    ])
+                    ->values()->toArray(),
+            ])->values()->toArray();
 
         return Inertia::render('nursing/ward-rounds/index', [
             'filters' => ['dateFilter' => $period],
@@ -103,6 +147,9 @@ class WardRoundController extends Controller
                 'pending' => (int) ($counts->pending ?? 0),
             ],
             'wards' => $wards,
+            'pendingAdmissions' => $pendingAdmissions,
+            'allWards' => $allWards,
+            'billingOptions' => $this->billingOptions(),
         ]);
     }
 
@@ -114,7 +161,7 @@ class WardRoundController extends Controller
 
         // Get all pending admissions across all wards, not just this ward
         $pendingAdmissions = Admission::query()->where('status', 'pending')
-            ->with('patient')->latest()->get()->map(fn (Admission $admission) => [
+            ->with(['patient', 'ward'])->latest()->get()->map(fn (Admission $admission) => [
                 'id' => $admission->id,
                 'patientId' => $admission->patient_id,
                 'patientName' => $admission->patient?->fullName,
@@ -143,7 +190,8 @@ class WardRoundController extends Controller
                 'id' => $ward->id,
                 'name' => $ward->name,
                 'description' => $ward->description,
-                'beds' => $ward->beds->map(fn (Ward $bed) => $this->bedData($bed))->values(),
+                'beds' => $ward->beds->filter(fn (Ward $bed) => $this->bedData($bed)['admissionId'] !== null)
+                    ->map(fn (Ward $bed) => $this->bedData($bed))->values(),
             ],
             'pendingAdmissions' => $pendingAdmissions,
             'allWards' => $allWards,
@@ -242,6 +290,12 @@ class WardRoundController extends Controller
     public function discharge(Request $request, string $current_team, Admission $admission): RedirectResponse
     {
         abort_unless($admission->status === 'admitted' && $admission->bed_id !== null, 422, 'This admission does not occupy a bed.');
+
+        $wallet = (float) ($admission->patient?->wallet ?? 0);
+        if ($wallet < 0) {
+            return back()->with('error', 'Cannot discharge: patient has an outstanding balance of '.DashboardCurrency::symbol().number_format(abs($wallet), 2));
+        }
+
         $wardId = $admission->ward_id;
         DB::transaction(function () use ($admission): void {
             $bed = Ward::query()->whereKey($admission->bed_id)->lockForUpdate()->firstOrFail();
@@ -250,6 +304,73 @@ class WardRoundController extends Controller
         });
 
         return to_route('nursing.ward-rounds.show', [$request->user()->currentTeam->slug, $wardId]);
+    }
+
+    /**
+     * List the ward round history (all admissions including discharged) for the current team.
+     */
+    public function history(Request $request): Response
+    {
+        $status = trim((string) $request->query('status', ''));
+        $doctorId = $request->integer('doctor_id');
+        $wardId = $request->integer('ward_id');
+        $search = trim((string) $request->query('search', ''));
+        $perPage = (int) $request->query('perPage', 25);
+
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 25;
+        }
+
+        $admissions = Admission::query()
+            ->with(['patient', 'doctor', 'ward', 'bed'])
+            ->when($status !== '', fn (Builder $query) => $query->where('status', $status))
+            ->when($doctorId > 0, fn (Builder $query) => $query->where('doctor_id', $doctorId))
+            ->when($wardId > 0, fn (Builder $query) => $query->where('ward_id', $wardId))
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->whereHas('patient', function (Builder $q) use ($search): void {
+                    $q->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%");
+                });
+            })
+            ->orderByDesc('created_at')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Admission $admission) => $this->admissionItem($admission));
+
+        return Inertia::render('nursing/admissions/history', [
+            'admissions' => $admissions,
+            'filters' => [
+                'status' => $status,
+                'doctor_id' => $doctorId > 0 ? $doctorId : null,
+                'ward_id' => $wardId > 0 ? $wardId : null,
+                'search' => $search,
+            ],
+            'statusOptions' => collect(self::STATUS_FILTERS)
+                ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+                ->values()
+                ->all(),
+            'doctorOptions' => $this->doctorOptions($request),
+            'wardOptions' => $this->wardOptions(),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function admissionItem(Admission $admission): array
+    {
+        return [
+            'id' => $admission->getKey(),
+            'patientId' => $admission->patient_id,
+            'patientName' => $admission->patient?->fullName,
+            'doctorName' => $admission->doctor?->name,
+            'wardName' => $admission->ward?->name,
+            'bedName' => $admission->bed?->name,
+            'status' => $admission->status,
+            'admittedAt' => $admission->created_at?->toIso8601String(),
+            'dischargedAt' => $admission->updated_at?->toIso8601String(),
+            'notes' => $admission->notes,
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -268,7 +389,182 @@ class WardRoundController extends Controller
             'doctorName' => $admission?->doctor?->name,
             'admissionStatus' => $admission?->status,
             'admittedAt' => $admission?->created_at?->toIso8601String(),
+            'patientWallet' => (float) ($admission?->patient?->wallet ?? 0),
         ];
+    }
+
+    /**
+     * Search for an active admission by patient hospital number or name.
+     */
+    public function searchAdmission(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        if ($search === '') {
+            return response()->json(null);
+        }
+
+        $admission = Admission::query()
+            ->active()
+            ->whereHas('patient', function (Builder $q) use ($search): void {
+                $q->where('slug', 'like', "%{$search}%")
+                    ->orWhere('fullName', 'like', "%{$search}%")
+                    ->orWhere('firstName', 'like', "%{$search}%")
+                    ->orWhere('lastName', 'like', "%{$search}%");
+            })
+            ->with(['patient', 'ward'])
+            ->latest()
+            ->first();
+
+        if ($admission === null) {
+            return response()->json(null);
+        }
+
+        return response()->json([
+            'id' => $admission->id,
+            'patientId' => $admission->patient_id,
+            'patientName' => $admission->patient?->fullName,
+            'wardName' => $admission->ward?->name,
+        ]);
+    }
+
+    /**
+     * Search all patients by name or slug, across every team.
+     */
+    public function searchPatients(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $patients = Patient::query()
+            ->withoutGlobalScope('team')
+            ->when($search !== '', function (Builder $q) use ($search): void {
+                $q->where(function (Builder $inner) use ($search): void {
+                    $inner->where('slug', 'like', "%{$search}%")
+                        ->orWhere('firstName', 'like', "%{$search}%")
+                        ->orWhere('lastName', 'like', "%{$search}%")
+                        ->orWhere('fullName', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('mobile', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('slug')
+            ->limit(50)
+            ->get([
+                'slug',
+                'fullName',
+                'firstName',
+                'middleName',
+                'lastName',
+                'gender',
+                'birthDate',
+                'email',
+                'phone',
+                'mobile',
+                'category_id',
+                'country_id',
+                'state_id',
+                'lga_id',
+                'address',
+                'kinFullName',
+                'kinPhone',
+                'kinEmail',
+                'relation',
+                'art',
+                'slugOther',
+                'marital_status',
+            ])
+            ->map(fn (Patient $patient) => [
+                'slug' => $patient->slug,
+                'label' => "{$patient->slug} - {$patient->fullName}",
+                'firstName' => $patient->firstName,
+                'middleName' => $patient->middleName,
+                'lastName' => $patient->lastName,
+                'gender' => $patient->gender,
+                'birthDate' => $patient->birthDate?->format('Y-m-d'),
+                'email' => $patient->email,
+                'phone' => $patient->phone,
+                'mobile' => $patient->mobile,
+                'category_id' => $patient->category_id ? (string) $patient->category_id : '',
+                'country_id' => $patient->country_id ? (string) $patient->country_id : '',
+                'state_id' => $patient->state_id ? (string) $patient->state_id : '',
+                'lga_id' => $patient->lga_id ? (string) $patient->lga_id : '',
+                'address' => $patient->address,
+                'kinFullName' => $patient->kinFullName,
+                'kinPhone' => $patient->kinPhone,
+                'kinEmail' => $patient->kinEmail,
+                'relation' => $patient->relation,
+                'art' => $patient->art,
+                'slugOther' => $patient->slugOther,
+                'maritalStatus' => $patient->marital_status,
+            ])->values();
+
+        return response()->json($patients);
+    }
+
+    /**
+     * Get the billing service options for the ward round page.
+     *
+     * @return array{services: array<int, array{id: int, name: string, price: float}>}
+     */
+    private function billingOptions(): array
+    {
+        return [
+            'services' => PriceList::query()
+                ->whereHas('subCategory', fn (Builder $query) => $query->whereIn('name', [
+                    'Treatment',
+                    'Nursing Services',
+                    'Maternity Services',
+                    'Mortuary Services',
+                    'Surgery',
+                    'Ophthalmic Services',
+                    'Dental Services',
+                    'Imaging',
+                    'Imaging/Radiography',
+                ]))
+                ->orderBy('name')
+                ->get(['id', 'name', 'price'])
+                ->map(fn (PriceList $priceList) => [
+                    'id' => $priceList->getKey(),
+                    'name' => $priceList->name,
+                    'price' => (float) ($priceList->price ?? 0),
+                ])
+                ->all(),
+        ];
+    }
+
+    /**
+     * Get the doctors available to the current team.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function doctorOptions(Request $request): array
+    {
+        $teamId = $request->user()->currentTeam->getKey();
+
+        return User::query()
+            ->whereHas('teams', fn (Builder $query) => $query->whereKey($teamId))
+            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'Consultant'))
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => ['id' => $user->getKey(), 'name' => $user->name])
+            ->all();
+    }
+
+    /**
+     * Get the wards available to the current team.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function wardOptions(): array
+    {
+        return Ward::query()
+            ->wards()
+            ->where('is_ward', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Ward $ward) => ['id' => $ward->getKey(), 'name' => $ward->name])
+            ->all();
     }
 
     private function occupancyStatus(int $occupied, int $total): string

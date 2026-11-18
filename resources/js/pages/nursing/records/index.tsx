@@ -5,44 +5,14 @@ import NursingDayTimeline from '@/components/nursing-day-timeline';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { store, view, index } from '@/routes/nursing/records';
+import { Input } from '@/components/ui/input';
+import { view, index } from '@/routes/nursing/records';
 import { history as nursingRecordsHistory } from '@/routes/nursing/records';
+import { Search } from 'lucide-react';
 import type {
     NursingDailyTimelineEvent,
     NursingSidebar,
 } from '@/types';
-
-type Patient = { slug: string; fullName: string };
-type Nurse = { id: number; name: string };
-type Billing = {
-    id: number;
-    patientId: string;
-    patientName: string | null;
-    status: string;
-};
-type Form = {
-    patient_id: string;
-    nurse_id: string;
-    billing_id: string;
-    purpose: string;
-    status: string;
-};
-const empty: Form = {
-    patient_id: '',
-    nurse_id: '',
-    billing_id: '',
-    purpose: '',
-    status: 'scheduled',
-};
 
 const STATUS_BADGE: Record<string, string> = {
     warning: 'bg-amber-100 text-amber-800',
@@ -53,40 +23,31 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function NursingRecordsIndex({
-    patients,
-    nurses,
-    billings,
     dailyTimeline,
     sidebar,
+    filters,
 }: {
-    patients: Patient[];
-    nurses: Nurse[];
-    billings: Billing[];
     dailyTimeline: NursingDailyTimelineEvent[];
     sidebar: NursingSidebar;
+    filters: { q: string };
 }) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug ?? '';
-    const [form, setForm] = useState<Form>(empty);
-    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState(filters.q);
 
-    const availableBillings = billings.filter(
-        (billing) => billing.patientId === form.patient_id,
-    );
-    const startCreate = () => {
-        setForm(empty);
-        setOpen(true);
-    };
-    const submit = (event: React.FormEvent) => {
-        event.preventDefault();
-        const payload = { ...form, nurse_id: form.nurse_id || null };
-        router.post(store.url(teamSlug), payload, {
-            preserveScroll: true,
-            onSuccess: () => setOpen(false),
-        });
-    };
+    function applyFilters() {
+        router.get(
+            index.url(teamSlug, {
+                query: {
+                    q: search || undefined,
+                },
+            }),
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }
 
-    function applyFilters(next: { date: string }) {
+    function applyDateFilter(next: { date: string }) {
         router.get(
             index.url(teamSlug, {
                 query: {
@@ -116,9 +77,6 @@ export default function NursingRecordsIndex({
                         title="Maternity"
                         description="Manage maternity nursing visits and their billing records."
                     />
-                    <Button onClick={startCreate}>
-                        New maternity visit
-                    </Button>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -160,6 +118,27 @@ export default function NursingRecordsIndex({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <form
+                                className="flex items-center gap-2"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    applyFilters();
+                                }}
+                            >
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        className="pl-10"
+                                        value={search}
+                                        placeholder="Search visits..."
+                                        onChange={(event) => setSearch(event.target.value)}
+                                    />
+                                </div>
+                                <Button type="submit" size="sm" className="shrink-0" variant="default">
+                                    <Search className="h-4 w-4" />
+                                </Button>
+                            </form>
+
                             <div className="grid grid-cols-7 gap-1 text-center text-xs">
                                 {sidebar.weekdays.map((day) => (
                                     <span
@@ -174,7 +153,7 @@ export default function NursingRecordsIndex({
                                         key={day.date}
                                         onClick={() => {
                                             if (day.inMonth) {
-                                                applyFilters({ date: day.date });
+                                                applyDateFilter({ date: day.date });
                                             }
                                         }}
                                         className={`flex h-8 cursor-default items-center justify-center rounded-md ${
@@ -277,151 +256,6 @@ export default function NursingRecordsIndex({
                     </CardContent>
                 </Card>
             </div>
-            {open && (
-                <div
-                    className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
-                    role="dialog"
-                    aria-modal="true"
-                >
-                    <form
-                        onSubmit={submit}
-                        className="max-h-[90vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-lg bg-background p-6 shadow-xl"
-                    >
-                        <div>
-                            <h2 className="text-lg font-semibold">
-                                New maternity visit
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                Choose a billing record associated with this
-                                patient.
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Patient</Label>
-                            <Select
-                                value={form.patient_id}
-                                onValueChange={(patient_id) =>
-                                    setForm({
-                                        ...form,
-                                        patient_id,
-                                        billing_id: '',
-                                    })
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select patient" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {patients.map((patient) => (
-                                        <SelectItem
-                                            key={patient.slug}
-                                            value={patient.slug}
-                                        >
-                                            {patient.slug} — {patient.fullName}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Billing record</Label>
-                            <Select
-                                value={form.billing_id}
-                                onValueChange={(billing_id) =>
-                                    setForm({ ...form, billing_id })
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select billing" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableBillings.map((billing) => (
-                                        <SelectItem
-                                            key={billing.id}
-                                            value={String(billing.id)}
-                                        >
-                                            #{billing.id} · {billing.status} ·{' '}
-                                            {billing.patientName}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Nurse</Label>
-                            <Select
-                                value={form.nurse_id}
-                                onValueChange={(nurse_id) =>
-                                    setForm({ ...form, nurse_id })
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Unassigned" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {nurses.map((nurse) => (
-                                        <SelectItem
-                                            key={nurse.id}
-                                            value={String(nurse.id)}
-                                        >
-                                            {nurse.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Purpose</Label>
-                            <Textarea
-                                value={form.purpose}
-                                onChange={(event) =>
-                                    setForm({
-                                        ...form,
-                                        purpose: event.target.value,
-                                    })
-                                }
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <Label>Status</Label>
-                            <Select
-                                value={form.status}
-                                onValueChange={(status) =>
-                                    setForm({ ...form, status })
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="scheduled">
-                                        Scheduled
-                                    </SelectItem>
-                                    <SelectItem value="in_progress">
-                                        In progress
-                                    </SelectItem>
-                                    <SelectItem value="completed">
-                                        Completed
-                                    </SelectItem>
-                                    <SelectItem value="cancelled">
-                                        Cancelled
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setOpen(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit">Save visit</Button>
-                        </div>
-                    </form>
-                </div>
-            )}
         </>
     );
 }
