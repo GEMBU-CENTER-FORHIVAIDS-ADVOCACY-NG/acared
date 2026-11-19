@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LaboratoryController::json
  * @see app/Http/Controllers/LaboratoryController.php:1070
@@ -68,45 +68,6 @@ json.head = (args: { current_team?: string | number, laboratory: number | { id: 
     url: json.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1070
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/json'
- */
-    const jsonForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: json.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1070
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/json'
- */
-        jsonForm.get = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: json.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1070
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/json'
- */
-        jsonForm.head = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: json.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    json.form = jsonForm
 const show = {
     json: Object.assign(json, json),
 }

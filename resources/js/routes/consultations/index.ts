@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import records from './records'
 /**
 * @see \App\Http\Controllers\ConsultationController::index
@@ -70,44 +70,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ConsultationController::index
- * @see app/Http/Controllers/ConsultationController.php:62
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::index
- * @see app/Http/Controllers/ConsultationController.php:62
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ConsultationController::index
- * @see app/Http/Controllers/ConsultationController.php:62
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\ConsultationController::history
  * @see app/Http/Controllers/ConsultationController.php:103
@@ -178,44 +140,6 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:103
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/history'
- */
-    const historyForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: history.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:103
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/history'
- */
-        historyForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: history.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ConsultationController::history
- * @see app/Http/Controllers/ConsultationController.php:103
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/history'
- */
-        historyForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: history.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    history.form = historyForm
 /**
 * @see \App\Http\Controllers\ConsultationController::start
  * @see app/Http/Controllers/ConsultationController.php:194
@@ -276,39 +200,6 @@ start.patch = (args: { current_team?: string | number, consultation: number | { 
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:194
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/start'
- */
-    const startForm = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: start.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::start
- * @see app/Http/Controllers/ConsultationController.php:194
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/start'
- */
-        startForm.patch = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: start.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    start.form = startForm
 /**
 * @see \App\Http\Controllers\ConsultationController::end
  * @see app/Http/Controllers/ConsultationController.php:213
@@ -369,39 +260,6 @@ end.patch = (args: { current_team?: string | number, consultation: number | { id
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:213
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/end'
- */
-    const endForm = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: end.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::end
- * @see app/Http/Controllers/ConsultationController.php:213
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/end'
- */
-        endForm.patch = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: end.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    end.form = endForm
 /**
 * @see \App\Http\Controllers\ConsultationController::transfer
  * @see app/Http/Controllers/ConsultationController.php:227
@@ -462,39 +320,6 @@ transfer.patch = (args: { current_team?: string | number, consultation: number |
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:227
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/transfer'
- */
-    const transferForm = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: transfer.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::transfer
- * @see app/Http/Controllers/ConsultationController.php:227
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/transfer'
- */
-        transferForm.patch = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: transfer.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    transfer.form = transferForm
 /**
 * @see \App\Http\Controllers\ConsultationController::viewAll
  * @see app/Http/Controllers/ConsultationController.php:176
@@ -565,44 +390,6 @@ viewAll.head = (args: { current_team?: string | number, consultation: number | {
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:176
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/all'
- */
-    const viewAllForm = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: viewAll.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:176
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/all'
- */
-        viewAllForm.get = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: viewAll.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ConsultationController::viewAll
- * @see app/Http/Controllers/ConsultationController.php:176
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/all'
- */
-        viewAllForm.head = (args: { current_team?: string | number, consultation: number | { id: number } } | [current_team: string | number, consultation: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: viewAll.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    viewAll.form = viewAllForm
 /**
 * @see \App\Http\Controllers\ConsultationController::view
  * @see app/Http/Controllers/ConsultationController.php:140
@@ -676,45 +463,6 @@ view.head = (args: { current_team?: string | number, consultation: number | { id
     url: view.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:140
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/{section?}'
- */
-    const viewForm = (args: { current_team?: string | number, consultation: number | { id: number }, section?: string | number } | [current_team: string | number, consultation: number | { id: number }, section: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: view.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:140
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/{section?}'
- */
-        viewForm.get = (args: { current_team?: string | number, consultation: number | { id: number }, section?: string | number } | [current_team: string | number, consultation: number | { id: number }, section: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: view.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ConsultationController::view
- * @see app/Http/Controllers/ConsultationController.php:140
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/consultations/{consultation}/{section?}'
- */
-        viewForm.head = (args: { current_team?: string | number, consultation: number | { id: number }, section?: string | number } | [current_team: string | number, consultation: number | { id: number }, section: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: view.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    view.form = viewForm
 const consultations = {
     index: Object.assign(index, index),
 history: Object.assign(history, history),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\FinanceController::index
  * @see app/Http/Controllers/FinanceController.php:49
@@ -68,45 +68,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     url: index.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\FinanceController::index
- * @see app/Http/Controllers/FinanceController.php:49
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/financial'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\FinanceController::index
- * @see app/Http/Controllers/FinanceController.php:49
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/financial'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\FinanceController::index
- * @see app/Http/Controllers/FinanceController.php:49
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/financial'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 const financial = {
     index: Object.assign(index, index),
 }

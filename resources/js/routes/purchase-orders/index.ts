@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::index
@@ -70,44 +70,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\PurchaseOrderController::index
- * @see app/Http/Controllers/PurchaseOrderController.php:22
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::index
- * @see app/Http/Controllers/PurchaseOrderController.php:22
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::index
- * @see app/Http/Controllers/PurchaseOrderController.php:22
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::store
  * @see app/Http/Controllers/PurchaseOrderController.php:96
@@ -168,29 +130,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::approve
  * @see app/Http/Controllers/PurchaseOrderController.php:180
@@ -251,39 +190,6 @@ approve.patch = (args: { current_team?: string | number, purchaseOrder: number |
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
- */
-    const approveForm = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: approve.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
- */
-        approveForm.patch = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: approve.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    approve.form = approveForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::postInventory
  * @see app/Http/Controllers/PurchaseOrderController.php:189
@@ -344,29 +250,6 @@ postInventory.post = (args: { current_team?: string | number, purchaseOrder: num
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
- */
-    const postInventoryForm = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: postInventory.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
- */
-        postInventoryForm.post = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: postInventory.url(args, options),
-            method: 'post',
-        })
-    
-    postInventory.form = postInventoryForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::update
  * @see app/Http/Controllers/PurchaseOrderController.php:130
@@ -427,39 +310,6 @@ update.patch = (args: { current_team?: string | number, purchaseOrder: number | 
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
- */
-    const updateForm = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
- */
-        updateForm.patch = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::destroy
  * @see app/Http/Controllers/PurchaseOrderController.php:161
@@ -519,40 +369,6 @@ destroy.delete = (args: { current_team?: string | number, purchaseOrder: number 
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
- */
-    const destroyForm = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, purchaseOrder: number | { id: number } } | [current_team: string | number, purchaseOrder: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const purchaseOrders = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

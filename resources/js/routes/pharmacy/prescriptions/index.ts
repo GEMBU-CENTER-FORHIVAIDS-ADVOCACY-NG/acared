@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 import bulk from './bulk'
 import patients from './patients'
 /**
@@ -71,44 +71,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::index
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:34
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::index
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:34
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::index
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:34
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::create
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:141
@@ -179,44 +141,6 @@ create.head = (args?: { current_team?: string | number } | [current_team: string
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::create
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:141
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/create'
- */
-    const createForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::create
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:141
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/create'
- */
-        createForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::create
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:141
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/create'
- */
-        createForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    create.form = createForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::store
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:164
@@ -277,29 +201,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::store
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:164
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::store
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:164
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::show
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:108
@@ -370,44 +271,6 @@ show.head = (args: { current_team?: string | number, prescription: number | { id
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::show
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:108
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-    const showForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::show
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:108
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-        showForm.get = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::show
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:108
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-        showForm.head = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::edit
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:123
@@ -478,44 +341,6 @@ edit.head = (args: { current_team?: string | number, prescription: number | { id
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::edit
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:123
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/edit'
- */
-    const editForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: edit.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::edit
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:123
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/edit'
- */
-        editForm.get = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::edit
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:123
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/edit'
- */
-        editForm.head = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    edit.form = editForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::update
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:249
@@ -576,39 +401,6 @@ update.patch = (args: { current_team?: string | number, prescription: number | {
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::update
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:249
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-    const updateForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::update
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:249
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-        updateForm.patch = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::refund
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:379
@@ -669,29 +461,6 @@ refund.post = (args: { current_team?: string | number, prescription: number | { 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::refund
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:379
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/refund'
- */
-    const refundForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: refund.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::refund
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:379
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/refund'
- */
-        refundForm.post = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: refund.url(args, options),
-            method: 'post',
-        })
-    
-    refund.form = refundForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
@@ -752,29 +521,6 @@ dispense.post = (args: { current_team?: string | number, prescription: number | 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
- */
-    const dispenseForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: dispense.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispense
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:475
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense'
- */
-        dispenseForm.post = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: dispense.url(args, options),
-            method: 'post',
-        })
-    
-    dispense.form = dispenseForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
@@ -835,29 +581,6 @@ dispenseNewLines.post = (args: { current_team?: string | number, prescription: n
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
- */
-    const dispenseNewLinesForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: dispenseNewLines.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::dispenseNewLines
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:534
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}/dispense-new-lines'
- */
-        dispenseNewLinesForm.post = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: dispenseNewLines.url(args, options),
-            method: 'post',
-        })
-    
-    dispenseNewLines.form = dispenseNewLinesForm
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
@@ -917,40 +640,6 @@ destroy.delete = (args: { current_team?: string | number, prescription: number |
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-    const destroyForm = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
- * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:619
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/prescriptions/{prescription}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, prescription: number | { id: number } } | [current_team: string | number, prescription: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const prescriptions = {
     index: Object.assign(index, index),
 bulk: Object.assign(bulk, bulk),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
  * @see app/Http/Controllers/LaboratoryController.php:337
@@ -59,29 +59,6 @@ store.post = (args: { current_team?: string | number, laboratory: number | { id:
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/results'
- */
-    const storeForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/results'
- */
-        storeForm.post = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::update
  * @see app/Http/Controllers/LaboratoryController.php:354
@@ -141,40 +118,6 @@ update.patch = (args: { current_team?: string | number, laboratory: number | { i
     url: update.url(args, options),
     method: 'patch',
 })
-
-    /**
-* @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/results'
- */
-    const updateForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/laboratories/{laboratory}/results'
- */
-        updateForm.patch = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 const results = {
     store: Object.assign(store, store),
 update: Object.assign(update, update),

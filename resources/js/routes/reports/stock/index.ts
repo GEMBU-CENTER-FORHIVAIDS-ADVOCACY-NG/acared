@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\StockReportController::exportMethod
  * @see app/Http/Controllers/StockReportController.php:93
@@ -67,44 +67,6 @@ exportMethod.head = (args: { current_team?: string | number, report: string | nu
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\StockReportController::exportMethod
- * @see app/Http/Controllers/StockReportController.php:93
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/stock/{report}/export'
- */
-    const exportMethodForm = (args: { current_team?: string | number, report: string | number } | [current_team: string | number, report: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: exportMethod.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\StockReportController::exportMethod
- * @see app/Http/Controllers/StockReportController.php:93
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/stock/{report}/export'
- */
-        exportMethodForm.get = (args: { current_team?: string | number, report: string | number } | [current_team: string | number, report: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: exportMethod.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\StockReportController::exportMethod
- * @see app/Http/Controllers/StockReportController.php:93
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/stock/{report}/export'
- */
-        exportMethodForm.head = (args: { current_team?: string | number, report: string | number } | [current_team: string | number, report: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: exportMethod.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    exportMethod.form = exportMethodForm
 /**
 * @see \App\Http\Controllers\StockReportController::index
  * @see app/Http/Controllers/StockReportController.php:27
@@ -173,45 +135,6 @@ index.head = (args?: { current_team?: string | number, report?: string | number 
     url: index.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\StockReportController::index
- * @see app/Http/Controllers/StockReportController.php:27
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/stock/{report?}'
- */
-    const indexForm = (args?: { current_team?: string | number, report?: string | number } | [current_team: string | number, report: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\StockReportController::index
- * @see app/Http/Controllers/StockReportController.php:27
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/stock/{report?}'
- */
-        indexForm.get = (args?: { current_team?: string | number, report?: string | number } | [current_team: string | number, report: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\StockReportController::index
- * @see app/Http/Controllers/StockReportController.php:27
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/stock/{report?}'
- */
-        indexForm.head = (args?: { current_team?: string | number, report?: string | number } | [current_team: string | number, report: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 const stock = {
     export: Object.assign(exportMethod, exportMethod),
 index: Object.assign(index, index),

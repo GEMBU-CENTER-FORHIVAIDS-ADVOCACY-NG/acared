@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Teams\TeamUserController::index
  * @see app/Http/Controllers/Teams/TeamUserController.php:23
@@ -74,44 +74,6 @@ index.head = (args?: { team?: string | { slug: string } } | [team: string | { sl
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Teams\TeamUserController::index
- * @see app/Http/Controllers/Teams/TeamUserController.php:23
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users'
- */
-    const indexForm = (args?: { team?: string | { slug: string } } | [team: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Teams\TeamUserController::index
- * @see app/Http/Controllers/Teams/TeamUserController.php:23
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users'
- */
-        indexForm.get = (args?: { team?: string | { slug: string } } | [team: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Teams\TeamUserController::index
- * @see app/Http/Controllers/Teams/TeamUserController.php:23
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users'
- */
-        indexForm.head = (args?: { team?: string | { slug: string } } | [team: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Teams\TeamUserController::store
  * @see app/Http/Controllers/Teams/TeamUserController.php:77
@@ -177,29 +139,6 @@ store.post = (args?: { team?: string | { slug: string } } | [team: string | { sl
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Teams\TeamUserController::store
- * @see app/Http/Controllers/Teams/TeamUserController.php:77
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users'
- */
-    const storeForm = (args?: { team?: string | { slug: string } } | [team: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Teams\TeamUserController::store
- * @see app/Http/Controllers/Teams/TeamUserController.php:77
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users'
- */
-        storeForm.post = (args?: { team?: string | { slug: string } } | [team: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Teams\TeamUserController::update
  * @see app/Http/Controllers/Teams/TeamUserController.php:107
@@ -262,39 +201,6 @@ update.patch = (args: { team?: string | { slug: string }, user: number | { id: n
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\Teams\TeamUserController::update
- * @see app/Http/Controllers/Teams/TeamUserController.php:107
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users/{user}'
- */
-    const updateForm = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Teams\TeamUserController::update
- * @see app/Http/Controllers/Teams/TeamUserController.php:107
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users/{user}'
- */
-        updateForm.patch = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Teams\TeamUserController::destroy
  * @see app/Http/Controllers/Teams/TeamUserController.php:137
@@ -356,40 +262,6 @@ destroy.delete = (args: { team?: string | { slug: string }, user: number | { id:
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\Teams\TeamUserController::destroy
- * @see app/Http/Controllers/Teams/TeamUserController.php:137
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users/{user}'
- */
-    const destroyForm = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Teams\TeamUserController::destroy
- * @see app/Http/Controllers/Teams/TeamUserController.php:137
- * @param team - Default: '$currentTeam'
- * @route '/settings/teams/{team?}/users/{user}'
- */
-        destroyForm.delete = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const users = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

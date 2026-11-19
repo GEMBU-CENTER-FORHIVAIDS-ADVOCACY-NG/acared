@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import patients from './patients'
 import bulk from './bulk'
 /**
@@ -71,44 +71,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\CouponController::index
- * @see app/Http/Controllers/CouponController.php:17
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\CouponController::index
- * @see app/Http/Controllers/CouponController.php:17
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\CouponController::index
- * @see app/Http/Controllers/CouponController.php:17
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\CouponController::store
  * @see app/Http/Controllers/CouponController.php:79
@@ -169,29 +131,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\CouponController::store
- * @see app/Http/Controllers/CouponController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CouponController::store
- * @see app/Http/Controllers/CouponController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\CouponController::approve
  * @see app/Http/Controllers/CouponController.php:90
@@ -252,39 +191,6 @@ approve.patch = (args: { current_team?: string | number, coupon: number | { id: 
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\CouponController::approve
- * @see app/Http/Controllers/CouponController.php:90
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}/approve'
- */
-    const approveForm = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: approve.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CouponController::approve
- * @see app/Http/Controllers/CouponController.php:90
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}/approve'
- */
-        approveForm.patch = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: approve.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    approve.form = approveForm
 /**
 * @see \App\Http\Controllers\CouponController::reject
  * @see app/Http/Controllers/CouponController.php:98
@@ -345,39 +251,6 @@ reject.patch = (args: { current_team?: string | number, coupon: number | { id: n
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\CouponController::reject
- * @see app/Http/Controllers/CouponController.php:98
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}/reject'
- */
-    const rejectForm = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: reject.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CouponController::reject
- * @see app/Http/Controllers/CouponController.php:98
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}/reject'
- */
-        rejectForm.patch = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: reject.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    reject.form = rejectForm
 /**
 * @see \App\Http\Controllers\CouponController::update
  * @see app/Http/Controllers/CouponController.php:106
@@ -438,39 +311,6 @@ update.patch = (args: { current_team?: string | number, coupon: number | { id: n
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\CouponController::update
- * @see app/Http/Controllers/CouponController.php:106
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}'
- */
-    const updateForm = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CouponController::update
- * @see app/Http/Controllers/CouponController.php:106
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}'
- */
-        updateForm.patch = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\CouponController::destroy
  * @see app/Http/Controllers/CouponController.php:113
@@ -530,40 +370,6 @@ destroy.delete = (args: { current_team?: string | number, coupon: number | { id:
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\CouponController::destroy
- * @see app/Http/Controllers/CouponController.php:113
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}'
- */
-    const destroyForm = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\CouponController::destroy
- * @see app/Http/Controllers/CouponController.php:113
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/coupons/{coupon}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, coupon: number | { id: number } } | [current_team: string | number, coupon: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const coupons = {
     index: Object.assign(index, index),
 patients: Object.assign(patients, patients),

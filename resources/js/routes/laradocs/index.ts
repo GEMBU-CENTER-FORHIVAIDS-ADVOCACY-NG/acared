@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../wayfinder'
 import api from './api'
 import ai from './ai'
 import tags from './tags'
@@ -45,41 +45,6 @@ robots.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\RobotsController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/RobotsController.php:14
- * @route '/docs/robots.txt'
- */
-    const robotsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: robots.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\RobotsController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/RobotsController.php:14
- * @route '/docs/robots.txt'
- */
-        robotsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: robots.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\RobotsController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/RobotsController.php:14
- * @route '/docs/robots.txt'
- */
-        robotsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: robots.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    robots.form = robotsForm
 /**
 * @see \Laradocs\Http\Controllers\DocsController::index
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:26
@@ -123,41 +88,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\DocsController::index
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:26
- * @route '/docs'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\DocsController::index
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:26
- * @route '/docs'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\DocsController::index
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:26
- * @route '/docs'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \Laradocs\Http\Controllers\SitemapController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SitemapController.php:16
@@ -201,41 +131,6 @@ sitemap.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\SitemapController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SitemapController.php:16
- * @route '/docs/sitemap.xml'
- */
-    const sitemapForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: sitemap.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\SitemapController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SitemapController.php:16
- * @route '/docs/sitemap.xml'
- */
-        sitemapForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: sitemap.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\SitemapController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SitemapController.php:16
- * @route '/docs/sitemap.xml'
- */
-        sitemapForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: sitemap.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    sitemap.form = sitemapForm
 /**
 * @see \Laradocs\Http\Controllers\FeedController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/FeedController.php:18
@@ -279,41 +174,6 @@ feed.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\FeedController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/FeedController.php:18
- * @route '/docs/feed.xml'
- */
-    const feedForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: feed.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\FeedController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/FeedController.php:18
- * @route '/docs/feed.xml'
- */
-        feedForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: feed.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\FeedController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/FeedController.php:18
- * @route '/docs/feed.xml'
- */
-        feedForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: feed.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    feed.form = feedForm
 /**
 * @see \Laradocs\Http\Controllers\LlmsTxtController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LlmsTxtController.php:16
@@ -357,41 +217,6 @@ llms.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\LlmsTxtController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LlmsTxtController.php:16
- * @route '/docs/llms.txt'
- */
-    const llmsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: llms.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\LlmsTxtController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LlmsTxtController.php:16
- * @route '/docs/llms.txt'
- */
-        llmsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: llms.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\LlmsTxtController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LlmsTxtController.php:16
- * @route '/docs/llms.txt'
- */
-        llmsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: llms.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    llms.form = llmsForm
 /**
 * @see \Laradocs\Http\Controllers\AssetController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AssetController.php:24
@@ -454,41 +279,6 @@ asset.head = (args: { file: string | number } | [file: string | number ] | strin
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\AssetController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AssetController.php:24
- * @route '/docs/_laradocs/asset/{file}'
- */
-    const assetForm = (args: { file: string | number } | [file: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: asset.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\AssetController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AssetController.php:24
- * @route '/docs/_laradocs/asset/{file}'
- */
-        assetForm.get = (args: { file: string | number } | [file: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: asset.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\AssetController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AssetController.php:24
- * @route '/docs/_laradocs/asset/{file}'
- */
-        assetForm.head = (args: { file: string | number } | [file: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: asset.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    asset.form = assetForm
 /**
 * @see \Laradocs\Http\Controllers\MediaController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/MediaController.php:30
@@ -551,41 +341,6 @@ media.head = (args: { path: string | number } | [path: string | number ] | strin
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\MediaController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/MediaController.php:30
- * @route '/docs/_media/{path}'
- */
-    const mediaForm = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: media.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\MediaController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/MediaController.php:30
- * @route '/docs/_media/{path}'
- */
-        mediaForm.get = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: media.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\MediaController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/MediaController.php:30
- * @route '/docs/_media/{path}'
- */
-        mediaForm.head = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: media.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    media.form = mediaForm
 /**
 * @see \Laradocs\Http\Controllers\SearchController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SearchController.php:27
@@ -629,41 +384,6 @@ search.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\SearchController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SearchController.php:27
- * @route '/docs/_laradocs/search'
- */
-    const searchForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: search.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\SearchController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SearchController.php:27
- * @route '/docs/_laradocs/search'
- */
-        searchForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: search.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\SearchController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/SearchController.php:27
- * @route '/docs/_laradocs/search'
- */
-        searchForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: search.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    search.form = searchForm
 /**
 * @see \Laradocs\Http\Controllers\LocaleConsentController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LocaleConsentController.php:24
@@ -707,41 +427,6 @@ consent.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\LocaleConsentController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LocaleConsentController.php:24
- * @route '/docs/_laradocs/consent'
- */
-    const consentForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: consent.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\LocaleConsentController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LocaleConsentController.php:24
- * @route '/docs/_laradocs/consent'
- */
-        consentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: consent.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\LocaleConsentController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/LocaleConsentController.php:24
- * @route '/docs/_laradocs/consent'
- */
-        consentForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: consent.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    consent.form = consentForm
 /**
 * @see \Laradocs\Http\Controllers\OgImageController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/OgImageController.php:36
@@ -804,41 +489,6 @@ og.head = (args: { path: string | number } | [path: string | number ] | string |
     method: 'head',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\OgImageController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/OgImageController.php:36
- * @route '/docs/_laradocs/og/{path}'
- */
-    const ogForm = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: og.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\OgImageController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/OgImageController.php:36
- * @route '/docs/_laradocs/og/{path}'
- */
-        ogForm.get = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: og.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\OgImageController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/OgImageController.php:36
- * @route '/docs/_laradocs/og/{path}'
- */
-        ogForm.head = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: og.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    og.form = ogForm
 /**
 * @see \Laradocs\Http\Controllers\McpController::__invoke
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/McpController.php:16
@@ -873,27 +523,6 @@ mcp.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\McpController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/McpController.php:16
- * @route '/docs/mcp'
- */
-    const mcpForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: mcp.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\McpController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/McpController.php:16
- * @route '/docs/mcp'
- */
-        mcpForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: mcp.url(options),
-            method: 'post',
-        })
-    
-    mcp.form = mcpForm
 /**
 * @see \Laradocs\Http\Controllers\DocsController::show
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:46
@@ -955,42 +584,6 @@ show.head = (args: { path: string | number } | [path: string | number ] | string
     url: show.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \Laradocs\Http\Controllers\DocsController::show
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:46
- * @route '/docs/{path}'
- */
-    const showForm = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\DocsController::show
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:46
- * @route '/docs/{path}'
- */
-        showForm.get = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \Laradocs\Http\Controllers\DocsController::show
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/DocsController.php:46
- * @route '/docs/{path}'
- */
-        showForm.head = (args: { path: string | number } | [path: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 const laradocs = {
     robots: Object.assign(robots, robots),
 index: Object.assign(index, index),

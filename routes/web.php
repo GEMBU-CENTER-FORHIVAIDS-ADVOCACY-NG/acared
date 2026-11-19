@@ -301,6 +301,7 @@ Route::prefix('{current_team}')
             Route::get('nursing/ward-rounds/patients/search', [WardRoundController::class, 'searchPatients'])->name('nursing.ward-rounds.patients.search');
             Route::get('nursing/ward-rounds/admissions/{admission}/{section?}', [WardRoundController::class, 'view'])->name('nursing.ward-rounds.view');
             Route::post('nursing/ward-rounds/{ward}/admit', [WardRoundController::class, 'admit'])->name('nursing.ward-rounds.admit');
+            Route::patch('nursing/ward-rounds/admissions/{admission}/cancel', [WardRoundController::class, 'cancelAdmission'])->name('nursing.ward-rounds.cancel-admission');
             Route::patch('nursing/ward-rounds/admissions/{admission}/discharge', [WardRoundController::class, 'discharge'])->name('nursing.ward-rounds.discharge');
             Route::patch('nursing/ward-rounds/admissions/{admission}/transfer', [WardRoundController::class, 'transfer'])->name('nursing.ward-rounds.transfer');
             Route::post('nursing/ward-rounds/admissions/{admission}/records/{type}', [ConsultationRecordController::class, 'storeForAdmission'])->name('nursing.ward-rounds.records.store');
@@ -318,6 +319,7 @@ Route::prefix('{current_team}')
             Route::get('consultant/ward-rounds/patients/search', [ConsultantWardRoundController::class, 'searchPatients'])->name('consultant.ward-rounds.patients.search');
             Route::get('consultant/ward-rounds/admissions/{admission}/{section?}', [ConsultantWardRoundController::class, 'view'])->name('consultant.ward-rounds.view');
             Route::post('consultant/ward-rounds/{ward}/admit', [ConsultantWardRoundController::class, 'admit'])->name('consultant.ward-rounds.admit');
+            Route::patch('consultant/ward-rounds/admissions/{admission}/cancel', [ConsultantWardRoundController::class, 'cancelAdmission'])->name('consultant.ward-rounds.cancel-admission');
             Route::patch('consultant/ward-rounds/admissions/{admission}/discharge', [ConsultantWardRoundController::class, 'discharge'])->name('consultant.ward-rounds.discharge');
             Route::post('consultant/ward-rounds/admissions/{admission}/records/{type}', [ConsultationRecordController::class, 'storeForAdmission'])->name('consultant.ward-rounds.records.store');
             Route::patch('consultant/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'updateForAdmission'])->name('consultant.ward-rounds.records.update');

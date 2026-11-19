@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import appointments from './appointments'
 import patient from './patient'
 /**
@@ -71,44 +71,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ReceptionController::index
- * @see app/Http/Controllers/ReceptionController.php:29
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ReceptionController::index
- * @see app/Http/Controllers/ReceptionController.php:29
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ReceptionController::index
- * @see app/Http/Controllers/ReceptionController.php:29
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\ReceptionController::transfer
  * @see app/Http/Controllers/ReceptionController.php:107
@@ -168,40 +130,6 @@ transfer.patch = (args?: { current_team?: string | number } | [current_team: str
     url: transfer.url(args, options),
     method: 'patch',
 })
-
-    /**
-* @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:107
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/transfer'
- */
-    const transferForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: transfer.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ReceptionController::transfer
- * @see app/Http/Controllers/ReceptionController.php:107
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/transfer'
- */
-        transferForm.patch = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: transfer.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    transfer.form = transferForm
 const reception = {
     index: Object.assign(index, index),
 appointments: Object.assign(appointments, appointments),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ReceptionController::card
  * @see app/Http/Controllers/ReceptionController.php:79
@@ -69,45 +69,6 @@ card.head = (args: { current_team?: string | number, appointment: string | numbe
     url: card.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
-    const cardForm = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: card.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
-        cardForm.get = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: card.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
-        cardForm.head = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: card.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    card.form = cardForm
 const patient = {
     card: Object.assign(card, card),
 }

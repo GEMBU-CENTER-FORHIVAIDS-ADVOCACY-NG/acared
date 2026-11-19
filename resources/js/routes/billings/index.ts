@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import patients from './patients'
 import bulk from './bulk'
 /**
@@ -71,44 +71,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\BillingController::index
- * @see app/Http/Controllers/BillingController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\BillingController::index
- * @see app/Http/Controllers/BillingController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\BillingController::index
- * @see app/Http/Controllers/BillingController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\BillingController::history
  * @see app/Http/Controllers/BillingController.php:227
@@ -179,44 +141,6 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:227
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/history'
- */
-    const historyForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: history.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:227
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/history'
- */
-        historyForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: history.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:227
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/history'
- */
-        historyForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: history.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    history.form = historyForm
 /**
 * @see \App\Http\Controllers\BillingController::store
  * @see app/Http/Controllers/BillingController.php:365
@@ -277,29 +201,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:365
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:365
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\BillingController::newMethod
  * @see app/Http/Controllers/BillingController.php:280
@@ -360,29 +261,6 @@ newMethod.post = (args?: { current_team?: string | number } | [current_team: str
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:280
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/new'
- */
-    const newMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: newMethod.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:280
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/new'
- */
-        newMethodForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: newMethod.url(args, options),
-            method: 'post',
-        })
-    
-    newMethod.form = newMethodForm
 /**
 * @see \App\Http\Controllers\BillingController::show
  * @see app/Http/Controllers/BillingController.php:267
@@ -453,44 +331,6 @@ show.head = (args: { current_team?: string | number, billing: number | { id: num
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:267
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/{billing}'
- */
-    const showForm = (args: { current_team?: string | number, billing: number | { id: number } } | [current_team: string | number, billing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:267
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/{billing}'
- */
-        showForm.get = (args: { current_team?: string | number, billing: number | { id: number } } | [current_team: string | number, billing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:267
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/{billing}'
- */
-        showForm.head = (args: { current_team?: string | number, billing: number | { id: number } } | [current_team: string | number, billing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\BillingController::destroy
  * @see app/Http/Controllers/BillingController.php:502
@@ -550,40 +390,6 @@ destroy.delete = (args: { current_team?: string | number, billing: number | { id
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:502
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/{billing}'
- */
-    const destroyForm = (args: { current_team?: string | number, billing: number | { id: number } } | [current_team: string | number, billing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:502
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/billings/{billing}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, billing: number | { id: number } } | [current_team: string | number, billing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const billings = {
     patients: Object.assign(patients, patients),
 index: Object.assign(index, index),

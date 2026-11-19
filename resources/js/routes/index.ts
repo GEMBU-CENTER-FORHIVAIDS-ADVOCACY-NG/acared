@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../wayfinder'
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::login
  * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:47
@@ -42,41 +42,6 @@ login.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::login
- * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:47
- * @route '/login'
- */
-    const loginForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: login.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::login
- * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:47
- * @route '/login'
- */
-        loginForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: login.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::login
- * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:47
- * @route '/login'
- */
-        loginForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: login.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    login.form = loginForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::logout
  * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:100
@@ -111,27 +76,6 @@ logout.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::logout
- * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:100
- * @route '/logout'
- */
-    const logoutForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: logout.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::logout
- * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:100
- * @route '/logout'
- */
-        logoutForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: logout.url(options),
-            method: 'post',
-        })
-    
-    logout.form = logoutForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\RegisteredUserController::register
  * @see vendor/laravel/fortify/src/Http/Controllers/RegisteredUserController.php:41
@@ -175,41 +119,6 @@ register.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Laravel\Fortify\Http\Controllers\RegisteredUserController::register
- * @see vendor/laravel/fortify/src/Http/Controllers/RegisteredUserController.php:41
- * @route '/register'
- */
-    const registerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: register.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Laravel\Fortify\Http\Controllers\RegisteredUserController::register
- * @see vendor/laravel/fortify/src/Http/Controllers/RegisteredUserController.php:41
- * @route '/register'
- */
-        registerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: register.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Laravel\Fortify\Http\Controllers\RegisteredUserController::register
- * @see vendor/laravel/fortify/src/Http/Controllers/RegisteredUserController.php:41
- * @route '/register'
- */
-        registerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: register.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    register.form = registerForm
 /**
 * @see \Inertia\Controller::__invoke
  * @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
@@ -253,41 +162,6 @@ home.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \Inertia\Controller::__invoke
- * @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
- * @route '/'
- */
-    const homeForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: home.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \Inertia\Controller::__invoke
- * @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
- * @route '/'
- */
-        homeForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: home.url(options),
-            method: 'get',
-        })
-            /**
-* @see \Inertia\Controller::__invoke
- * @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
- * @route '/'
- */
-        homeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: home.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    home.form = homeForm
 /**
 * @see \App\Http\Controllers\ErrorController::forbidden
  * @see app/Http/Controllers/ErrorController.php:13
@@ -331,41 +205,6 @@ forbidden.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ErrorController::forbidden
- * @see app/Http/Controllers/ErrorController.php:13
- * @route '/forbidden'
- */
-    const forbiddenForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: forbidden.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ErrorController::forbidden
- * @see app/Http/Controllers/ErrorController.php:13
- * @route '/forbidden'
- */
-        forbiddenForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: forbidden.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ErrorController::forbidden
- * @see app/Http/Controllers/ErrorController.php:13
- * @route '/forbidden'
- */
-        forbiddenForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: forbidden.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    forbidden.form = forbiddenForm
 /**
 * @see \App\Http\Controllers\ErrorController::notFound
  * @see app/Http/Controllers/ErrorController.php:21
@@ -409,41 +248,6 @@ notFound.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ErrorController::notFound
- * @see app/Http/Controllers/ErrorController.php:21
- * @route '/not-found'
- */
-    const notFoundForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: notFound.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ErrorController::notFound
- * @see app/Http/Controllers/ErrorController.php:21
- * @route '/not-found'
- */
-        notFoundForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: notFound.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ErrorController::notFound
- * @see app/Http/Controllers/ErrorController.php:21
- * @route '/not-found'
- */
-        notFoundForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: notFound.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    notFound.form = notFoundForm
 /**
 * @see \App\Http\Controllers\ErrorController::pageExpired
  * @see app/Http/Controllers/ErrorController.php:29
@@ -487,41 +291,6 @@ pageExpired.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ErrorController::pageExpired
- * @see app/Http/Controllers/ErrorController.php:29
- * @route '/page-expired'
- */
-    const pageExpiredForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: pageExpired.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ErrorController::pageExpired
- * @see app/Http/Controllers/ErrorController.php:29
- * @route '/page-expired'
- */
-        pageExpiredForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: pageExpired.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ErrorController::pageExpired
- * @see app/Http/Controllers/ErrorController.php:29
- * @route '/page-expired'
- */
-        pageExpiredForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: pageExpired.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    pageExpired.form = pageExpiredForm
 /**
 * @see \App\Http\Controllers\ErrorController::tooManyRequests
  * @see app/Http/Controllers/ErrorController.php:37
@@ -565,41 +334,6 @@ tooManyRequests.head = (options?: RouteQueryOptions): RouteDefinition<'head'> =>
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ErrorController::tooManyRequests
- * @see app/Http/Controllers/ErrorController.php:37
- * @route '/too-many-requests'
- */
-    const tooManyRequestsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: tooManyRequests.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ErrorController::tooManyRequests
- * @see app/Http/Controllers/ErrorController.php:37
- * @route '/too-many-requests'
- */
-        tooManyRequestsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: tooManyRequests.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ErrorController::tooManyRequests
- * @see app/Http/Controllers/ErrorController.php:37
- * @route '/too-many-requests'
- */
-        tooManyRequestsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: tooManyRequests.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    tooManyRequests.form = tooManyRequestsForm
 /**
 * @see \App\Http\Controllers\ErrorController::serverError
  * @see app/Http/Controllers/ErrorController.php:45
@@ -643,41 +377,6 @@ serverError.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ErrorController::serverError
- * @see app/Http/Controllers/ErrorController.php:45
- * @route '/server-error'
- */
-    const serverErrorForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: serverError.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ErrorController::serverError
- * @see app/Http/Controllers/ErrorController.php:45
- * @route '/server-error'
- */
-        serverErrorForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: serverError.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ErrorController::serverError
- * @see app/Http/Controllers/ErrorController.php:45
- * @route '/server-error'
- */
-        serverErrorForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: serverError.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    serverError.form = serverErrorForm
 /**
 * @see \App\Http\Controllers\ErrorController::serviceUnavailable
  * @see app/Http/Controllers/ErrorController.php:53
@@ -721,41 +420,6 @@ serviceUnavailable.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ErrorController::serviceUnavailable
- * @see app/Http/Controllers/ErrorController.php:53
- * @route '/service-unavailable'
- */
-    const serviceUnavailableForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: serviceUnavailable.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ErrorController::serviceUnavailable
- * @see app/Http/Controllers/ErrorController.php:53
- * @route '/service-unavailable'
- */
-        serviceUnavailableForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: serviceUnavailable.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ErrorController::serviceUnavailable
- * @see app/Http/Controllers/ErrorController.php:53
- * @route '/service-unavailable'
- */
-        serviceUnavailableForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: serviceUnavailable.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    serviceUnavailable.form = serviceUnavailableForm
 /**
 * @see \App\Http\Controllers\DashboardController::__invoke
  * @see app/Http/Controllers/DashboardController.php:26
@@ -825,42 +489,3 @@ dashboard.head = (args?: { current_team?: string | number } | [current_team: str
     url: dashboard.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\DashboardController::__invoke
- * @see app/Http/Controllers/DashboardController.php:26
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/dashboard'
- */
-    const dashboardForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: dashboard.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\DashboardController::__invoke
- * @see app/Http/Controllers/DashboardController.php:26
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/dashboard'
- */
-        dashboardForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: dashboard.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\DashboardController::__invoke
- * @see app/Http/Controllers/DashboardController.php:26
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/dashboard'
- */
-        dashboardForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: dashboard.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    dashboard.form = dashboardForm

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugFormController::index
  * @see app/Http/Controllers/Pharmacy/DrugFormController.php:18
@@ -69,44 +69,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::index
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:18
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::index
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:18
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::index
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:18
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugFormController::store
  * @see app/Http/Controllers/Pharmacy/DrugFormController.php:50
@@ -167,29 +129,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::store
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:50
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::store
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:50
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugFormController::update
  * @see app/Http/Controllers/Pharmacy/DrugFormController.php:67
@@ -250,39 +189,6 @@ update.patch = (args: { current_team?: string | number, drug_form: number | { id
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::update
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms/{drug_form}'
- */
-    const updateForm = (args: { current_team?: string | number, drug_form: number | { id: number } } | [current_team: string | number, drug_form: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::update
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms/{drug_form}'
- */
-        updateForm.patch = (args: { current_team?: string | number, drug_form: number | { id: number } } | [current_team: string | number, drug_form: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugFormController::destroy
  * @see app/Http/Controllers/Pharmacy/DrugFormController.php:79
@@ -342,40 +248,6 @@ destroy.delete = (args: { current_team?: string | number, drug_form: number | { 
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::destroy
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms/{drug_form}'
- */
-    const destroyForm = (args: { current_team?: string | number, drug_form: number | { id: number } } | [current_team: string | number, drug_form: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Pharmacy\DrugFormController::destroy
- * @see app/Http/Controllers/Pharmacy/DrugFormController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/pharmacy/drug-forms/{drug_form}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, drug_form: number | { id: number } } | [current_team: string | number, drug_form: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const drugForms = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

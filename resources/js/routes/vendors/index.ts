@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\VendorController::index
@@ -70,44 +70,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\VendorController::index
- * @see app/Http/Controllers/VendorController.php:14
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\VendorController::index
- * @see app/Http/Controllers/VendorController.php:14
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\VendorController::index
- * @see app/Http/Controllers/VendorController.php:14
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\VendorController::store
  * @see app/Http/Controllers/VendorController.php:50
@@ -168,29 +130,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\VendorController::store
- * @see app/Http/Controllers/VendorController.php:50
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\VendorController::store
- * @see app/Http/Controllers/VendorController.php:50
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\VendorController::update
  * @see app/Http/Controllers/VendorController.php:60
@@ -251,39 +190,6 @@ update.patch = (args: { current_team?: string | number, vendor: number | { id: n
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\VendorController::update
- * @see app/Http/Controllers/VendorController.php:60
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors/{vendor}'
- */
-    const updateForm = (args: { current_team?: string | number, vendor: number | { id: number } } | [current_team: string | number, vendor: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\VendorController::update
- * @see app/Http/Controllers/VendorController.php:60
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors/{vendor}'
- */
-        updateForm.patch = (args: { current_team?: string | number, vendor: number | { id: number } } | [current_team: string | number, vendor: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\VendorController::destroy
  * @see app/Http/Controllers/VendorController.php:67
@@ -343,40 +249,6 @@ destroy.delete = (args: { current_team?: string | number, vendor: number | { id:
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\VendorController::destroy
- * @see app/Http/Controllers/VendorController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors/{vendor}'
- */
-    const destroyForm = (args: { current_team?: string | number, vendor: number | { id: number } } | [current_team: string | number, vendor: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\VendorController::destroy
- * @see app/Http/Controllers/VendorController.php:67
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/vendors/{vendor}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, vendor: number | { id: number } } | [current_team: string | number, vendor: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const vendors = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

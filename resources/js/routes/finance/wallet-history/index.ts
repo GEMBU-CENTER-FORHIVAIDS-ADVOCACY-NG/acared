@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 import patients from './patients'
 import bulk from './bulk'
 /**
@@ -71,44 +71,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\WalletHistoryController::index
- * @see app/Http/Controllers/WalletHistoryController.php:25
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::index
- * @see app/Http/Controllers/WalletHistoryController.php:25
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::index
- * @see app/Http/Controllers/WalletHistoryController.php:25
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::show
  * @see app/Http/Controllers/WalletHistoryController.php:297
@@ -179,44 +141,6 @@ show.head = (args: { current_team?: string | number, wallet_history: number | { 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:297
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-    const showForm = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:297
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-        showForm.get = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::show
- * @see app/Http/Controllers/WalletHistoryController.php:297
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-        showForm.head = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::store
  * @see app/Http/Controllers/WalletHistoryController.php:159
@@ -277,29 +201,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:159
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::store
- * @see app/Http/Controllers/WalletHistoryController.php:159
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::transfer
  * @see app/Http/Controllers/WalletHistoryController.php:341
@@ -360,29 +261,6 @@ transfer.post = (args?: { current_team?: string | number } | [current_team: stri
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\WalletHistoryController::transfer
- * @see app/Http/Controllers/WalletHistoryController.php:341
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/transfer'
- */
-    const transferForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: transfer.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::transfer
- * @see app/Http/Controllers/WalletHistoryController.php:341
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/transfer'
- */
-        transferForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: transfer.url(args, options),
-            method: 'post',
-        })
-    
-    transfer.form = transferForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::update
  * @see app/Http/Controllers/WalletHistoryController.php:311
@@ -443,39 +321,6 @@ update.patch = (args: { current_team?: string | number, wallet_history: number |
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:311
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-    const updateForm = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::update
- * @see app/Http/Controllers/WalletHistoryController.php:311
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-        updateForm.patch = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\WalletHistoryController::destroy
  * @see app/Http/Controllers/WalletHistoryController.php:304
@@ -535,40 +380,6 @@ destroy.delete = (args: { current_team?: string | number, wallet_history: number
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:304
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-    const destroyForm = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\WalletHistoryController::destroy
- * @see app/Http/Controllers/WalletHistoryController.php:304
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/finance/wallet-history/{wallet_history}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, wallet_history: number | { id: number } } | [current_team: string | number, wallet_history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const walletHistory = {
     index: Object.assign(index, index),
 show: Object.assign(show, show),

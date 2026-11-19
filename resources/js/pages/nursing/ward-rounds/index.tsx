@@ -3,6 +3,7 @@ import { ArrowRightLeft, Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { billing as newBilling, transfer as transferPatient } from '@/routes/nursing/ward-rounds';
 import { searchPatients } from '@/actions/App/Http/Controllers/WardRoundController';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import {
 } from '@/components/ui/sheet';
 import { SelectNative } from '@/components/ui/select-native';
 import { Textarea } from '@/components/ui/textarea';
-import { admit, index as wardRoundsIndex, show, view } from '@/routes/nursing/ward-rounds';
+import { admit, cancelAdmission, index as wardRoundsIndex, show, view } from '@/routes/nursing/ward-rounds';
 import { searchAdmission } from '@/actions/App/Http/Controllers/WardRoundController';
 import type { BillingPatientOption } from '@/types/finance';
 
@@ -96,6 +97,7 @@ export default function WardRoundsIndex({
     const [dateFilter, setDateFilter] = useState(filters.dateFilter);
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
+    const [confirmCancel, setConfirmCancel] = useState(false);
 
     // New Billing state
     const [billingOpen, setBillingOpen] = useState(false);
@@ -364,6 +366,28 @@ export default function WardRoundsIndex({
                     setBedId('');
                     setNotes('');
                 },
+            },
+        );
+    };
+
+    const cancelSelectedAdmission = () => {
+        if (!admissionId) return;
+        setConfirmCancel(true);
+    };
+
+    const confirmCancelAdmission = () => {
+        router.patch(
+            cancelAdmission.url({ current_team: teamSlug, admission: Number(admissionId) }),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setAdmissionId('');
+                    setSelectedWardId('');
+                    setBedId('');
+                    setNotes('');
+                },
+                onFinish: () => setConfirmCancel(false),
             },
         );
     };
@@ -750,13 +774,23 @@ export default function WardRoundsIndex({
                                                         }
                                                     />
                                                 </div>
-                                                <Button
-                                                    className="w-full"
-                                                    disabled={!canAdmit}
-                                                    onClick={submitAdmission}
-                                                >
-                                                    Admit patient
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        className="flex-1"
+                                                        disabled={!canAdmit}
+                                                        onClick={submitAdmission}
+                                                    >
+                                                        Admit patient
+                                                    </Button>
+                                                    <Button
+                                                        className="flex-1"
+                                                        variant="destructive"
+                                                        disabled={!admissionId}
+                                                        onClick={cancelSelectedAdmission}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </>
@@ -1072,6 +1106,17 @@ export default function WardRoundsIndex({
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
+
+            <ConfirmDialog
+                open={confirmCancel}
+                onOpenChange={setConfirmCancel}
+                title="Cancel admission"
+                description="Are you sure you want to cancel this admission request? This action cannot be undone."
+                confirmLabel="Cancel admission"
+                cancelLabel="Keep admission"
+                destructive
+                onConfirm={confirmCancelAdmission}
+            />
         </>
     );
 }

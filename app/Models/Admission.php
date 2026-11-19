@@ -46,7 +46,7 @@ class Admission extends Model
     /** @use HasFactory<AdmissionFactory> */
     use HasFactory, LogsActivity, LogsActivityWithPatient;
 
-    public const array INACTIVE_STATUSES = ['discharged'];
+    public const array INACTIVE_STATUSES = ['discharged', 'cancelled'];
 
     protected $guarded = [];
 

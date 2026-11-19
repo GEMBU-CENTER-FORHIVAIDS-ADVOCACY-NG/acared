@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ReceptionController::store
  * @see app/Http/Controllers/ReceptionController.php:63
@@ -58,30 +58,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     url: store.url(args, options),
     method: 'post',
 })
-
-    /**
-* @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:63
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ReceptionController::store
- * @see app/Http/Controllers/ReceptionController.php:63
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 const appointments = {
     store: Object.assign(store, store),
 }

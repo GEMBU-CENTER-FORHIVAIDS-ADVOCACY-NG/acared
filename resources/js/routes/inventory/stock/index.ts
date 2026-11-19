@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\InventoryController::index
@@ -70,44 +70,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::index
- * @see app/Http/Controllers/InventoryController.php:112
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::index
- * @see app/Http/Controllers/InventoryController.php:112
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\InventoryController::index
- * @see app/Http/Controllers/InventoryController.php:112
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\InventoryController::exportMethod
  * @see app/Http/Controllers/InventoryController.php:25
@@ -178,44 +140,6 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::exportMethod
- * @see app/Http/Controllers/InventoryController.php:25
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/export'
- */
-    const exportMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: exportMethod.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::exportMethod
- * @see app/Http/Controllers/InventoryController.php:25
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/export'
- */
-        exportMethodForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: exportMethod.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\InventoryController::exportMethod
- * @see app/Http/Controllers/InventoryController.php:25
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/export'
- */
-        exportMethodForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: exportMethod.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    exportMethod.form = exportMethodForm
 /**
 * @see \App\Http\Controllers\InventoryController::exportStockTaking
  * @see app/Http/Controllers/InventoryController.php:64
@@ -286,44 +210,6 @@ exportStockTaking.head = (args?: { current_team?: string | number } | [current_t
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::exportStockTaking
- * @see app/Http/Controllers/InventoryController.php:64
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/export-stock-taking'
- */
-    const exportStockTakingForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: exportStockTaking.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::exportStockTaking
- * @see app/Http/Controllers/InventoryController.php:64
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/export-stock-taking'
- */
-        exportStockTakingForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: exportStockTaking.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\InventoryController::exportStockTaking
- * @see app/Http/Controllers/InventoryController.php:64
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/export-stock-taking'
- */
-        exportStockTakingForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: exportStockTaking.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    exportStockTaking.form = exportStockTakingForm
 /**
 * @see \App\Http\Controllers\InventoryController::print
  * @see app/Http/Controllers/InventoryController.php:96
@@ -394,44 +280,6 @@ print.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::print
- * @see app/Http/Controllers/InventoryController.php:96
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/print'
- */
-    const printForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: print.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::print
- * @see app/Http/Controllers/InventoryController.php:96
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/print'
- */
-        printForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: print.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\InventoryController::print
- * @see app/Http/Controllers/InventoryController.php:96
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/print'
- */
-        printForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: print.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    print.form = printForm
 /**
 * @see \App\Http\Controllers\InventoryImportController::importMethod
  * @see app/Http/Controllers/InventoryImportController.php:61
@@ -492,29 +340,6 @@ importMethod.post = (args?: { current_team?: string | number } | [current_team: 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryImportController::importMethod
- * @see app/Http/Controllers/InventoryImportController.php:61
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/import'
- */
-    const importMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: importMethod.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryImportController::importMethod
- * @see app/Http/Controllers/InventoryImportController.php:61
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/import'
- */
-        importMethodForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: importMethod.url(args, options),
-            method: 'post',
-        })
-    
-    importMethod.form = importMethodForm
 /**
 * @see \App\Http\Controllers\InventoryController::store
  * @see app/Http/Controllers/InventoryController.php:211
@@ -575,29 +400,6 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::store
- * @see app/Http/Controllers/InventoryController.php:211
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::store
- * @see app/Http/Controllers/InventoryController.php:211
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\InventoryController::adjust
  * @see app/Http/Controllers/InventoryController.php:270
@@ -658,29 +460,6 @@ adjust.post = (args?: { current_team?: string | number } | [current_team: string
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::adjust
- * @see app/Http/Controllers/InventoryController.php:270
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/adjust'
- */
-    const adjustForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: adjust.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::adjust
- * @see app/Http/Controllers/InventoryController.php:270
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/adjust'
- */
-        adjustForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: adjust.url(args, options),
-            method: 'post',
-        })
-    
-    adjust.form = adjustForm
 /**
 * @see \App\Http\Controllers\InventoryController::transfer
  * @see app/Http/Controllers/InventoryController.php:329
@@ -741,29 +520,6 @@ transfer.post = (args?: { current_team?: string | number } | [current_team: stri
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::transfer
- * @see app/Http/Controllers/InventoryController.php:329
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/transfer'
- */
-    const transferForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: transfer.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::transfer
- * @see app/Http/Controllers/InventoryController.php:329
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/transfer'
- */
-        transferForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: transfer.url(args, options),
-            method: 'post',
-        })
-    
-    transfer.form = transferForm
 /**
 * @see \App\Http\Controllers\InventoryController::show
  * @see app/Http/Controllers/InventoryController.php:186
@@ -834,44 +590,6 @@ show.head = (args: { current_team?: string | number, inventory: number | { id: n
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::show
- * @see app/Http/Controllers/InventoryController.php:186
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-    const showForm = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::show
- * @see app/Http/Controllers/InventoryController.php:186
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-        showForm.get = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\InventoryController::show
- * @see app/Http/Controllers/InventoryController.php:186
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-        showForm.head = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\InventoryController::update
  * @see app/Http/Controllers/InventoryController.php:228
@@ -932,39 +650,6 @@ update.patch = (args: { current_team?: string | number, inventory: number | { id
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\InventoryController::update
- * @see app/Http/Controllers/InventoryController.php:228
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-    const updateForm = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::update
- * @see app/Http/Controllers/InventoryController.php:228
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-        updateForm.patch = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\InventoryController::destroy
  * @see app/Http/Controllers/InventoryController.php:244
@@ -1024,40 +709,6 @@ destroy.delete = (args: { current_team?: string | number, inventory: number | { 
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\InventoryController::destroy
- * @see app/Http/Controllers/InventoryController.php:244
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-    const destroyForm = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\InventoryController::destroy
- * @see app/Http/Controllers/InventoryController.php:244
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/inventory/stock/{inventory}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, inventory: number | { id: number } } | [current_team: string | number, inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const stock = {
     index: Object.assign(index, index),
 export: Object.assign(exportMethod, exportMethod),

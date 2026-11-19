@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Api\CategoryApiController::index
  * @see app/Http/Controllers/Api/CategoryApiController.php:11
@@ -42,41 +42,6 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Api\CategoryApiController::index
- * @see app/Http/Controllers/Api/CategoryApiController.php:11
- * @route '/api/categories'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::index
- * @see app/Http/Controllers/Api/CategoryApiController.php:11
- * @route '/api/categories'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::index
- * @see app/Http/Controllers/Api/CategoryApiController.php:11
- * @route '/api/categories'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Api\CategoryApiController::store
  * @see app/Http/Controllers/Api/CategoryApiController.php:48
@@ -111,27 +76,6 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\Api\CategoryApiController::store
- * @see app/Http/Controllers/Api/CategoryApiController.php:48
- * @route '/api/categories'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::store
- * @see app/Http/Controllers/Api/CategoryApiController.php:48
- * @route '/api/categories'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Api\CategoryApiController::show
  * @see app/Http/Controllers/Api/CategoryApiController.php:69
@@ -199,41 +143,6 @@ show.head = (args: { category: number | { id: number } } | [category: number | {
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\Api\CategoryApiController::show
- * @see app/Http/Controllers/Api/CategoryApiController.php:69
- * @route '/api/categories/{category}'
- */
-    const showForm = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::show
- * @see app/Http/Controllers/Api/CategoryApiController.php:69
- * @route '/api/categories/{category}'
- */
-        showForm.get = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::show
- * @see app/Http/Controllers/Api/CategoryApiController.php:69
- * @route '/api/categories/{category}'
- */
-        showForm.head = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
 * @see \App\Http\Controllers\Api\CategoryApiController::update
  * @see app/Http/Controllers/Api/CategoryApiController.php:82
@@ -292,37 +201,6 @@ update.put = (args: { category: number | { id: number } } | [category: number | 
     method: 'put',
 })
 
-    /**
-* @see \App\Http\Controllers\Api\CategoryApiController::update
- * @see app/Http/Controllers/Api/CategoryApiController.php:82
- * @route '/api/categories/{category}'
- */
-    const updateForm = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PUT',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::update
- * @see app/Http/Controllers/Api/CategoryApiController.php:82
- * @route '/api/categories/{category}'
- */
-        updateForm.put = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PUT',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Api\CategoryApiController::patch
  * @see app/Http/Controllers/Api/CategoryApiController.php:82
@@ -381,37 +259,6 @@ patch.patch = (args: { category: number | { id: number } } | [category: number |
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\Api\CategoryApiController::patch
- * @see app/Http/Controllers/Api/CategoryApiController.php:82
- * @route '/api/categories/{category}'
- */
-    const patchForm = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: patch.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::patch
- * @see app/Http/Controllers/Api/CategoryApiController.php:82
- * @route '/api/categories/{category}'
- */
-        patchForm.patch = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: patch.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    patch.form = patchForm
 /**
 * @see \App\Http\Controllers\Api\CategoryApiController::destroy
  * @see app/Http/Controllers/Api/CategoryApiController.php:108
@@ -469,38 +316,6 @@ destroy.delete = (args: { category: number | { id: number } } | [category: numbe
     url: destroy.url(args, options),
     method: 'delete',
 })
-
-    /**
-* @see \App\Http\Controllers\Api\CategoryApiController::destroy
- * @see app/Http/Controllers/Api/CategoryApiController.php:108
- * @route '/api/categories/{category}'
- */
-    const destroyForm = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Api\CategoryApiController::destroy
- * @see app/Http/Controllers/Api/CategoryApiController.php:108
- * @route '/api/categories/{category}'
- */
-        destroyForm.delete = (args: { category: number | { id: number } } | [category: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const categories = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

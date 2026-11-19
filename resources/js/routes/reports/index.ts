@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import financial from './financial'
 import sales from './sales'
 import clinical from './clinical'
@@ -83,44 +83,6 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ReportCatalogController::index
- * @see app/Http/Controllers/ReportCatalogController.php:99
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports'
- */
-    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ReportCatalogController::index
- * @see app/Http/Controllers/ReportCatalogController.php:99
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports'
- */
-        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ReportCatalogController::index
- * @see app/Http/Controllers/ReportCatalogController.php:99
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports'
- */
-        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\FinanceController::finance
  * @see app/Http/Controllers/FinanceController.php:49
@@ -191,44 +153,6 @@ finance.head = (args?: { current_team?: string | number } | [current_team: strin
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\FinanceController::finance
- * @see app/Http/Controllers/FinanceController.php:49
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/finance'
- */
-    const financeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: finance.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\FinanceController::finance
- * @see app/Http/Controllers/FinanceController.php:49
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/finance'
- */
-        financeForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: finance.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\FinanceController::finance
- * @see app/Http/Controllers/FinanceController.php:49
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/finance'
- */
-        financeForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: finance.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    finance.form = financeForm
 /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
  * @see app/Http/Controllers/OperationalReportController.php:75
@@ -299,44 +223,6 @@ wallet.head = (args?: { current_team?: string | number } | [current_team: string
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/wallet'
- */
-    const walletForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: wallet.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/wallet'
- */
-        walletForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: wallet.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/wallet'
- */
-        walletForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: wallet.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    wallet.form = walletForm
 /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
  * @see app/Http/Controllers/OperationalReportController.php:17
@@ -407,44 +293,6 @@ employeeDeduction.head = (args?: { current_team?: string | number } | [current_t
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/employee-deduction'
- */
-    const employeeDeductionForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: employeeDeduction.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/employee-deduction'
- */
-        employeeDeductionForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: employeeDeduction.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/employee-deduction'
- */
-        employeeDeductionForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: employeeDeduction.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    employeeDeduction.form = employeeDeductionForm
 /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
  * @see app/Http/Controllers/OperationalReportController.php:126
@@ -515,44 +363,6 @@ priceList.head = (args?: { current_team?: string | number } | [current_team: str
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/price-list'
- */
-    const priceListForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: priceList.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/price-list'
- */
-        priceListForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: priceList.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/price-list'
- */
-        priceListForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: priceList.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    priceList.form = priceListForm
 /**
 * @see \App\Http\Controllers\FinanceController::laboratory
  * @see app/Http/Controllers/FinanceController.php:83
@@ -622,45 +432,6 @@ laboratory.head = (args?: { current_team?: string | number } | [current_team: st
     url: laboratory.url(args, options),
     method: 'head',
 })
-
-    /**
-* @see \App\Http\Controllers\FinanceController::laboratory
- * @see app/Http/Controllers/FinanceController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/laboratory'
- */
-    const laboratoryForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: laboratory.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\FinanceController::laboratory
- * @see app/Http/Controllers/FinanceController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/laboratory'
- */
-        laboratoryForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: laboratory.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\FinanceController::laboratory
- * @see app/Http/Controllers/FinanceController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reports/laboratory'
- */
-        laboratoryForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: laboratory.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    laboratory.form = laboratoryForm
 const reports = {
     index: Object.assign(index, index),
 financial: Object.assign(financial, financial),

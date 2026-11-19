@@ -287,6 +287,15 @@ class ConsultantWardRoundController extends Controller
         return to_route('consultant.ward-rounds.show', [$request->user()->currentTeam->slug, $targetWardId]);
     }
 
+    public function cancelAdmission(Request $request, string $current_team, Admission $admission): RedirectResponse
+    {
+        abort_unless($admission->status === 'pending', 422, 'This admission can only be cancelled while pending.');
+
+        $admission->update(['status' => 'cancelled']);
+
+        return to_route('consultant.ward-rounds.index', [$request->user()->currentTeam->slug]);
+    }
+
     public function discharge(Request $request, string $current_team, Admission $admission): RedirectResponse
     {
         abort_unless($admission->status === 'admitted' && $admission->bed_id !== null, 422, 'This admission does not occupy a bed.');
