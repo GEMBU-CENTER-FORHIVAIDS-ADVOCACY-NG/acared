@@ -159,7 +159,7 @@ class ClinicalRecordData
                 ->all(),
             'drugs' => PriceList::query()
                 ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Pharmacy'))
-                ->whereHas('drugInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
+                ->whereHas('drugInventories', fn (Builder $q) => $q->where('quantity', '>', 1))
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])
                 ->all(),

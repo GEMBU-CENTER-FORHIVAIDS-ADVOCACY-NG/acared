@@ -377,23 +377,27 @@ class WalletHistoryController extends Controller
             // Add the transfer amount to the target patient's wallet (makes it more negative)
             $toPatient->decrement('wallet', $transferAmount);
 
-            // Create wallet history record for the source patient (credit - balance leaving)
-            WalletHistory::create([
-                'team_id' => $teamId,
-                'patient_id' => $fromPatient->slug,
-                'user_id' => $userId,
-                'method_id' => $transferMethod->id,
-                'credit' => $transferAmount,
-            ]);
+            // Create wallet history records without triggering the observer,
+            // since wallet balances are already updated manually above
+            WalletHistory::withoutEvents(function () use ($fromPatient, $toPatient, $teamId, $userId, $transferMethod, $transferAmount): void {
+                // Create wallet history record for the source patient (credit - balance leaving)
+                WalletHistory::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $fromPatient->slug,
+                    'user_id' => $userId,
+                    'method_id' => $transferMethod->id,
+                    'credit' => $transferAmount,
+                ]);
 
-            // Create wallet history record for the target patient (debit - negative balance added)
-            WalletHistory::create([
-                'team_id' => $teamId,
-                'patient_id' => $toPatient->slug,
-                'user_id' => $userId,
-                'method_id' => $transferMethod->id,
-                'debit' => $transferAmount,
-            ]);
+                // Create wallet history record for the target patient (debit - negative balance added)
+                WalletHistory::create([
+                    'team_id' => $teamId,
+                    'patient_id' => $toPatient->slug,
+                    'user_id' => $userId,
+                    'method_id' => $transferMethod->id,
+                    'debit' => $transferAmount,
+                ]);
+            });
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Wallet balance transferred successfully.']);

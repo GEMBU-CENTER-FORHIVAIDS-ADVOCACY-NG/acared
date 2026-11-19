@@ -750,7 +750,7 @@ class PrescriptionController extends Controller
     {
         return PriceList::query()
             ->whereHas('subCategory.category', fn (Builder $query) => $query->where('name', 'Pharmacy'))
-            ->whereHas('drugInventories', fn (Builder $q) => $q->whereColumn('quantity', '>', 'min_qty'))
+            ->whereHas('drugInventories', fn (Builder $q) => $q->where('quantity', '>', 1))
             ->with('drugInventories.drugForm')
             ->orderBy('name')
             ->get()
