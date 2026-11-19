@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Teams\TeamMemberController::update
  * @see app/Http/Controllers/Teams/TeamMemberController.php:19
@@ -61,6 +61,39 @@ update.patch = (args: { team?: string | { slug: string }, user: number | { id: n
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\Teams\TeamMemberController::update
+ * @see app/Http/Controllers/Teams/TeamMemberController.php:19
+ * @param team - Default: '$currentTeam'
+ * @route '/settings/teams/{team?}/members/{user}'
+ */
+    const updateForm = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Teams\TeamMemberController::update
+ * @see app/Http/Controllers/Teams/TeamMemberController.php:19
+ * @param team - Default: '$currentTeam'
+ * @route '/settings/teams/{team?}/members/{user}'
+ */
+        updateForm.patch = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Teams\TeamMemberController::destroy
  * @see app/Http/Controllers/Teams/TeamMemberController.php:38
@@ -122,6 +155,40 @@ destroy.delete = (args: { team?: string | { slug: string }, user: number | { id:
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Teams\TeamMemberController::destroy
+ * @see app/Http/Controllers/Teams/TeamMemberController.php:38
+ * @param team - Default: '$currentTeam'
+ * @route '/settings/teams/{team?}/members/{user}'
+ */
+    const destroyForm = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Teams\TeamMemberController::destroy
+ * @see app/Http/Controllers/Teams/TeamMemberController.php:38
+ * @param team - Default: '$currentTeam'
+ * @route '/settings/teams/{team?}/members/{user}'
+ */
+        destroyForm.delete = (args: { team?: string | { slug: string }, user: number | { id: number } } | [team: string | { slug: string }, user: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const members = {
     update: Object.assign(update, update),
 destroy: Object.assign(destroy, destroy),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import subcategories from './subcategories'
 /**
 * @see \App\Http\Controllers\LabIntakeController::index
@@ -70,6 +70,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LabIntakeController::index
+ * @see app/Http/Controllers/LabIntakeController.php:33
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabIntakeController::index
+ * @see app/Http/Controllers/LabIntakeController.php:33
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LabIntakeController::index
+ * @see app/Http/Controllers/LabIntakeController.php:33
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::create
  * @see app/Http/Controllers/LabIntakeController.php:97
@@ -140,6 +178,44 @@ create.head = (args?: { current_team?: string | number } | [current_team: string
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LabIntakeController::create
+ * @see app/Http/Controllers/LabIntakeController.php:97
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/create'
+ */
+    const createForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: create.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabIntakeController::create
+ * @see app/Http/Controllers/LabIntakeController.php:97
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/create'
+ */
+        createForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LabIntakeController::create
+ * @see app/Http/Controllers/LabIntakeController.php:97
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/create'
+ */
+        createForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    create.form = createForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::store
  * @see app/Http/Controllers/LabIntakeController.php:145
@@ -200,6 +276,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\LabIntakeController::store
+ * @see app/Http/Controllers/LabIntakeController.php:145
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabIntakeController::store
+ * @see app/Http/Controllers/LabIntakeController.php:145
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::edit
  * @see app/Http/Controllers/LabIntakeController.php:117
@@ -270,6 +369,44 @@ edit.head = (args: { current_team?: string | number, price_list: number | { id: 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LabIntakeController::edit
+ * @see app/Http/Controllers/LabIntakeController.php:117
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}/edit'
+ */
+    const editForm = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabIntakeController::edit
+ * @see app/Http/Controllers/LabIntakeController.php:117
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}/edit'
+ */
+        editForm.get = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LabIntakeController::edit
+ * @see app/Http/Controllers/LabIntakeController.php:117
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}/edit'
+ */
+        editForm.head = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    edit.form = editForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::update
  * @see app/Http/Controllers/LabIntakeController.php:224
@@ -330,6 +467,39 @@ update.patch = (args: { current_team?: string | number, price_list: number | { i
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\LabIntakeController::update
+ * @see app/Http/Controllers/LabIntakeController.php:224
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}'
+ */
+    const updateForm = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabIntakeController::update
+ * @see app/Http/Controllers/LabIntakeController.php:224
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\LabIntakeController::destroy
  * @see app/Http/Controllers/LabIntakeController.php:324
@@ -389,6 +559,40 @@ destroy.delete = (args: { current_team?: string | number, price_list: number | {
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\LabIntakeController::destroy
+ * @see app/Http/Controllers/LabIntakeController.php:324
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}'
+ */
+    const destroyForm = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabIntakeController::destroy
+ * @see app/Http/Controllers/LabIntakeController.php:324
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-intake/{price_list}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, price_list: number | { id: number } } | [current_team: string | number, price_list: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const labIntake = {
     index: Object.assign(index, index),
 create: Object.assign(create, create),

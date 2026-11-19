@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 /**
 * @see \App\Http\Controllers\Teams\TeamInvitationController::accept
  * @see app/Http/Controllers/Teams/TeamInvitationController.php:61
@@ -57,6 +57,27 @@ accept.post = (args: { invitation: string | { code: string } } | [invitation: st
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Teams\TeamInvitationController::accept
+ * @see app/Http/Controllers/Teams/TeamInvitationController.php:61
+ * @route '/invitations/{invitation}/accept'
+ */
+    const acceptForm = (args: { invitation: string | { code: string } } | [invitation: string | { code: string } ] | string | { code: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: accept.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Teams\TeamInvitationController::accept
+ * @see app/Http/Controllers/Teams/TeamInvitationController.php:61
+ * @route '/invitations/{invitation}/accept'
+ */
+        acceptForm.post = (args: { invitation: string | { code: string } } | [invitation: string | { code: string } ] | string | { code: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: accept.url(args, options),
+            method: 'post',
+        })
+    
+    accept.form = acceptForm
 /**
 * @see \App\Http\Controllers\Teams\TeamInvitationController::decline
  * @see app/Http/Controllers/Teams/TeamInvitationController.php:86
@@ -114,6 +135,38 @@ decline.delete = (args: { invitation: string | { code: string } } | [invitation:
     url: decline.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Teams\TeamInvitationController::decline
+ * @see app/Http/Controllers/Teams/TeamInvitationController.php:86
+ * @route '/invitations/{invitation}'
+ */
+    const declineForm = (args: { invitation: string | { code: string } } | [invitation: string | { code: string } ] | string | { code: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: decline.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Teams\TeamInvitationController::decline
+ * @see app/Http/Controllers/Teams/TeamInvitationController.php:86
+ * @route '/invitations/{invitation}'
+ */
+        declineForm.delete = (args: { invitation: string | { code: string } } | [invitation: string | { code: string } ] | string | { code: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: decline.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    decline.form = declineForm
 const invitations = {
     accept: Object.assign(accept, accept),
 decline: Object.assign(decline, decline),

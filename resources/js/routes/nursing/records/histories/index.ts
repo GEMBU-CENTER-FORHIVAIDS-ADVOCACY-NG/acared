@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\NursingHistoryController::index
  * @see app/Http/Controllers/NursingHistoryController.php:15
@@ -69,6 +69,44 @@ index.head = (args: { current_team?: string | number, nursing: number | { id: nu
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\NursingHistoryController::index
+ * @see app/Http/Controllers/NursingHistoryController.php:15
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories'
+ */
+    const indexForm = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\NursingHistoryController::index
+ * @see app/Http/Controllers/NursingHistoryController.php:15
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories'
+ */
+        indexForm.get = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\NursingHistoryController::index
+ * @see app/Http/Controllers/NursingHistoryController.php:15
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories'
+ */
+        indexForm.head = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\NursingHistoryController::store
  * @see app/Http/Controllers/NursingHistoryController.php:46
@@ -129,6 +167,29 @@ store.post = (args: { current_team?: string | number, nursing: number | { id: nu
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\NursingHistoryController::store
+ * @see app/Http/Controllers/NursingHistoryController.php:46
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories'
+ */
+    const storeForm = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\NursingHistoryController::store
+ * @see app/Http/Controllers/NursingHistoryController.php:46
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories'
+ */
+        storeForm.post = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\NursingHistoryController::update
  * @see app/Http/Controllers/NursingHistoryController.php:62
@@ -194,6 +255,39 @@ update.patch = (args: { current_team?: string | number, nursing: number | { id: 
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\NursingHistoryController::update
+ * @see app/Http/Controllers/NursingHistoryController.php:62
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories/{history}'
+ */
+    const updateForm = (args: { current_team?: string | number, nursing: number | { id: number }, history: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\NursingHistoryController::update
+ * @see app/Http/Controllers/NursingHistoryController.php:62
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories/{history}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, nursing: number | { id: number }, history: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\NursingHistoryController::destroy
  * @see app/Http/Controllers/NursingHistoryController.php:74
@@ -258,6 +352,40 @@ destroy.delete = (args: { current_team?: string | number, nursing: number | { id
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\NursingHistoryController::destroy
+ * @see app/Http/Controllers/NursingHistoryController.php:74
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories/{history}'
+ */
+    const destroyForm = (args: { current_team?: string | number, nursing: number | { id: number }, history: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\NursingHistoryController::destroy
+ * @see app/Http/Controllers/NursingHistoryController.php:74
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/records/{nursing}/histories/{history}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, nursing: number | { id: number }, history: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, history: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const histories = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

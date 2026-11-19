@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\SalesReportController::index
  * @see app/Http/Controllers/SalesReportController.php:35
@@ -68,6 +68,44 @@ index.head = (args?: { current_team?: string | number, dimension?: string | numb
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\SalesReportController::index
+ * @see app/Http/Controllers/SalesReportController.php:35
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/sales/{dimension?}'
+ */
+    const indexForm = (args?: { current_team?: string | number, dimension?: string | number } | [current_team: string | number, dimension: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\SalesReportController::index
+ * @see app/Http/Controllers/SalesReportController.php:35
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/sales/{dimension?}'
+ */
+        indexForm.get = (args?: { current_team?: string | number, dimension?: string | number } | [current_team: string | number, dimension: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\SalesReportController::index
+ * @see app/Http/Controllers/SalesReportController.php:35
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/sales/{dimension?}'
+ */
+        indexForm.head = (args?: { current_team?: string | number, dimension?: string | number } | [current_team: string | number, dimension: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\SalesReportController::exportMethod
  * @see app/Http/Controllers/SalesReportController.php:80
@@ -135,6 +173,45 @@ exportMethod.head = (args: { current_team?: string | number, dimension: string |
     url: exportMethod.url(args, options),
     method: 'head',
 })
+
+    /**
+* @see \App\Http\Controllers\SalesReportController::exportMethod
+ * @see app/Http/Controllers/SalesReportController.php:80
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/sales/{dimension}/export'
+ */
+    const exportMethodForm = (args: { current_team?: string | number, dimension: string | number } | [current_team: string | number, dimension: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: exportMethod.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\SalesReportController::exportMethod
+ * @see app/Http/Controllers/SalesReportController.php:80
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/sales/{dimension}/export'
+ */
+        exportMethodForm.get = (args: { current_team?: string | number, dimension: string | number } | [current_team: string | number, dimension: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\SalesReportController::exportMethod
+ * @see app/Http/Controllers/SalesReportController.php:80
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/sales/{dimension}/export'
+ */
+        exportMethodForm.head = (args: { current_team?: string | number, dimension: string | number } | [current_team: string | number, dimension: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    exportMethod.form = exportMethodForm
 const sales = {
     index: Object.assign(index, index),
 export: Object.assign(exportMethod, exportMethod),

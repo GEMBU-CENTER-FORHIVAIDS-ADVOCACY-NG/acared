@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\WalletHistoryController::search
  * @see app/Http/Controllers/WalletHistoryController.php:134
@@ -68,6 +68,45 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
     url: search.url(args, options),
     method: 'head',
 })
+
+    /**
+* @see \App\Http\Controllers\WalletHistoryController::search
+ * @see app/Http/Controllers/WalletHistoryController.php:134
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/patients/negative-balance/search'
+ */
+    const searchForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: search.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\WalletHistoryController::search
+ * @see app/Http/Controllers/WalletHistoryController.php:134
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/patients/negative-balance/search'
+ */
+        searchForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: search.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\WalletHistoryController::search
+ * @see app/Http/Controllers/WalletHistoryController.php:134
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/finance/wallet-history/patients/negative-balance/search'
+ */
+        searchForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: search.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    search.form = searchForm
 const negativeBalance = {
     search: Object.assign(search, search),
 }

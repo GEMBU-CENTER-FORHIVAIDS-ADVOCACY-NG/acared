@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\Settings\RoleController::index
@@ -43,6 +43,41 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\RoleController::index
+ * @see app/Http/Controllers/Settings/RoleController.php:21
+ * @route '/settings/roles'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\RoleController::index
+ * @see app/Http/Controllers/Settings/RoleController.php:21
+ * @route '/settings/roles'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Settings\RoleController::index
+ * @see app/Http/Controllers/Settings/RoleController.php:21
+ * @route '/settings/roles'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Settings\RoleController::store
  * @see app/Http/Controllers/Settings/RoleController.php:60
@@ -77,6 +112,27 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\RoleController::store
+ * @see app/Http/Controllers/Settings/RoleController.php:60
+ * @route '/settings/roles'
+ */
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\RoleController::store
+ * @see app/Http/Controllers/Settings/RoleController.php:60
+ * @route '/settings/roles'
+ */
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Settings\RoleController::update
  * @see app/Http/Controllers/Settings/RoleController.php:73
@@ -135,6 +191,37 @@ update.patch = (args: { role: number | { id: number } } | [role: number | { id: 
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\RoleController::update
+ * @see app/Http/Controllers/Settings/RoleController.php:73
+ * @route '/settings/roles/{role}'
+ */
+    const updateForm = (args: { role: number | { id: number } } | [role: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\RoleController::update
+ * @see app/Http/Controllers/Settings/RoleController.php:73
+ * @route '/settings/roles/{role}'
+ */
+        updateForm.patch = (args: { role: number | { id: number } } | [role: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Settings\RoleController::destroy
  * @see app/Http/Controllers/Settings/RoleController.php:86
@@ -192,6 +279,38 @@ destroy.delete = (args: { role: number | { id: number } } | [role: number | { id
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Settings\RoleController::destroy
+ * @see app/Http/Controllers/Settings/RoleController.php:86
+ * @route '/settings/roles/{role}'
+ */
+    const destroyForm = (args: { role: number | { id: number } } | [role: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\RoleController::destroy
+ * @see app/Http/Controllers/Settings/RoleController.php:86
+ * @route '/settings/roles/{role}'
+ */
+        destroyForm.delete = (args: { role: number | { id: number } } | [role: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const roles = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

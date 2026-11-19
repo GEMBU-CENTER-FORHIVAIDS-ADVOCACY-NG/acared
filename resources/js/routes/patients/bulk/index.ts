@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\PatientController::destroy
  * @see app/Http/Controllers/PatientController.php:220
@@ -59,6 +59,39 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
     method: 'delete',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::destroy
+ * @see app/Http/Controllers/PatientController.php:220
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/bulk'
+ */
+    const destroyForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::destroy
+ * @see app/Http/Controllers/PatientController.php:220
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/bulk'
+ */
+        destroyForm.delete = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
  * @see app/Http/Controllers/PatientController.php:232
@@ -118,6 +151,40 @@ forceDelete.delete = (args?: { current_team?: string | number } | [current_team:
     url: forceDelete.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\PatientController::forceDelete
+ * @see app/Http/Controllers/PatientController.php:232
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/bulk-force'
+ */
+    const forceDeleteForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: forceDelete.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::forceDelete
+ * @see app/Http/Controllers/PatientController.php:232
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/bulk-force'
+ */
+        forceDeleteForm.delete = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: forceDelete.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    forceDelete.form = forceDeleteForm
 const bulk = {
     destroy: Object.assign(destroy, destroy),
 forceDelete: Object.assign(forceDelete, forceDelete),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \Laradocs\Http\Controllers\TagController::index
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:36
@@ -42,6 +42,41 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \Laradocs\Http\Controllers\TagController::index
+ * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:36
+ * @route '/docs/tags'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \Laradocs\Http\Controllers\TagController::index
+ * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:36
+ * @route '/docs/tags'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \Laradocs\Http\Controllers\TagController::index
+ * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:36
+ * @route '/docs/tags'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \Laradocs\Http\Controllers\TagController::show
  * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:59
@@ -103,6 +138,42 @@ show.head = (args: { tag: string | number } | [tag: string | number ] | string |
     url: show.url(args, options),
     method: 'head',
 })
+
+    /**
+* @see \Laradocs\Http\Controllers\TagController::show
+ * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:59
+ * @route '/docs/tag/{tag}'
+ */
+    const showForm = (args: { tag: string | number } | [tag: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \Laradocs\Http\Controllers\TagController::show
+ * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:59
+ * @route '/docs/tag/{tag}'
+ */
+        showForm.get = (args: { tag: string | number } | [tag: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \Laradocs\Http\Controllers\TagController::show
+ * @see vendor/petebishwhip/laradocs/src/Http/Controllers/TagController.php:59
+ * @route '/docs/tag/{tag}'
+ */
+        showForm.head = (args: { tag: string | number } | [tag: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
 const tags = {
     index: Object.assign(index, index),
 show: Object.assign(show, show),

@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import patients from './patients'
 import bulk from './bulk'
 import showBac614 from './show'
@@ -73,6 +73,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LaboratoryController::index
+ * @see app/Http/Controllers/LaboratoryController.php:57
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::index
+ * @see app/Http/Controllers/LaboratoryController.php:57
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LaboratoryController::index
+ * @see app/Http/Controllers/LaboratoryController.php:57
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::history
  * @see app/Http/Controllers/LaboratoryController.php:147
@@ -143,6 +181,44 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LaboratoryController::history
+ * @see app/Http/Controllers/LaboratoryController.php:147
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/history'
+ */
+    const historyForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: history.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::history
+ * @see app/Http/Controllers/LaboratoryController.php:147
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/history'
+ */
+        historyForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: history.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LaboratoryController::history
+ * @see app/Http/Controllers/LaboratoryController.php:147
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/history'
+ */
+        historyForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: history.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    history.form = historyForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
  * @see app/Http/Controllers/LaboratoryController.php:260
@@ -203,6 +279,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\LaboratoryController::store
+ * @see app/Http/Controllers/LaboratoryController.php:260
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::store
+ * @see app/Http/Controllers/LaboratoryController.php:260
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::show
  * @see app/Http/Controllers/LaboratoryController.php:196
@@ -273,6 +372,44 @@ show.head = (args: { current_team?: string | number, laboratory: number | { id: 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LaboratoryController::show
+ * @see app/Http/Controllers/LaboratoryController.php:196
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}'
+ */
+    const showForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::show
+ * @see app/Http/Controllers/LaboratoryController.php:196
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}'
+ */
+        showForm.get = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LaboratoryController::show
+ * @see app/Http/Controllers/LaboratoryController.php:196
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}'
+ */
+        showForm.head = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::print
  * @see app/Http/Controllers/LaboratoryController.php:235
@@ -343,6 +480,44 @@ print.head = (args: { current_team?: string | number, laboratory: number | { id:
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LaboratoryController::print
+ * @see app/Http/Controllers/LaboratoryController.php:235
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}/print'
+ */
+    const printForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: print.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::print
+ * @see app/Http/Controllers/LaboratoryController.php:235
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}/print'
+ */
+        printForm.get = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: print.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LaboratoryController::print
+ * @see app/Http/Controllers/LaboratoryController.php:235
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}/print'
+ */
+        printForm.head = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: print.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    print.form = printForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::cancel
  * @see app/Http/Controllers/LaboratoryController.php:369
@@ -403,6 +578,29 @@ cancel.post = (args: { current_team?: string | number, laboratory: number | { id
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\LaboratoryController::cancel
+ * @see app/Http/Controllers/LaboratoryController.php:369
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}/cancel'
+ */
+    const cancelForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: cancel.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::cancel
+ * @see app/Http/Controllers/LaboratoryController.php:369
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}/cancel'
+ */
+        cancelForm.post = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: cancel.url(args, options),
+            method: 'post',
+        })
+    
+    cancel.form = cancelForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
  * @see app/Http/Controllers/LaboratoryController.php:440
@@ -462,6 +660,40 @@ destroy.delete = (args: { current_team?: string | number, laboratory: number | {
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\LaboratoryController::destroy
+ * @see app/Http/Controllers/LaboratoryController.php:440
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}'
+ */
+    const destroyForm = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LaboratoryController::destroy
+ * @see app/Http/Controllers/LaboratoryController.php:440
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/laboratories/{laboratory}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, laboratory: number | { id: number } } | [current_team: string | number, laboratory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const laboratories = {
     index: Object.assign(index, index),
 patients: Object.assign(patients, patients),

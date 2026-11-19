@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import drugForms from './drug-forms'
 import bulk from './bulk'
 /**
@@ -71,6 +71,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\LabInventoryController::index
+ * @see app/Http/Controllers/LabInventoryController.php:37
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabInventoryController::index
+ * @see app/Http/Controllers/LabInventoryController.php:37
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\LabInventoryController::index
+ * @see app/Http/Controllers/LabInventoryController.php:37
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\LabInventoryController::store
  * @see app/Http/Controllers/LabInventoryController.php:85
@@ -131,6 +169,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\LabInventoryController::store
+ * @see app/Http/Controllers/LabInventoryController.php:85
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabInventoryController::store
+ * @see app/Http/Controllers/LabInventoryController.php:85
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\LabInventoryController::adjust
  * @see app/Http/Controllers/LabInventoryController.php:153
@@ -191,6 +252,29 @@ adjust.post = (args?: { current_team?: string | number } | [current_team: string
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\LabInventoryController::adjust
+ * @see app/Http/Controllers/LabInventoryController.php:153
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories/adjust'
+ */
+    const adjustForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: adjust.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabInventoryController::adjust
+ * @see app/Http/Controllers/LabInventoryController.php:153
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories/adjust'
+ */
+        adjustForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: adjust.url(args, options),
+            method: 'post',
+        })
+    
+    adjust.form = adjustForm
 /**
 * @see \App\Http\Controllers\LabInventoryController::update
  * @see app/Http/Controllers/LabInventoryController.php:104
@@ -251,6 +335,39 @@ update.patch = (args: { current_team?: string | number, lab_inventory: number | 
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\LabInventoryController::update
+ * @see app/Http/Controllers/LabInventoryController.php:104
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories/{lab_inventory}'
+ */
+    const updateForm = (args: { current_team?: string | number, lab_inventory: number | { id: number } } | [current_team: string | number, lab_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabInventoryController::update
+ * @see app/Http/Controllers/LabInventoryController.php:104
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories/{lab_inventory}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, lab_inventory: number | { id: number } } | [current_team: string | number, lab_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\LabInventoryController::destroy
  * @see app/Http/Controllers/LabInventoryController.php:124
@@ -310,6 +427,40 @@ destroy.delete = (args: { current_team?: string | number, lab_inventory: number 
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\LabInventoryController::destroy
+ * @see app/Http/Controllers/LabInventoryController.php:124
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories/{lab_inventory}'
+ */
+    const destroyForm = (args: { current_team?: string | number, lab_inventory: number | { id: number } } | [current_team: string | number, lab_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\LabInventoryController::destroy
+ * @see app/Http/Controllers/LabInventoryController.php:124
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/lab-inventories/{lab_inventory}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, lab_inventory: number | { id: number } } | [current_team: string | number, lab_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const labInventories = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

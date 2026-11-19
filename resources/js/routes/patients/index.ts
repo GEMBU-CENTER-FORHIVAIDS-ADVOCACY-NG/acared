@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\PatientController::index
@@ -70,6 +70,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::index
+ * @see app/Http/Controllers/PatientController.php:38
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::index
+ * @see app/Http/Controllers/PatientController.php:38
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PatientController::index
+ * @see app/Http/Controllers/PatientController.php:38
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\PatientImportExportController::exportMethod
  * @see app/Http/Controllers/PatientImportExportController.php:27
@@ -140,6 +178,44 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientImportExportController::exportMethod
+ * @see app/Http/Controllers/PatientImportExportController.php:27
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/export'
+ */
+    const exportMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: exportMethod.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientImportExportController::exportMethod
+ * @see app/Http/Controllers/PatientImportExportController.php:27
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/export'
+ */
+        exportMethodForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PatientImportExportController::exportMethod
+ * @see app/Http/Controllers/PatientImportExportController.php:27
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/export'
+ */
+        exportMethodForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    exportMethod.form = exportMethodForm
 /**
 * @see \App\Http\Controllers\PatientImportExportController::importMethod
  * @see app/Http/Controllers/PatientImportExportController.php:82
@@ -200,6 +276,29 @@ importMethod.post = (args?: { current_team?: string | number } | [current_team: 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientImportExportController::importMethod
+ * @see app/Http/Controllers/PatientImportExportController.php:82
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/import'
+ */
+    const importMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: importMethod.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientImportExportController::importMethod
+ * @see app/Http/Controllers/PatientImportExportController.php:82
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/import'
+ */
+        importMethodForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: importMethod.url(args, options),
+            method: 'post',
+        })
+    
+    importMethod.form = importMethodForm
 /**
 * @see \App\Http\Controllers\PatientController::create
  * @see app/Http/Controllers/PatientController.php:68
@@ -270,6 +369,44 @@ create.head = (args?: { current_team?: string | number } | [current_team: string
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::create
+ * @see app/Http/Controllers/PatientController.php:68
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/create'
+ */
+    const createForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: create.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::create
+ * @see app/Http/Controllers/PatientController.php:68
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/create'
+ */
+        createForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PatientController::create
+ * @see app/Http/Controllers/PatientController.php:68
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/create'
+ */
+        createForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: create.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    create.form = createForm
 /**
 * @see \App\Http\Controllers\PatientController::store
  * @see app/Http/Controllers/PatientController.php:89
@@ -330,6 +467,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::store
+ * @see app/Http/Controllers/PatientController.php:89
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::store
+ * @see app/Http/Controllers/PatientController.php:89
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\PatientController::show
  * @see app/Http/Controllers/PatientController.php:151
@@ -400,6 +560,44 @@ show.head = (args: { current_team?: string | number, patient: number | { id: num
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::show
+ * @see app/Http/Controllers/PatientController.php:151
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+    const showForm = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::show
+ * @see app/Http/Controllers/PatientController.php:151
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+        showForm.get = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PatientController::show
+ * @see app/Http/Controllers/PatientController.php:151
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+        showForm.head = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
 /**
 * @see \App\Http\Controllers\PatientController::edit
  * @see app/Http/Controllers/PatientController.php:161
@@ -470,6 +668,44 @@ edit.head = (args: { current_team?: string | number, patient: number | { id: num
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::edit
+ * @see app/Http/Controllers/PatientController.php:161
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/edit'
+ */
+    const editForm = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::edit
+ * @see app/Http/Controllers/PatientController.php:161
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/edit'
+ */
+        editForm.get = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PatientController::edit
+ * @see app/Http/Controllers/PatientController.php:161
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/edit'
+ */
+        editForm.head = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    edit.form = editForm
 /**
 * @see \App\Http\Controllers\PatientController::update
  * @see app/Http/Controllers/PatientController.php:172
@@ -530,6 +766,39 @@ update.patch = (args: { current_team?: string | number, patient: number | { id: 
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::update
+ * @see app/Http/Controllers/PatientController.php:172
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+    const updateForm = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::update
+ * @see app/Http/Controllers/PatientController.php:172
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\PatientController::destroy
  * @see app/Http/Controllers/PatientController.php:184
@@ -590,6 +859,39 @@ destroy.delete = (args: { current_team?: string | number, patient: number | { id
     method: 'delete',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::destroy
+ * @see app/Http/Controllers/PatientController.php:184
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+    const destroyForm = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::destroy
+ * @see app/Http/Controllers/PatientController.php:184
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\PatientController::restore
  * @see app/Http/Controllers/PatientController.php:196
@@ -650,6 +952,39 @@ restore.patch = (args: { current_team?: string | number, patient: number | { id:
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\PatientController::restore
+ * @see app/Http/Controllers/PatientController.php:196
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/restore'
+ */
+    const restoreForm = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: restore.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::restore
+ * @see app/Http/Controllers/PatientController.php:196
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/restore'
+ */
+        restoreForm.patch = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: restore.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    restore.form = restoreForm
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
  * @see app/Http/Controllers/PatientController.php:208
@@ -709,6 +1044,40 @@ forceDelete.delete = (args: { current_team?: string | number, patient: number | 
     url: forceDelete.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\PatientController::forceDelete
+ * @see app/Http/Controllers/PatientController.php:208
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/force'
+ */
+    const forceDeleteForm = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: forceDelete.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\PatientController::forceDelete
+ * @see app/Http/Controllers/PatientController.php:208
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/patients/{patient}/force'
+ */
+        forceDeleteForm.delete = (args: { current_team?: string | number, patient: number | { id: number } } | [current_team: string | number, patient: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: forceDelete.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    forceDelete.form = forceDeleteForm
 const patients = {
     index: Object.assign(index, index),
 export: Object.assign(exportMethod, exportMethod),

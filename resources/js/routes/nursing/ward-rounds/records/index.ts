@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ConsultationRecordController::store
  * @see app/Http/Controllers/ConsultationRecordController.php:149
@@ -62,6 +62,29 @@ store.post = (args: { current_team?: string | number, admission: number | { id: 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\ConsultationRecordController::store
+ * @see app/Http/Controllers/ConsultationRecordController.php:149
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/records/{type}'
+ */
+    const storeForm = (args: { current_team?: string | number, admission: number | { id: number }, type: string | number } | [current_team: string | number, admission: number | { id: number }, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\ConsultationRecordController::store
+ * @see app/Http/Controllers/ConsultationRecordController.php:149
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/records/{type}'
+ */
+        storeForm.post = (args: { current_team?: string | number, admission: number | { id: number }, type: string | number } | [current_team: string | number, admission: number | { id: number }, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\ConsultationRecordController::update
  * @see app/Http/Controllers/ConsultationRecordController.php:161
@@ -128,6 +151,39 @@ update.patch = (args: { current_team?: string | number, admission: number | { id
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\ConsultationRecordController::update
+ * @see app/Http/Controllers/ConsultationRecordController.php:161
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/records/{type}/{record}'
+ */
+    const updateForm = (args: { current_team?: string | number, admission: number | { id: number }, type: string | number, record: string | number } | [current_team: string | number, admission: number | { id: number }, type: string | number, record: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\ConsultationRecordController::update
+ * @see app/Http/Controllers/ConsultationRecordController.php:161
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/records/{type}/{record}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, admission: number | { id: number }, type: string | number, record: string | number } | [current_team: string | number, admission: number | { id: number }, type: string | number, record: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\ConsultationRecordController::destroy
  * @see app/Http/Controllers/ConsultationRecordController.php:173
@@ -193,6 +249,40 @@ destroy.delete = (args: { current_team?: string | number, admission: number | { 
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\ConsultationRecordController::destroy
+ * @see app/Http/Controllers/ConsultationRecordController.php:173
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/records/{type}/{record}'
+ */
+    const destroyForm = (args: { current_team?: string | number, admission: number | { id: number }, type: string | number, record: string | number } | [current_team: string | number, admission: number | { id: number }, type: string | number, record: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\ConsultationRecordController::destroy
+ * @see app/Http/Controllers/ConsultationRecordController.php:173
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/records/{type}/{record}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, admission: number | { id: number }, type: string | number, record: string | number } | [current_team: string | number, admission: number | { id: number }, type: string | number, record: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const records = {
     store: Object.assign(store, store),
 update: Object.assign(update, update),

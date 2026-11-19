@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ConsultantWardRoundController::index
  * @see app/Http/Controllers/ConsultantWardRoundController.php:57
@@ -69,6 +69,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\ConsultantWardRoundController::index
+ * @see app/Http/Controllers/ConsultantWardRoundController.php:57
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/consultant/admissions'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\ConsultantWardRoundController::index
+ * @see app/Http/Controllers/ConsultantWardRoundController.php:57
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/consultant/admissions'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\ConsultantWardRoundController::index
+ * @see app/Http/Controllers/ConsultantWardRoundController.php:57
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/consultant/admissions'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\ConsultantWardRoundController::history
  * @see app/Http/Controllers/ConsultantWardRoundController.php:321
@@ -138,6 +176,45 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     url: history.url(args, options),
     method: 'head',
 })
+
+    /**
+* @see \App\Http\Controllers\ConsultantWardRoundController::history
+ * @see app/Http/Controllers/ConsultantWardRoundController.php:321
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/consultant/admissions/history'
+ */
+    const historyForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: history.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\ConsultantWardRoundController::history
+ * @see app/Http/Controllers/ConsultantWardRoundController.php:321
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/consultant/admissions/history'
+ */
+        historyForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: history.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\ConsultantWardRoundController::history
+ * @see app/Http/Controllers/ConsultantWardRoundController.php:321
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/consultant/admissions/history'
+ */
+        historyForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: history.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    history.form = historyForm
 const admissions = {
     index: Object.assign(index, index),
 history: Object.assign(history, history),

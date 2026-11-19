@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\PaymentMethodSalesReportController::index
  * @see app/Http/Controllers/PaymentMethodSalesReportController.php:16
@@ -69,6 +69,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\PaymentMethodSalesReportController::index
+ * @see app/Http/Controllers/PaymentMethodSalesReportController.php:16
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/payment-method-sales-summary'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PaymentMethodSalesReportController::index
+ * @see app/Http/Controllers/PaymentMethodSalesReportController.php:16
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/payment-method-sales-summary'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PaymentMethodSalesReportController::index
+ * @see app/Http/Controllers/PaymentMethodSalesReportController.php:16
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/payment-method-sales-summary'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\PaymentMethodSalesReportController::exportMethod
  * @see app/Http/Controllers/PaymentMethodSalesReportController.php:30
@@ -138,6 +176,45 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
     url: exportMethod.url(args, options),
     method: 'head',
 })
+
+    /**
+* @see \App\Http\Controllers\PaymentMethodSalesReportController::exportMethod
+ * @see app/Http/Controllers/PaymentMethodSalesReportController.php:30
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/payment-method-sales-summary/export'
+ */
+    const exportMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: exportMethod.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\PaymentMethodSalesReportController::exportMethod
+ * @see app/Http/Controllers/PaymentMethodSalesReportController.php:30
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/payment-method-sales-summary/export'
+ */
+        exportMethodForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\PaymentMethodSalesReportController::exportMethod
+ * @see app/Http/Controllers/PaymentMethodSalesReportController.php:30
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/payment-method-sales-summary/export'
+ */
+        exportMethodForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    exportMethod.form = exportMethodForm
 const paymentMethodSalesSummary = {
     index: Object.assign(index, index),
 export: Object.assign(exportMethod, exportMethod),

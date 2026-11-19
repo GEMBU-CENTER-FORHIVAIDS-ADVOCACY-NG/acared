@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::index
@@ -70,6 +70,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::index
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:74
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::index
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:74
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::index
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:74
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::exportMethod
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:35
@@ -140,6 +178,44 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::exportMethod
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:35
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/export'
+ */
+    const exportMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: exportMethod.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::exportMethod
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:35
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/export'
+ */
+        exportMethodForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::exportMethod
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:35
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/export'
+ */
+        exportMethodForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    exportMethod.form = exportMethodForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugCatalogImportController::importMethod
  * @see app/Http/Controllers/Pharmacy/DrugCatalogImportController.php:39
@@ -200,6 +276,29 @@ importMethod.post = (args?: { current_team?: string | number } | [current_team: 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugCatalogImportController::importMethod
+ * @see app/Http/Controllers/Pharmacy/DrugCatalogImportController.php:39
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/import'
+ */
+    const importMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: importMethod.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugCatalogImportController::importMethod
+ * @see app/Http/Controllers/Pharmacy/DrugCatalogImportController.php:39
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/import'
+ */
+        importMethodForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: importMethod.url(args, options),
+            method: 'post',
+        })
+    
+    importMethod.form = importMethodForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::store
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:197
@@ -260,6 +359,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::store
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:197
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::store
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:197
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::adjust
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:283
@@ -320,6 +442,29 @@ adjust.post = (args?: { current_team?: string | number } | [current_team: string
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::adjust
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:283
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/adjust'
+ */
+    const adjustForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: adjust.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::adjust
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:283
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/adjust'
+ */
+        adjustForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: adjust.url(args, options),
+            method: 'post',
+        })
+    
+    adjust.form = adjustForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::show
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:148
@@ -390,6 +535,44 @@ show.head = (args: { current_team?: string | number, drug_inventory: number | { 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::show
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:148
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+    const showForm = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::show
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:148
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+        showForm.get = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::show
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:148
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+        showForm.head = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    show.form = showForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::edit
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:177
@@ -460,6 +643,44 @@ edit.head = (args: { current_team?: string | number, drug_inventory: number | { 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::edit
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:177
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}/edit'
+ */
+    const editForm = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::edit
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:177
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}/edit'
+ */
+        editForm.get = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::edit
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:177
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}/edit'
+ */
+        editForm.head = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    edit.form = editForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::update
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:217
@@ -520,6 +741,39 @@ update.patch = (args: { current_team?: string | number, drug_inventory: number |
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::update
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:217
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+    const updateForm = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::update
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:217
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Pharmacy\DrugInventoryController::destroy
  * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:236
@@ -579,6 +833,40 @@ destroy.delete = (args: { current_team?: string | number, drug_inventory: number
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::destroy
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:236
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+    const destroyForm = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\DrugInventoryController::destroy
+ * @see app/Http/Controllers/Pharmacy/DrugInventoryController.php:236
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/inventories/{drug_inventory}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, drug_inventory: number | { id: number } } | [current_team: string | number, drug_inventory: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const inventories = {
     index: Object.assign(index, index),
 export: Object.assign(exportMethod, exportMethod),

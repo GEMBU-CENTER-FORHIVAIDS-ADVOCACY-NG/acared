@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\Settings\MarkupController::index
@@ -70,6 +70,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\MarkupController::index
+ * @see app/Http/Controllers/Settings/MarkupController.php:15
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\MarkupController::index
+ * @see app/Http/Controllers/Settings/MarkupController.php:15
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Settings\MarkupController::index
+ * @see app/Http/Controllers/Settings/MarkupController.php:15
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Settings\MarkupController::store
  * @see app/Http/Controllers/Settings/MarkupController.php:38
@@ -130,6 +168,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\MarkupController::store
+ * @see app/Http/Controllers/Settings/MarkupController.php:38
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\MarkupController::store
+ * @see app/Http/Controllers/Settings/MarkupController.php:38
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Settings\MarkupController::update
  * @see app/Http/Controllers/Settings/MarkupController.php:50
@@ -190,6 +251,39 @@ update.patch = (args: { current_team?: string | number, markup: number | { id: n
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\MarkupController::update
+ * @see app/Http/Controllers/Settings/MarkupController.php:50
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups/{markup}'
+ */
+    const updateForm = (args: { current_team?: string | number, markup: number | { id: number } } | [current_team: string | number, markup: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\MarkupController::update
+ * @see app/Http/Controllers/Settings/MarkupController.php:50
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups/{markup}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, markup: number | { id: number } } | [current_team: string | number, markup: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Settings\MarkupController::destroy
  * @see app/Http/Controllers/Settings/MarkupController.php:58
@@ -249,6 +343,40 @@ destroy.delete = (args: { current_team?: string | number, markup: number | { id:
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Settings\MarkupController::destroy
+ * @see app/Http/Controllers/Settings/MarkupController.php:58
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups/{markup}'
+ */
+    const destroyForm = (args: { current_team?: string | number, markup: number | { id: number } } | [current_team: string | number, markup: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\MarkupController::destroy
+ * @see app/Http/Controllers/Settings/MarkupController.php:58
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/markups/{markup}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, markup: number | { id: number } } | [current_team: string | number, markup: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const markups = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

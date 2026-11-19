@@ -1039,15 +1039,25 @@ export default function BillingIndex({
                                                                                 value={row.method_id}
                                                                                 className="w-full"
                                                                                 onChange={(event) => {
+                                                                                    const newMethodId = event.target.value;
+
                                                                                     updatePayment(
                                                                                         index,
                                                                                         {
-                                                                                            method_id:
-                                                                                                event
-                                                                                                    .target
-                                                                                                    .value,
+                                                                                            method_id: newMethodId,
                                                                                         },
                                                                                     );
+
+                                                                                    const newMethodName = methodsById.get(Number(newMethodId)) ?? '';
+
+                                                                                    if (newMethodName === 'Discount' && selected?.discountPercentage > 0) {
+                                                                                        const pct = selected.discountPercentage;
+                                                                                        const amt = (selected.total * pct) / 100;
+                                                                                        updatePayment(index, {
+                                                                                            discount_percentage: String(pct),
+                                                                                            discount_amount: String(amt),
+                                                                                        });
+                                                                                    }
 
                                                                                     setPaymentMethodErrors(
                                                                                         (current) =>
@@ -1097,7 +1107,14 @@ export default function BillingIndex({
 
                                                                             {name === 'Discount' && (
                                                                                 <div className="space-y-2">
-                                                                                    <Label>Discount amount</Label>
+                                                                                    <div className="flex items-center justify-between">
+                                                                                        <Label>Discount amount</Label>
+                                                                                        {selected?.discountPercentage > 0 && row.discount_percentage !== '0' && (
+                                                                                            <Badge variant="secondary" className="text-xs">
+                                                                                                {row.discount_percentage}% {selected.categoryName ?? 'category'} discount
+                                                                                            </Badge>
+                                                                                        )}
+                                                                                    </div>
                                                                                     <Input
                                                                                         type="number"
                                                                                         className="w-full"
@@ -1228,12 +1245,19 @@ export default function BillingIndex({
                                                                                 data-test="payment-amount"
                                                                             />
                                                                         ) : name === 'Discount' ? (
-                                                                            <Input
-                                                                                type="number"
-                                                                                className="w-full"
-                                                                                readOnly
-                                                                                value={selected.discountPercentage}
-                                                                            />
+                                                                            <div className="space-y-1">
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    className="w-full"
+                                                                                    readOnly
+                                                                                    value={row.discount_amount ? (selected.total - parseFloat(row.discount_amount)).toFixed(2) : selected.total}
+                                                                                />
+                                                                                {row.discount_amount && parseFloat(row.discount_amount) > 0 && (
+                                                                                    <p className="text-xs text-muted-foreground truncate">
+                                                                                        Remaining after {row.discount_percentage}% discount
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
                                                                         ) : name === 'Wallet' ? (
                                                                             <Input
                                                                                 type="number"

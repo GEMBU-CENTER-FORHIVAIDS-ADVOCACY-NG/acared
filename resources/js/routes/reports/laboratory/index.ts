@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\FinanceController::exportMethod
  * @see app/Http/Controllers/FinanceController.php:144
@@ -68,6 +68,45 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
     url: exportMethod.url(args, options),
     method: 'head',
 })
+
+    /**
+* @see \App\Http\Controllers\FinanceController::exportMethod
+ * @see app/Http/Controllers/FinanceController.php:144
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/laboratory/export'
+ */
+    const exportMethodForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: exportMethod.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\FinanceController::exportMethod
+ * @see app/Http/Controllers/FinanceController.php:144
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/laboratory/export'
+ */
+        exportMethodForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\FinanceController::exportMethod
+ * @see app/Http/Controllers/FinanceController.php:144
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/reports/laboratory/export'
+ */
+        exportMethodForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    exportMethod.form = exportMethodForm
 const laboratory = {
     export: Object.assign(exportMethod, exportMethod),
 }

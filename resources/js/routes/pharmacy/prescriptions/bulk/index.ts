@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
  * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
@@ -58,6 +58,40 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/prescriptions/bulk'
+ */
+    const destroyForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Pharmacy\PrescriptionController::destroy
+ * @see app/Http/Controllers/Pharmacy/PrescriptionController.php:637
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/pharmacy/prescriptions/bulk'
+ */
+        destroyForm.delete = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const bulk = {
     destroy: Object.assign(destroy, destroy),
 }

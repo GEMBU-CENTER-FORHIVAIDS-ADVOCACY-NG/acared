@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\Settings\PermissionController::index
@@ -43,6 +43,41 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\PermissionController::index
+ * @see app/Http/Controllers/Settings/PermissionController.php:15
+ * @route '/settings/permissions'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\PermissionController::index
+ * @see app/Http/Controllers/Settings/PermissionController.php:15
+ * @route '/settings/permissions'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Settings\PermissionController::index
+ * @see app/Http/Controllers/Settings/PermissionController.php:15
+ * @route '/settings/permissions'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\Settings\PermissionController::store
  * @see app/Http/Controllers/Settings/PermissionController.php:39
@@ -77,6 +112,27 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\PermissionController::store
+ * @see app/Http/Controllers/Settings/PermissionController.php:39
+ * @route '/settings/permissions'
+ */
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\PermissionController::store
+ * @see app/Http/Controllers/Settings/PermissionController.php:39
+ * @route '/settings/permissions'
+ */
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\Settings\PermissionController::update
  * @see app/Http/Controllers/Settings/PermissionController.php:48
@@ -135,6 +191,37 @@ update.patch = (args: { permission: number | { id: number } } | [permission: num
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\Settings\PermissionController::update
+ * @see app/Http/Controllers/Settings/PermissionController.php:48
+ * @route '/settings/permissions/{permission}'
+ */
+    const updateForm = (args: { permission: number | { id: number } } | [permission: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\PermissionController::update
+ * @see app/Http/Controllers/Settings/PermissionController.php:48
+ * @route '/settings/permissions/{permission}'
+ */
+        updateForm.patch = (args: { permission: number | { id: number } } | [permission: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\Settings\PermissionController::destroy
  * @see app/Http/Controllers/Settings/PermissionController.php:57
@@ -192,6 +279,38 @@ destroy.delete = (args: { permission: number | { id: number } } | [permission: n
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\Settings\PermissionController::destroy
+ * @see app/Http/Controllers/Settings/PermissionController.php:57
+ * @route '/settings/permissions/{permission}'
+ */
+    const destroyForm = (args: { permission: number | { id: number } } | [permission: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Settings\PermissionController::destroy
+ * @see app/Http/Controllers/Settings/PermissionController.php:57
+ * @route '/settings/permissions/{permission}'
+ */
+        destroyForm.delete = (args: { permission: number | { id: number } } | [permission: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const permissions = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),

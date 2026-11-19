@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\WardController::index
@@ -70,6 +70,44 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     method: 'head',
 })
 
+    /**
+* @see \App\Http\Controllers\WardController::index
+ * @see app/Http/Controllers/WardController.php:19
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards'
+ */
+    const indexForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardController::index
+ * @see app/Http/Controllers/WardController.php:19
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards'
+ */
+        indexForm.get = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\WardController::index
+ * @see app/Http/Controllers/WardController.php:19
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards'
+ */
+        indexForm.head = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
 /**
 * @see \App\Http\Controllers\WardController::store
  * @see app/Http/Controllers/WardController.php:50
@@ -130,6 +168,29 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     method: 'post',
 })
 
+    /**
+* @see \App\Http\Controllers\WardController::store
+ * @see app/Http/Controllers/WardController.php:50
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards'
+ */
+    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardController::store
+ * @see app/Http/Controllers/WardController.php:50
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards'
+ */
+        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
 /**
 * @see \App\Http\Controllers\WardController::restore
  * @see app/Http/Controllers/WardController.php:126
@@ -188,6 +249,39 @@ restore.patch = (args: { current_team?: string | number, ward: string | number }
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\WardController::restore
+ * @see app/Http/Controllers/WardController.php:126
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}/restore'
+ */
+    const restoreForm = (args: { current_team?: string | number, ward: string | number } | [current_team: string | number, ward: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: restore.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardController::restore
+ * @see app/Http/Controllers/WardController.php:126
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}/restore'
+ */
+        restoreForm.patch = (args: { current_team?: string | number, ward: string | number } | [current_team: string | number, ward: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: restore.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    restore.form = restoreForm
 /**
 * @see \App\Http\Controllers\WardController::forceDestroy
  * @see app/Http/Controllers/WardController.php:133
@@ -246,6 +340,39 @@ forceDestroy.delete = (args: { current_team?: string | number, ward: string | nu
     method: 'delete',
 })
 
+    /**
+* @see \App\Http\Controllers\WardController::forceDestroy
+ * @see app/Http/Controllers/WardController.php:133
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}/force'
+ */
+    const forceDestroyForm = (args: { current_team?: string | number, ward: string | number } | [current_team: string | number, ward: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: forceDestroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardController::forceDestroy
+ * @see app/Http/Controllers/WardController.php:133
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}/force'
+ */
+        forceDestroyForm.delete = (args: { current_team?: string | number, ward: string | number } | [current_team: string | number, ward: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: forceDestroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    forceDestroy.form = forceDestroyForm
 /**
 * @see \App\Http\Controllers\WardController::update
  * @see app/Http/Controllers/WardController.php:75
@@ -306,6 +433,39 @@ update.patch = (args: { current_team?: string | number, ward: number | { id: num
     method: 'patch',
 })
 
+    /**
+* @see \App\Http\Controllers\WardController::update
+ * @see app/Http/Controllers/WardController.php:75
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}'
+ */
+    const updateForm = (args: { current_team?: string | number, ward: number | { id: number } } | [current_team: string | number, ward: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardController::update
+ * @see app/Http/Controllers/WardController.php:75
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}'
+ */
+        updateForm.patch = (args: { current_team?: string | number, ward: number | { id: number } } | [current_team: string | number, ward: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    update.form = updateForm
 /**
 * @see \App\Http\Controllers\WardController::destroy
  * @see app/Http/Controllers/WardController.php:105
@@ -365,6 +525,40 @@ destroy.delete = (args: { current_team?: string | number, ward: number | { id: n
     url: destroy.url(args, options),
     method: 'delete',
 })
+
+    /**
+* @see \App\Http\Controllers\WardController::destroy
+ * @see app/Http/Controllers/WardController.php:105
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}'
+ */
+    const destroyForm = (args: { current_team?: string | number, ward: number | { id: number } } | [current_team: string | number, ward: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardController::destroy
+ * @see app/Http/Controllers/WardController.php:105
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/wards/{ward}'
+ */
+        destroyForm.delete = (args: { current_team?: string | number, ward: number | { id: number } } | [current_team: string | number, ward: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    destroy.form = destroyForm
 const wards = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),
