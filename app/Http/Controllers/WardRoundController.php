@@ -308,6 +308,48 @@ class WardRoundController extends Controller
     }
 
     /**
+     * Transfer an admitted patient from their current ward/bed to another available ward/bed.
+     */
+    public function transfer(Request $request, string $current_team, Admission $admission): RedirectResponse
+    {
+        abort_unless($admission->status === 'admitted' && $admission->bed_id !== null, 422, 'This admission does not occupy a bed.');
+
+        $data = $request->validate([
+            'ward_id' => ['required', 'integer', Rule::exists('wards', 'id')->where('team_id', $request->user()->currentTeam->getKey())],
+            'bed_id' => ['required', 'integer', Rule::exists('wards', 'id')->where('team_id', $request->user()->currentTeam->getKey())],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $targetWardId = $data['ward_id'];
+        $targetBedId = $data['bed_id'];
+        $currentBedId = $admission->bed_id;
+        $currentWardId = $admission->ward_id;
+
+        DB::transaction(function () use ($admission, $targetWardId, $targetBedId, $currentBedId, $data): void {
+            $targetBed = Ward::query()->whereKey($targetBedId)->lockForUpdate()->firstOrFail();
+            abort_unless(! $targetBed->is_ward && (int) $targetBed->ward_id === (int) $targetWardId, 422, 'Choose a bed in the selected ward.');
+            abort_if($targetBed->status === 'occupied' || $targetBed->bedAdmissions()->active()->exists(), 422, 'This bed is already occupied.');
+
+            $currentBed = Ward::query()->whereKey($currentBedId)->lockForUpdate()->firstOrFail();
+
+            // Update the admission to the new ward and bed
+            $admission->update([
+                'ward_id' => $targetWardId,
+                'bed_id' => $targetBedId,
+                'notes' => $data['notes'] ?? $admission->notes,
+            ]);
+
+            // Empty the current bed by setting status to available
+            Ward::query()->whereKey($currentBedId)->update(['status' => 'available']);
+
+            // Mark the target bed as occupied
+            $targetBed->update(['status' => 'occupied']);
+        });
+
+        return to_route('nursing.ward-rounds.show', [$request->user()->currentTeam->slug, $targetWardId]);
+    }
+
+    /**
      * List the ward round history (all admissions including discharged) for the current team.
      */
     public function history(Request $request): Response

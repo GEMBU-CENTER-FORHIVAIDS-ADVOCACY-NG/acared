@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */
@@ -17,7 +17,7 @@ search.definition = {
 
 /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */
@@ -50,7 +50,7 @@ search.url = (args?: { current_team?: string | number } | [current_team: string 
 
 /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */
@@ -60,7 +60,7 @@ search.get = (args?: { current_team?: string | number } | [current_team: string 
 })
 /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */
@@ -71,7 +71,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
 
     /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */
@@ -82,7 +82,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
 
             /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */
@@ -92,7 +92,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
         })
             /**
 * @see \App\Http\Controllers\WardRoundController::search
- * @see app/Http/Controllers/WardRoundController.php:435
+ * @see app/Http/Controllers/WardRoundController.php:477
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/ward-rounds/patients/search'
  */

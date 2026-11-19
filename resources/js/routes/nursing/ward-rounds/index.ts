@@ -507,6 +507,99 @@ discharge.patch = (args: { current_team?: string | number, admission: number | {
     
     discharge.form = dischargeForm
 /**
+* @see \App\Http\Controllers\WardRoundController::transfer
+ * @see app/Http/Controllers/WardRoundController.php:313
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/transfer'
+ */
+export const transfer = (args: { current_team?: string | number, admission: number | { id: number } } | [current_team: string | number, admission: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: transfer.url(args, options),
+    method: 'patch',
+})
+
+transfer.definition = {
+    methods: ["patch"],
+    url: '/{current_team?}/nursing/ward-rounds/admissions/{admission}/transfer',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\WardRoundController::transfer
+ * @see app/Http/Controllers/WardRoundController.php:313
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/transfer'
+ */
+transfer.url = (args: { current_team?: string | number, admission: number | { id: number } } | [current_team: string | number, admission: number | { id: number } ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+                    current_team: args[0],
+                    admission: args[1],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    validateParameters(args, [
+            "current_team",
+        ])
+
+    const parsedArgs = {
+                        current_team: args.current_team ?? '$currentTeam',
+                                admission: typeof args.admission === 'object'
+                ? args.admission.id
+                : args.admission,
+                }
+
+    return transfer.definition.url
+            .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
+            .replace('{admission}', parsedArgs.admission.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\WardRoundController::transfer
+ * @see app/Http/Controllers/WardRoundController.php:313
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/transfer'
+ */
+transfer.patch = (args: { current_team?: string | number, admission: number | { id: number } } | [current_team: string | number, admission: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: transfer.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\WardRoundController::transfer
+ * @see app/Http/Controllers/WardRoundController.php:313
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/transfer'
+ */
+    const transferForm = (args: { current_team?: string | number, admission: number | { id: number } } | [current_team: string | number, admission: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: transfer.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\WardRoundController::transfer
+ * @see app/Http/Controllers/WardRoundController.php:313
+ * @param current_team - Default: '$currentTeam'
+ * @route '/{current_team?}/nursing/ward-rounds/admissions/{admission}/transfer'
+ */
+        transferForm.patch = (args: { current_team?: string | number, admission: number | { id: number } } | [current_team: string | number, admission: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: transfer.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    transfer.form = transferForm
+/**
 * @see \App\Http\Controllers\WardRoundBillingController::billing
  * @see app/Http/Controllers/WardRoundBillingController.php:21
  * @param current_team - Default: '$currentTeam'
@@ -597,6 +690,7 @@ patients: Object.assign(patients, patients),
 view: Object.assign(view, view),
 admit: Object.assign(admit, admit),
 discharge: Object.assign(discharge, discharge),
+transfer: Object.assign(transfer, transfer),
 records: Object.assign(records, records),
 billing: Object.assign(billing, billing),
 }

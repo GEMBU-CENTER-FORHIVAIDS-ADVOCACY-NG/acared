@@ -302,6 +302,7 @@ Route::prefix('{current_team}')
             Route::get('nursing/ward-rounds/admissions/{admission}/{section?}', [WardRoundController::class, 'view'])->name('nursing.ward-rounds.view');
             Route::post('nursing/ward-rounds/{ward}/admit', [WardRoundController::class, 'admit'])->name('nursing.ward-rounds.admit');
             Route::patch('nursing/ward-rounds/admissions/{admission}/discharge', [WardRoundController::class, 'discharge'])->name('nursing.ward-rounds.discharge');
+            Route::patch('nursing/ward-rounds/admissions/{admission}/transfer', [WardRoundController::class, 'transfer'])->name('nursing.ward-rounds.transfer');
             Route::post('nursing/ward-rounds/admissions/{admission}/records/{type}', [ConsultationRecordController::class, 'storeForAdmission'])->name('nursing.ward-rounds.records.store');
             Route::patch('nursing/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'updateForAdmission'])->name('nursing.ward-rounds.records.update');
             Route::delete('nursing/ward-rounds/admissions/{admission}/records/{type}/{record}', [ConsultationRecordController::class, 'destroyForAdmission'])->name('nursing.ward-rounds.records.destroy');

@@ -1,7 +1,7 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
-import { Plus, Search, X } from 'lucide-react';
+import { ArrowRightLeft, Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { billing as newBilling } from '@/routes/nursing/ward-rounds';
+import { billing as newBilling, transfer as transferPatient } from '@/routes/nursing/ward-rounds';
 import { searchPatients } from '@/actions/App/Http/Controllers/WardRoundController';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -104,6 +104,15 @@ export default function WardRoundsIndex({
     ]);
     const [billingProcessing, setBillingProcessing] = useState(false);
     const [billingError, setBillingError] = useState<string | null>(null);
+
+    // Transfer state
+    const [transferOpen, setTransferOpen] = useState(false);
+    const [transferAdmissionId, setTransferAdmissionId] = useState('');
+    const [transferWardId, setTransferWardId] = useState('');
+    const [transferBedId, setTransferBedId] = useState('');
+    const [transferNotes, setTransferNotes] = useState('');
+    const [transferProcessing, setTransferProcessing] = useState(false);
+    const [transferError, setTransferError] = useState<string | null>(null);
     const [billingPatientSearchQuery, setBillingPatientSearchQuery] = useState('');
     const [billingPatientSearchResults, setBillingPatientSearchResults] = useState<BillingPatientOption[]>([]);
     const [billingPatientSearchOpen, setBillingPatientSearchOpen] = useState(false);
@@ -120,6 +129,89 @@ export default function WardRoundsIndex({
     );
 
     const currencySymbol = usePage().props.currencySymbol ?? '₦';
+
+    // Collect all occupied beds across wards for transfer patient selection
+    const occupiedBedsForTransfer = useMemo(() => {
+        const beds: { admissionId: number; patientId: string | null; patientName: string | null; wardName: string; bedName: string }[] = [];
+        wards.forEach((ward) => {
+            ward.beds.forEach((bed) => {
+                if (bed.admissionId != null) {
+                    beds.push({
+                        admissionId: bed.admissionId,
+                        patientId: bed.patientId,
+                        patientName: bed.patientName,
+                        wardName: ward.name,
+                        bedName: bed.name,
+                    });
+                }
+            });
+        });
+        return beds;
+    }, [wards]);
+
+    // Collect all available beds across all wards for transfer target selection
+    const availableBedsForTransfer = useMemo(() => {
+        const beds: { id: number; name: string; wardId: number; wardName: string }[] = [];
+        allWards.forEach((w) => {
+            w.beds.forEach((bed) => {
+                beds.push({
+                    id: bed.id,
+                    name: bed.name,
+                    wardId: w.id,
+                    wardName: w.name,
+                });
+            });
+        });
+        return beds;
+    }, [allWards]);
+
+    const selectedTransferPatient = occupiedBedsForTransfer.find(
+        (b) => String(b.admissionId) === transferAdmissionId,
+    );
+
+    const filteredAvailableBeds = transferWardId
+        ? availableBedsForTransfer.filter((b) => String(b.wardId) === transferWardId)
+        : availableBedsForTransfer;
+
+    const canTransfer =
+        transferAdmissionId !== ''
+        && transferWardId !== ''
+        && transferBedId !== '';
+
+    function openTransfer() {
+        setTransferAdmissionId('');
+        setTransferWardId('');
+        setTransferBedId('');
+        setTransferNotes('');
+        setTransferError(null);
+        setTransferOpen(true);
+    }
+
+    function submitTransfer() {
+        if (!canTransfer) return;
+
+        setTransferProcessing(true);
+        setTransferError(null);
+
+        router.patch(
+            transferPatient.url({
+                current_team: teamSlug,
+                admission: Number(transferAdmissionId),
+            }),
+            {
+                ward_id: Number(transferWardId),
+                bed_id: Number(transferBedId),
+                notes: transferNotes || null,
+            },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setTransferError(Object.values(errors)[0] ?? 'Something went wrong.'),
+                onSuccess: () => setTransferOpen(false),
+                onFinish: () => setTransferProcessing(false),
+            },
+        );
+    }
 
     const searchBillingPatients = useCallback((query: string) => {
         if (billingDebounceTimerRef.current) {
@@ -378,6 +470,10 @@ export default function WardRoundsIndex({
                 <div className="h-6 w-px bg-border" />
                 <Button variant="default" onClick={openBilling}>
                     New Billing
+                </Button>
+                <Button variant="default" onClick={openTransfer}>
+                    <ArrowRightLeft className="mr-1 h-4 w-4" />
+                    Transfer Patient
                 </Button>
             </div>
         ),
@@ -674,6 +770,116 @@ export default function WardRoundsIndex({
                     </div>
                 </div>
             </div>
+
+            {/* Transfer Patient Sheet */}
+            <Sheet open={transferOpen} onOpenChange={setTransferOpen}>
+                <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+                    <SheetHeader>
+                        <SheetTitle>Transfer Patient</SheetTitle>
+                        <SheetDescription>
+                            Move an admitted patient from their current ward/bed to another available bed.
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    <div className="space-y-4 px-4 pb-6">
+                        <div className="space-y-1">
+                            <Label>Select patient to transfer</Label>
+                            <SelectNative
+                                value={transferAdmissionId}
+                                placeholder="Select a patient…"
+                                onChange={(event) => {
+                                    setTransferAdmissionId(event.target.value);
+                                    setTransferWardId('');
+                                    setTransferBedId('');
+                                }}
+                            >
+                                <option value="">Select a patient…</option>
+                                {occupiedBedsForTransfer.map((bed) => (
+                                    <option key={bed.admissionId} value={String(bed.admissionId)}>
+                                        {bed.patientName} ({bed.patientId}) — {bed.wardName}, {bed.bedName}
+                                    </option>
+                                ))}
+                            </SelectNative>
+                            {selectedTransferPatient && (
+                                <p className="text-xs text-muted-foreground">
+                                    Currently in <strong>{selectedTransferPatient.wardName}</strong>, bed <strong>{selectedTransferPatient.bedName}</strong>
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label>Target ward</Label>
+                            <SelectNative
+                                value={transferWardId}
+                                placeholder="Select target ward…"
+                                onChange={(event) => {
+                                    setTransferWardId(event.target.value);
+                                    setTransferBedId('');
+                                }}
+                                disabled={transferAdmissionId === ''}
+                            >
+                                <option value="">Select target ward…</option>
+                                {allWards.map((w) => (
+                                    <option key={w.id} value={String(w.id)}>
+                                        {w.name} ({w.beds.length} beds available)
+                                    </option>
+                                ))}
+                            </SelectNative>
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label>Target bed</Label>
+                            <SelectNative
+                                value={transferBedId}
+                                placeholder="Select target bed…"
+                                onChange={(event) => setTransferBedId(event.target.value)}
+                                disabled={transferWardId === '' || transferAdmissionId === ''}
+                            >
+                                <option value="">
+                                    {transferWardId ? 'Select target bed…' : 'Select a ward first'}
+                                </option>
+                                {filteredAvailableBeds.map((bed) => (
+                                    <option key={bed.id} value={String(bed.id)}>
+                                        {bed.name}
+                                    </option>
+                                ))}
+                            </SelectNative>
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label>Transfer notes (optional)</Label>
+                            <Textarea
+                                value={transferNotes}
+                                onChange={(event) => setTransferNotes(event.target.value)}
+                                placeholder="Reason for transfer…"
+                            />
+                        </div>
+
+                        {transferError && (
+                            <p className="text-sm text-destructive">{transferError}</p>
+                        )}
+                    </div>
+
+                    <SheetFooter className="flex-row gap-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className="flex-1"
+                            onClick={() => setTransferOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            className="flex-1"
+                            onClick={submitTransfer}
+                            disabled={!canTransfer || transferProcessing}
+                        >
+                            {transferProcessing ? 'Transferring…' : 'Transfer Patient'}
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
 
             {/* New Billing Sheet */}
             <Sheet open={billingOpen} onOpenChange={setBillingOpen}>
