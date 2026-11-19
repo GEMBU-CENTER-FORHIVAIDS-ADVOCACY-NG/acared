@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ErrorController;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -10,6 +11,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -38,4 +41,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if (! $exception instanceof HttpException || $request->is('api/*') || $request->expectsJson()) {
+                return $response;
+            }
+
+            $statusCode = $exception->getStatusCode();
+
+            $mapping = [
+                403 => [ErrorController::class, 'forbidden'],
+                404 => [ErrorController::class, 'notFound'],
+                419 => [ErrorController::class, 'pageExpired'],
+                429 => [ErrorController::class, 'tooManyRequests'],
+                500 => [ErrorController::class, 'serverError'],
+                503 => [ErrorController::class, 'serviceUnavailable'],
+            ];
+
+            if (isset($mapping[$statusCode])) {
+                $controllerAction = $mapping[$statusCode];
+                $response = app($controllerAction[0])->{$controllerAction[1]}()->toResponse($request);
+                $response->setStatusCode($statusCode);
+
+                return $response;
+            }
+
+            return $response;
+        });
     })->create();

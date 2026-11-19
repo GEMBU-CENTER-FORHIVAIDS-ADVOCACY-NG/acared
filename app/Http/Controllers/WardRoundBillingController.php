@@ -61,17 +61,20 @@ class WardRoundBillingController extends Controller
         return [
             'services' => PriceList::query()
                 ->where('team_id', $teamId)
-                ->whereHas('subCategory', fn (Builder $query) => $query->whereIn('name', [
-                    'Treatment',
-                    'Nursing Services',
-                    'Maternity Services',
-                    'Mortuary Services',
-                    'Surgery',
-                    'Ophthalmic Services',
-                    'Dental Services',
-                    'Imaging',
-                    'Imaging/Radiography',
-                ]))
+                ->where(function (Builder $query): void {
+                    $query->whereHas('subCategory', fn (Builder $q) => $q->whereIn('name', [
+                        'Treatment',
+                        'Nursing Services',
+                        'Maternity Services',
+                        'Mortuary Services',
+                        'Surgery',
+                        'Ophthalmic Services',
+                        'Dental Services',
+                        'Imaging',
+                        'Imaging/Radiography',
+                    ]))
+                        ->orWhereHas('category', fn (Builder $q) => $q->whereRaw('LOWER(name) = ?', ['surgery']));
+                })
                 ->orderBy('name')
                 ->get(['id', 'name', 'price'])
                 ->map(fn (PriceList $priceList) => [

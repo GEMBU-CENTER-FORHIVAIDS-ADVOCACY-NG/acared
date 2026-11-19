@@ -53,6 +53,11 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 
 Route::get('/forbidden', [ErrorController::class, 'forbidden'])->name('forbidden');
+Route::get('/not-found', [ErrorController::class, 'notFound'])->name('not-found');
+Route::get('/page-expired', [ErrorController::class, 'pageExpired'])->name('page-expired');
+Route::get('/too-many-requests', [ErrorController::class, 'tooManyRequests'])->name('too-many-requests');
+Route::get('/server-error', [ErrorController::class, 'serverError'])->name('server-error');
+Route::get('/service-unavailable', [ErrorController::class, 'serviceUnavailable'])->name('service-unavailable');
 
 Route::get('_connection-badge/ping', ConnectionBadgePingController::class)->name('connection-badge.ping');
 

@@ -111,7 +111,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -127,7 +127,7 @@ history.definition = {
 
 /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -160,7 +160,7 @@ history.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -170,7 +170,7 @@ history.get = (args?: { current_team?: string | number } | [current_team: string
 })
 /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -181,7 +181,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
     /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -192,7 +192,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
             /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -202,7 +202,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
         })
             /**
 * @see \App\Http\Controllers\BillingController::history
- * @see app/Http/Controllers/BillingController.php:224
+ * @see app/Http/Controllers/BillingController.php:227
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/history'
  */
@@ -219,7 +219,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     history.form = historyForm
 /**
 * @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:362
+ * @see app/Http/Controllers/BillingController.php:365
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings'
  */
@@ -235,7 +235,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:362
+ * @see app/Http/Controllers/BillingController.php:365
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings'
  */
@@ -268,7 +268,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:362
+ * @see app/Http/Controllers/BillingController.php:365
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings'
  */
@@ -279,7 +279,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:362
+ * @see app/Http/Controllers/BillingController.php:365
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings'
  */
@@ -290,7 +290,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\BillingController::store
- * @see app/Http/Controllers/BillingController.php:362
+ * @see app/Http/Controllers/BillingController.php:365
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings'
  */
@@ -302,7 +302,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:277
+ * @see app/Http/Controllers/BillingController.php:280
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/new'
  */
@@ -318,7 +318,7 @@ newMethod.definition = {
 
 /**
 * @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:277
+ * @see app/Http/Controllers/BillingController.php:280
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/new'
  */
@@ -351,7 +351,7 @@ newMethod.url = (args?: { current_team?: string | number } | [current_team: stri
 
 /**
 * @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:277
+ * @see app/Http/Controllers/BillingController.php:280
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/new'
  */
@@ -362,7 +362,7 @@ newMethod.post = (args?: { current_team?: string | number } | [current_team: str
 
     /**
 * @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:277
+ * @see app/Http/Controllers/BillingController.php:280
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/new'
  */
@@ -373,7 +373,7 @@ newMethod.post = (args?: { current_team?: string | number } | [current_team: str
 
             /**
 * @see \App\Http\Controllers\BillingController::newMethod
- * @see app/Http/Controllers/BillingController.php:277
+ * @see app/Http/Controllers/BillingController.php:280
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/new'
  */
@@ -385,7 +385,7 @@ newMethod.post = (args?: { current_team?: string | number } | [current_team: str
     newMethod.form = newMethodForm
 /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -401,7 +401,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -434,7 +434,7 @@ show.url = (args: { current_team?: string | number, billing: number | { id: numb
 
 /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -444,7 +444,7 @@ show.get = (args: { current_team?: string | number, billing: number | { id: numb
 })
 /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -455,7 +455,7 @@ show.head = (args: { current_team?: string | number, billing: number | { id: num
 
     /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -466,7 +466,7 @@ show.head = (args: { current_team?: string | number, billing: number | { id: num
 
             /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -476,7 +476,7 @@ show.head = (args: { current_team?: string | number, billing: number | { id: num
         })
             /**
 * @see \App\Http\Controllers\BillingController::show
- * @see app/Http/Controllers/BillingController.php:264
+ * @see app/Http/Controllers/BillingController.php:267
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -493,7 +493,7 @@ show.head = (args: { current_team?: string | number, billing: number | { id: num
     show.form = showForm
 /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:499
+ * @see app/Http/Controllers/BillingController.php:502
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -509,7 +509,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:499
+ * @see app/Http/Controllers/BillingController.php:502
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -542,7 +542,7 @@ destroy.url = (args: { current_team?: string | number, billing: number | { id: n
 
 /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:499
+ * @see app/Http/Controllers/BillingController.php:502
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -553,7 +553,7 @@ destroy.delete = (args: { current_team?: string | number, billing: number | { id
 
     /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:499
+ * @see app/Http/Controllers/BillingController.php:502
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */
@@ -569,7 +569,7 @@ destroy.delete = (args: { current_team?: string | number, billing: number | { id
 
             /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:499
+ * @see app/Http/Controllers/BillingController.php:502
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/{billing}'
  */

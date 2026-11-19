@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:511
+ * @see app/Http/Controllers/BillingController.php:514
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/bulk'
  */
@@ -17,7 +17,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:511
+ * @see app/Http/Controllers/BillingController.php:514
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/bulk'
  */
@@ -50,7 +50,7 @@ destroy.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:511
+ * @see app/Http/Controllers/BillingController.php:514
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/bulk'
  */
@@ -61,7 +61,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
 
     /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:511
+ * @see app/Http/Controllers/BillingController.php:514
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/bulk'
  */
@@ -77,7 +77,7 @@ destroy.delete = (args?: { current_team?: string | number } | [current_team: str
 
             /**
 * @see \App\Http\Controllers\BillingController::destroy
- * @see app/Http/Controllers/BillingController.php:511
+ * @see app/Http/Controllers/BillingController.php:514
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/billings/bulk'
  */
