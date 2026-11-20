@@ -68,22 +68,23 @@ class LaboratoryController extends Controller
         [$dateStart, $dateEnd] = $this->dateRange($dateFilter);
 
         $paidOptions = Laboratory::query()
-            ->where('status', 'paid')
+            ->whereIn('status', ['paid', 'submitted'])
             ->whereBetween('created_at', [$dateStart, $dateEnd])
             ->with('patient')
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Laboratory $laboratory) => [
                 'id' => $laboratory->getKey(),
-                'label' => trim(($laboratory->patient->slug ?? $laboratory->patient_id).' '.($laboratory->patient->fullName ?? '')),
+                'label' => trim(($laboratory->patient->slug ?? $laboratory->patient_id).' '.($laboratory->patient->fullName ?? '').' ('.$laboratory->status.')'),
                 'patientId' => $laboratory->patient_id,
                 'gender' => $laboratory->patient?->gender,
                 'age' => $laboratory->patient?->age,
+                'status' => $laboratory->status,
             ])
             ->values();
 
         $selected = $selectedId > 0
-            ? Laboratory::query()->whereKey($selectedId)->where('status', 'paid')
+            ? Laboratory::query()->whereKey($selectedId)->whereIn('status', ['paid', 'submitted'])
                 ->with(['patient' => fn ($query) => $query->with('admissions')])
                 ->first()
             : null;
@@ -109,6 +110,7 @@ class LaboratoryController extends Controller
                 'age' => $selected->patient?->age,
                 'birthDate' => $selected->patient?->birthDate?->format('Y-m-d'),
                 'doctorName' => $selected->doctor?->name,
+                'status' => $selected->status,
                 'createdAt' => $selected->created_at?->toIso8601String(),
                 'isAdmitted' => $selected->patient?->isAdmitted() ?? false,
                 'lines' => $selected->lines()
@@ -186,6 +188,8 @@ class LaboratoryController extends Controller
                 ['value' => 'pending', 'label' => 'Pending'],
                 ['value' => 'paid', 'label' => 'Paid'],
                 ['value' => 'submitted', 'label' => 'Submitted'],
+                ['value' => 'cancelled', 'label' => 'Cancelled'],
+                ['value' => 'cancel', 'label' => 'Cancellation'],
             ],
         ]);
     }
@@ -363,50 +367,62 @@ class LaboratoryController extends Controller
     }
 
     /**
-     * Cancel a laboratory request and create a negative billing for refund.
-     * Only refunds tests that have not been completed (no results entered).
+     * Cancel selected lines of a submitted laboratory request.
+     *
+     * - Only allowed when the original request status is "submitted".
+     * - Removes the checked lines from the original request.
+     * - Creates a new laboratory request with status "cancel" containing the cancelled lines.
+     * - Sends the negative of the total to cashier for refund.
      */
     public function cancel(Request $request, string $current_team, Laboratory $laboratory): RedirectResponse
     {
-        abort_unless(in_array($laboratory->status, ['paid', 'submitted'], true), 422, 'Only paid or submitted laboratory requests can be cancelled.');
+        abort_unless($laboratory->status === 'submitted', 422, 'Only submitted laboratory requests can be cancelled.');
 
         $teamId = $request->user()->currentTeam->getKey();
         $patientId = $laboratory->patient_id;
         $userId = $request->user()->getKey();
 
-        // Optionally accept specific line IDs to refund; otherwise default to lines without results
-        $refundLineIds = $request->input('refund_line_ids');
-        if (is_array($refundLineIds)) {
-            $refundLineIds = array_map('intval', array_filter($refundLineIds));
+        // Accept specific line IDs to cancel
+        $cancelLineIds = $request->input('refund_line_ids');
+        if (is_array($cancelLineIds)) {
+            $cancelLineIds = array_map('intval', array_filter($cancelLineIds));
+        } else {
+            $cancelLineIds = [];
         }
 
-        $lines = $laboratory->lines()->with(['priceList', 'testResults'])->get();
-
-        // Filter to only lines that should be refunded
-        $refundLines = $lines->filter(function (Line $line) use ($refundLineIds): bool {
-            // If specific line IDs were provided, only refund those
-            if (is_array($refundLineIds) && $refundLineIds !== []) {
-                return in_array($line->id, $refundLineIds, true);
-            }
-
-            // Otherwise, auto-refund lines without any results
-            return is_null($line->results) && $line->testResults->isEmpty();
-        });
-
-        // If no lines to refund, there's nothing to cancel
-        if ($refundLines->isEmpty()) {
-            Inertia::flash('toast', ['type' => 'warning', 'message' => 'All tests have been completed. Nothing to refund.']);
+        if (empty($cancelLineIds)) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => 'Please select at least one test to cancel.']);
 
             return back();
         }
 
-        DB::transaction(function () use ($laboratory, $teamId, $patientId, $userId, $refundLines): void {
-            // Mark the laboratory as cancelled so it no longer appears in result entry queues
-            $laboratory->update(['status' => 'cancelled']);
+        $lines = $laboratory->lines()->with(['priceList', 'testResults'])->get();
 
-            // Create negative billing lines for each uncompleted test so the cashier can process the refund
-            foreach ($refundLines as $line) {
-                $laboratory->lines()->create([
+        // Filter to only lines that were checked for cancellation
+        $cancelLines = $lines->filter(fn (Line $line) => in_array($line->id, $cancelLineIds, true));
+
+        if ($cancelLines->isEmpty()) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => 'Selected tests not found.']);
+
+            return back();
+        }
+
+        DB::transaction(function () use ($laboratory, $teamId, $patientId, $userId, $cancelLines): void {
+            // Calculate the negative total for refund
+            $negativeTotal = $cancelLines->sum(fn (Line $line) => (float) $line->quantity * -(float) $line->unitPrice);
+
+            // Create a new laboratory request with status "cancel"
+            $cancelLaboratory = Laboratory::create([
+                'team_id' => $teamId,
+                'patient_id' => $patientId,
+                'doctor_id' => $userId,
+                'status' => 'cancel',
+                'total' => $negativeTotal,
+            ]);
+
+            // Copy the cancelled lines to the new cancellation request with negative prices
+            foreach ($cancelLines as $line) {
+                $cancelLaboratory->lines()->create([
                     'team_id' => $teamId,
                     'patient_id' => $patientId,
                     'user_id' => $userId,
@@ -418,18 +434,33 @@ class LaboratoryController extends Controller
             }
 
             // Create a billing record with negative total for refund at cashier
-            $total = $refundLines->sum(fn (Line $line) => (float) $line->quantity * -(float) $line->unitPrice);
-
-            $laboratory->billings()->create([
+            $cancelLaboratory->billings()->create([
                 'team_id' => $teamId,
                 'patient_id' => $patientId,
                 'user_id' => $userId,
-                'total' => $total,
+                'total' => $negativeTotal,
                 'status' => 'billed',
             ]);
+
+            // Remove the cancelled lines from the original request
+            foreach ($cancelLines as $line) {
+                $line->testResults()->delete();
+                $line->delete();
+            }
+
+            // Update the original request's total to reflect removed lines
+            $remainingTotal = $laboratory->lines()->sum(
+                DB::raw('quantity * unitPrice'),
+            );
+            $laboratory->update(['total' => $remainingTotal]);
+
+            // If all lines have been removed, mark the original as cancelled
+            if ($laboratory->lines()->count() === 0) {
+                $laboratory->update(['status' => 'cancelled']);
+            }
         });
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Laboratory request cancelled. Negative billing created for refund.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Selected tests cancelled. Negative billing created for refund.']);
 
         return to_route('laboratories.index', $request->user()->currentTeam->slug);
     }
@@ -988,7 +1019,7 @@ class LaboratoryController extends Controller
     {
         $status = is_string($value) ? $value : '';
 
-        return in_array($status, ['pending', 'paid', 'submitted'], true) ? $status : '';
+        return in_array($status, ['pending', 'paid', 'submitted', 'cancelled', 'cancel'], true) ? $status : '';
     }
 
     private function sortBy(Request $request): string

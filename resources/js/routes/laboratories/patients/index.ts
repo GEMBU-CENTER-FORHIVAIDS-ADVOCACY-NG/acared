@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */
@@ -17,7 +17,7 @@ search.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */
@@ -50,7 +50,7 @@ search.url = (args?: { current_team?: string | number } | [current_team: string 
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */
@@ -60,7 +60,7 @@ search.get = (args?: { current_team?: string | number } | [current_team: string 
 })
 /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */
@@ -71,7 +71,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */
@@ -82,7 +82,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */
@@ -92,7 +92,7 @@ search.head = (args?: { current_team?: string | number } | [current_team: string
         })
             /**
 * @see \App\Http\Controllers\LaboratoryController::search
- * @see app/Http/Controllers/LaboratoryController.php:1095
+ * @see app/Http/Controllers/LaboratoryController.php:1126
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/patients/search'
  */

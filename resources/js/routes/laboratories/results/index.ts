@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
+ * @see app/Http/Controllers/LaboratoryController.php:341
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -17,7 +17,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
+ * @see app/Http/Controllers/LaboratoryController.php:341
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -50,7 +50,7 @@ store.url = (args: { current_team?: string | number, laboratory: number | { id: 
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
+ * @see app/Http/Controllers/LaboratoryController.php:341
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -61,7 +61,7 @@ store.post = (args: { current_team?: string | number, laboratory: number | { id:
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
+ * @see app/Http/Controllers/LaboratoryController.php:341
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -72,7 +72,7 @@ store.post = (args: { current_team?: string | number, laboratory: number | { id:
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:337
+ * @see app/Http/Controllers/LaboratoryController.php:341
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -84,7 +84,7 @@ store.post = (args: { current_team?: string | number, laboratory: number | { id:
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
+ * @see app/Http/Controllers/LaboratoryController.php:358
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -100,7 +100,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
+ * @see app/Http/Controllers/LaboratoryController.php:358
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -133,7 +133,7 @@ update.url = (args: { current_team?: string | number, laboratory: number | { id:
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
+ * @see app/Http/Controllers/LaboratoryController.php:358
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -144,7 +144,7 @@ update.patch = (args: { current_team?: string | number, laboratory: number | { i
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
+ * @see app/Http/Controllers/LaboratoryController.php:358
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */
@@ -160,7 +160,7 @@ update.patch = (args: { current_team?: string | number, laboratory: number | { i
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::update
- * @see app/Http/Controllers/LaboratoryController.php:354
+ * @see app/Http/Controllers/LaboratoryController.php:358
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/results'
  */

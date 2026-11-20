@@ -468,7 +468,7 @@ export default function LaboratoryIndex({
                         <div>
                             <CardTitle>Laboratory result form</CardTitle>
                             <CardDescription>
-                                Select a paid request to enter pending test results.
+                                Select a paid or submitted request to enter results or cancel tests.
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
@@ -479,7 +479,7 @@ export default function LaboratoryIndex({
                                     {selected.isAdmitted ? 'On Admission' : 'OPD'}
                                 </Badge>
                             ) : null}
-                            {selected ? (
+                            {selected?.status === 'submitted' ? (
                                 <Button
                                     variant="destructive"
                                     size="sm"

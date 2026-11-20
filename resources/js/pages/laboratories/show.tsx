@@ -121,7 +121,7 @@ export default function LaboratoryShow({
                         <Button asChild variant="secondary">
                             <Link href={baseUrl('/history')}>History</Link>
                         </Button>
-                        {canEdit ? (
+                        {laboratory.status === 'submitted' ? (
                             <Button
                                 variant="destructive"
                                 size="sm"
