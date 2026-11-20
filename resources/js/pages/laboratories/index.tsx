@@ -2,7 +2,6 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import LaboratoryController from '@/actions/App/Http/Controllers/LaboratoryController';
 import LabResultEntryLayout from '@/components/lab-result-entry-layout';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     buildResultPayload,
     emptyResultValues,
@@ -21,14 +20,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     Sheet,
     SheetContent,
@@ -88,8 +79,6 @@ export default function LaboratoryIndex({
 
     const [processing, setProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [showCancelDialog, setShowCancelDialog] = useState(false);
-    const [refundLineIds, setRefundLineIds] = useState<Set<number>>(new Set());
     const [resultValues, setResultValues] = useState(emptyResultValues());
     const [createOpen, setCreateOpen] = useState(
         Boolean(createOptions.selectedPatientId),
@@ -226,41 +215,6 @@ export default function LaboratoryIndex({
                 onError: (errors) =>
                     setFormError(
                         Object.values(errors)[0] ?? 'Unable to submit results.',
-                    ),
-                onFinish: () => setProcessing(false),
-            },
-        );
-    }
-
-    function openCancelDialog() {
-        if (!selected || !selected.lines) {
-            return;
-        }
-        // Pre-select all pending (not completed) lines
-        const pendingIds = new Set(
-            selected.lines.filter((line) => !line.completed).map((line) => line.id),
-        );
-        setRefundLineIds(pendingIds);
-        setShowCancelDialog(true);
-    }
-
-    function cancelLaboratory() {
-        if (!selected) {
-            return;
-        }
-
-        setProcessing(true);
-        setFormError(null);
-
-        router.post(
-            baseUrl(`/${selected.id}/cancel`),
-            { refund_line_ids: Array.from(refundLineIds) },
-            {
-                preserveScroll: true,
-                onSuccess: () => setShowCancelDialog(false),
-                onError: (errors) =>
-                    setFormError(
-                        Object.values(errors)[0] ?? 'Unable to cancel request.',
                     ),
                 onFinish: () => setProcessing(false),
             },
@@ -468,7 +422,7 @@ export default function LaboratoryIndex({
                         <div>
                             <CardTitle>Laboratory result form</CardTitle>
                             <CardDescription>
-                                Select a paid or submitted request to enter results or cancel tests.
+                                Select a paid request to enter pending test results.
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
@@ -478,15 +432,6 @@ export default function LaboratoryIndex({
                                 >
                                     {selected.isAdmitted ? 'On Admission' : 'OPD'}
                                 </Badge>
-                            ) : null}
-                            {selected?.status === 'submitted' ? (
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={openCancelDialog}
-                                >
-                                    Cancel request
-                                </Button>
                             ) : null}
                         </div>
                     </CardHeader>
@@ -773,103 +718,6 @@ export default function LaboratoryIndex({
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
-
-            <Dialog open={showCancelDialog} onOpenChange={(open) => {
-                setShowCancelDialog(open);
-                if (!open) {
-                    setRefundLineIds(new Set());
-                }
-            }}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Cancel laboratory request?</DialogTitle>
-                        <DialogDescription>
-                            Select the tests to refund. Completed tests cannot be refunded.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selected?.lines ? (
-                        <div className="space-y-2">
-                            {selected.lines.map((line) => (
-                                <div
-                                    key={line.id}
-                                    className={`flex items-center justify-between rounded-lg border p-3 ${
-                                        line.completed ? 'opacity-50' : ''
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Checkbox
-                                            id={`refund-line-${line.id}`}
-                                            checked={refundLineIds.has(line.id)}
-                                            disabled={line.completed}
-                                            onCheckedChange={(checked) => {
-                                                const next = new Set(refundLineIds);
-                                                if (checked) {
-                                                    next.add(line.id);
-                                                } else {
-                                                    next.delete(line.id);
-                                                }
-                                                setRefundLineIds(next);
-                                            }}
-                                        />
-                                        <label
-                                            htmlFor={`refund-line-${line.id}`}
-                                            className="text-sm font-medium leading-none cursor-pointer"
-                                        >
-                                            {line.name}
-                                            {line.quantity > 1
-                                                ? ` (×${line.quantity})`
-                                                : ''}
-                                        </label>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm">
-                                        {line.completed ? (
-                                            <span className="text-muted-foreground">Completed</span>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                {currencySymbol}{(line.unitPrice * line.quantity).toLocaleString()}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : null}
-
-                    {refundLineIds.size > 0 && selected?.lines ? (
-                        <div className="flex justify-end text-sm font-medium">
-                            Refund total:{' '}
-                            {currencySymbol}
-                            {selected.lines
-                                .filter((line) => refundLineIds.has(line.id))
-                                .reduce(
-                                    (sum, line) => sum + line.unitPrice * line.quantity,
-                                    0,
-                                )
-                                .toLocaleString()}
-                        </div>
-                    ) : null}
-
-                    <DialogFooter>
-                        <Button
-                            variant="secondary"
-                            onClick={() => {
-                                setShowCancelDialog(false);
-                                setRefundLineIds(new Set());
-                            }}
-                        >
-                            Keep request
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            disabled={processing || refundLineIds.size === 0}
-                            onClick={cancelLaboratory}
-                        >
-                            {processing ? 'Cancelling…' : 'Cancel & refund'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </>
     );
 }

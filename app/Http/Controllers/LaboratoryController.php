@@ -68,23 +68,22 @@ class LaboratoryController extends Controller
         [$dateStart, $dateEnd] = $this->dateRange($dateFilter);
 
         $paidOptions = Laboratory::query()
-            ->whereIn('status', ['paid', 'submitted'])
+            ->where('status', 'paid')
             ->whereBetween('created_at', [$dateStart, $dateEnd])
             ->with('patient')
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Laboratory $laboratory) => [
                 'id' => $laboratory->getKey(),
-                'label' => trim(($laboratory->patient->slug ?? $laboratory->patient_id).' '.($laboratory->patient->fullName ?? '').' ('.$laboratory->status.')'),
+                'label' => trim(($laboratory->patient->slug ?? $laboratory->patient_id).' '.($laboratory->patient->fullName ?? '')),
                 'patientId' => $laboratory->patient_id,
                 'gender' => $laboratory->patient?->gender,
                 'age' => $laboratory->patient?->age,
-                'status' => $laboratory->status,
             ])
             ->values();
 
         $selected = $selectedId > 0
-            ? Laboratory::query()->whereKey($selectedId)->whereIn('status', ['paid', 'submitted'])
+            ? Laboratory::query()->whereKey($selectedId)->where('status', 'paid')
                 ->with(['patient' => fn ($query) => $query->with('admissions')])
                 ->first()
             : null;
@@ -110,7 +109,6 @@ class LaboratoryController extends Controller
                 'age' => $selected->patient?->age,
                 'birthDate' => $selected->patient?->birthDate?->format('Y-m-d'),
                 'doctorName' => $selected->doctor?->name,
-                'status' => $selected->status,
                 'createdAt' => $selected->created_at?->toIso8601String(),
                 'isAdmitted' => $selected->patient?->isAdmitted() ?? false,
                 'lines' => $selected->lines()

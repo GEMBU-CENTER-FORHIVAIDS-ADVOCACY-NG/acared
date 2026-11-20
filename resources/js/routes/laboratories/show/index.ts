@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */
@@ -17,7 +17,7 @@ json.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */
@@ -50,7 +50,7 @@ json.url = (args: { current_team?: string | number, laboratory: number | { id: n
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */
@@ -60,7 +60,7 @@ json.get = (args: { current_team?: string | number, laboratory: number | { id: n
 })
 /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */
@@ -71,7 +71,7 @@ json.head = (args: { current_team?: string | number, laboratory: number | { id: 
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */
@@ -82,7 +82,7 @@ json.head = (args: { current_team?: string | number, laboratory: number | { id: 
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */
@@ -92,7 +92,7 @@ json.head = (args: { current_team?: string | number, laboratory: number | { id: 
         })
             /**
 * @see \App\Http\Controllers\LaboratoryController::json
- * @see app/Http/Controllers/LaboratoryController.php:1101
+ * @see app/Http/Controllers/LaboratoryController.php:1099
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/json'
  */

@@ -113,7 +113,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -129,7 +129,7 @@ history.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -162,7 +162,7 @@ history.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -172,7 +172,7 @@ history.get = (args?: { current_team?: string | number } | [current_team: string
 })
 /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -183,7 +183,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -194,7 +194,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -204,7 +204,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
         })
             /**
 * @see \App\Http\Controllers\LaboratoryController::history
- * @see app/Http/Controllers/LaboratoryController.php:149
+ * @see app/Http/Controllers/LaboratoryController.php:147
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/history'
  */
@@ -221,7 +221,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     history.form = historyForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:264
+ * @see app/Http/Controllers/LaboratoryController.php:262
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories'
  */
@@ -237,7 +237,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:264
+ * @see app/Http/Controllers/LaboratoryController.php:262
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories'
  */
@@ -270,7 +270,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:264
+ * @see app/Http/Controllers/LaboratoryController.php:262
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories'
  */
@@ -281,7 +281,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:264
+ * @see app/Http/Controllers/LaboratoryController.php:262
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories'
  */
@@ -292,7 +292,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::store
- * @see app/Http/Controllers/LaboratoryController.php:264
+ * @see app/Http/Controllers/LaboratoryController.php:262
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories'
  */
@@ -304,7 +304,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -320,7 +320,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -353,7 +353,7 @@ show.url = (args: { current_team?: string | number, laboratory: number | { id: n
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -363,7 +363,7 @@ show.get = (args: { current_team?: string | number, laboratory: number | { id: n
 })
 /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -374,7 +374,7 @@ show.head = (args: { current_team?: string | number, laboratory: number | { id: 
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -385,7 +385,7 @@ show.head = (args: { current_team?: string | number, laboratory: number | { id: 
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -395,7 +395,7 @@ show.head = (args: { current_team?: string | number, laboratory: number | { id: 
         })
             /**
 * @see \App\Http\Controllers\LaboratoryController::show
- * @see app/Http/Controllers/LaboratoryController.php:200
+ * @see app/Http/Controllers/LaboratoryController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -412,7 +412,7 @@ show.head = (args: { current_team?: string | number, laboratory: number | { id: 
     show.form = showForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -428,7 +428,7 @@ print.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -461,7 +461,7 @@ print.url = (args: { current_team?: string | number, laboratory: number | { id: 
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -471,7 +471,7 @@ print.get = (args: { current_team?: string | number, laboratory: number | { id: 
 })
 /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -482,7 +482,7 @@ print.head = (args: { current_team?: string | number, laboratory: number | { id:
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -493,7 +493,7 @@ print.head = (args: { current_team?: string | number, laboratory: number | { id:
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -503,7 +503,7 @@ print.head = (args: { current_team?: string | number, laboratory: number | { id:
         })
             /**
 * @see \App\Http\Controllers\LaboratoryController::print
- * @see app/Http/Controllers/LaboratoryController.php:239
+ * @see app/Http/Controllers/LaboratoryController.php:237
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/print'
  */
@@ -520,7 +520,7 @@ print.head = (args: { current_team?: string | number, laboratory: number | { id:
     print.form = printForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::cancel
- * @see app/Http/Controllers/LaboratoryController.php:377
+ * @see app/Http/Controllers/LaboratoryController.php:375
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/cancel'
  */
@@ -536,7 +536,7 @@ cancel.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::cancel
- * @see app/Http/Controllers/LaboratoryController.php:377
+ * @see app/Http/Controllers/LaboratoryController.php:375
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/cancel'
  */
@@ -569,7 +569,7 @@ cancel.url = (args: { current_team?: string | number, laboratory: number | { id:
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::cancel
- * @see app/Http/Controllers/LaboratoryController.php:377
+ * @see app/Http/Controllers/LaboratoryController.php:375
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/cancel'
  */
@@ -580,7 +580,7 @@ cancel.post = (args: { current_team?: string | number, laboratory: number | { id
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::cancel
- * @see app/Http/Controllers/LaboratoryController.php:377
+ * @see app/Http/Controllers/LaboratoryController.php:375
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/cancel'
  */
@@ -591,7 +591,7 @@ cancel.post = (args: { current_team?: string | number, laboratory: number | { id
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::cancel
- * @see app/Http/Controllers/LaboratoryController.php:377
+ * @see app/Http/Controllers/LaboratoryController.php:375
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}/cancel'
  */
@@ -603,7 +603,7 @@ cancel.post = (args: { current_team?: string | number, laboratory: number | { id
     cancel.form = cancelForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:471
+ * @see app/Http/Controllers/LaboratoryController.php:469
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -619,7 +619,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:471
+ * @see app/Http/Controllers/LaboratoryController.php:469
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -652,7 +652,7 @@ destroy.url = (args: { current_team?: string | number, laboratory: number | { id
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:471
+ * @see app/Http/Controllers/LaboratoryController.php:469
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -663,7 +663,7 @@ destroy.delete = (args: { current_team?: string | number, laboratory: number | {
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:471
+ * @see app/Http/Controllers/LaboratoryController.php:469
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -679,7 +679,7 @@ destroy.delete = (args: { current_team?: string | number, laboratory: number | {
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:471
+ * @see app/Http/Controllers/LaboratoryController.php:469
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */

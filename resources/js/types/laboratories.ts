@@ -22,7 +22,6 @@ export type LabPaidOption = {
     patientId: string;
     gender: string | null;
     age: string | null;
-    status: string;
 };
 
 export type LabSelectedLine = {
@@ -41,7 +40,6 @@ export type LabSelected = {
     age: string | null;
     birthDate: string | null;
     doctorName: string | null;
-    status: string;
     createdAt: string | null;
     isAdmitted: boolean;
     lines: LabSelectedLine[];
