@@ -603,7 +603,7 @@ cancel.post = (args: { current_team?: string | number, laboratory: number | { id
     cancel.form = cancelForm
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:469
+ * @see app/Http/Controllers/LaboratoryController.php:464
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -619,7 +619,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:469
+ * @see app/Http/Controllers/LaboratoryController.php:464
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -652,7 +652,7 @@ destroy.url = (args: { current_team?: string | number, laboratory: number | { id
 
 /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:469
+ * @see app/Http/Controllers/LaboratoryController.php:464
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -663,7 +663,7 @@ destroy.delete = (args: { current_team?: string | number, laboratory: number | {
 
     /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:469
+ * @see app/Http/Controllers/LaboratoryController.php:464
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */
@@ -679,7 +679,7 @@ destroy.delete = (args: { current_team?: string | number, laboratory: number | {
 
             /**
 * @see \App\Http\Controllers\LaboratoryController::destroy
- * @see app/Http/Controllers/LaboratoryController.php:469
+ * @see app/Http/Controllers/LaboratoryController.php:464
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/laboratories/{laboratory}'
  */

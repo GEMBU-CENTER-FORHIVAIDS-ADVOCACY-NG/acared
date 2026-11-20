@@ -451,11 +451,6 @@ class LaboratoryController extends Controller
                 DB::raw('quantity * unitPrice'),
             );
             $laboratory->update(['total' => $remainingTotal]);
-
-            // If all lines have been removed, mark the original as cancelled
-            if ($laboratory->lines()->count() === 0) {
-                $laboratory->update(['status' => 'cancelled']);
-            }
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Selected tests cancelled. Negative billing created for refund.']);
