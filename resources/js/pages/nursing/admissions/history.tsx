@@ -61,9 +61,11 @@ type StatusOption = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-800',
-    admitted: 'bg-sky-100 text-sky-800',
-    discharged: 'bg-emerald-100 text-emerald-800',
+    pending:
+        'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    admitted: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+    discharged:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
 };
 
 export default function AdmissionHistory({
@@ -117,6 +119,7 @@ export default function AdmissionHistory({
                     <div className="flex items-center justify-between gap-2">
                         <Input
                             type="text"
+                            aria-label="Search admissions by hospital number or name"
                             placeholder="Search hospital no or name..."
                             value={filters.search}
                             onChange={(event) =>
@@ -127,6 +130,7 @@ export default function AdmissionHistory({
                         />
                         <div className="flex items-center gap-2">
                             <SelectNative
+                                aria-label="Filter by ward"
                                 value={filters.ward_id ?? ''}
                                 onChange={(event) =>
                                     applyFilters({
@@ -146,6 +150,7 @@ export default function AdmissionHistory({
                                 ))}
                             </SelectNative>
                             <SelectNative
+                                aria-label="Filter by status"
                                 value={filters.status}
                                 onChange={(event) =>
                                     applyFilters({ status: event.target.value })
@@ -155,12 +160,16 @@ export default function AdmissionHistory({
                             >
                                 <option value="">All statuses</option>
                                 {statusOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
                                         {option.label}
                                     </option>
                                 ))}
                             </SelectNative>
                             <SelectNative
+                                aria-label="Filter by doctor"
                                 value={filters.doctor_id ?? ''}
                                 onChange={(event) =>
                                     applyFilters({
@@ -187,7 +196,7 @@ export default function AdmissionHistory({
                     <CardHeader>
                         <CardTitle>All admissions</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -261,16 +270,21 @@ export default function AdmissionHistory({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
+                                                            aria-label={`Actions for admission ${admission.id}`}
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
                                                             <Link
                                                                 href={view.url({
                                                                     current_team:
@@ -317,7 +331,7 @@ AdmissionHistory.layout = (props: {
             title: 'Admission History',
             href: props.currentTeam
                 ? admissionsHistory.url(props.currentTeam.slug)
-                : '/',
+                : admissionsHistory.url(''),
         },
     ],
 });

@@ -1,6 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    cancel as cancelLaboratoryRoute,
+    history as laboratoryHistory,
+    print as printLaboratory,
+} from '@/routes/laboratories';
+import { update as updateLabResult } from '@/routes/laboratories/results';
 import LabResultEntryLayout from '@/components/lab-result-entry-layout';
 import {
     buildResultPayload,
@@ -11,13 +18,7 @@ import LabResultInfolist from '@/components/lab-result-infolist';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -26,7 +27,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import type { LabResultForm, LaboratoryShow, Team } from '@/types';
+import type {
+    LabInventoryConsumption,
+    LabResultForm,
+    LaboratoryShow,
+    Team,
+} from '@/types';
 
 type LayoutProps = {
     currentTeam?: Team | null;
@@ -47,21 +53,28 @@ export default function LaboratoryShow({
     const teamSlug = currentTeam?.slug ?? '';
     const [editing, setEditing] = useState(false);
     const [values, setValues] = useState(emptyResultValues());
-    const [processing, setProcessing] = useState(false);
+    const [saveProcessing, setSaveProcessing] = useState(false);
+    const [stepProcessing, setStepProcessing] = useState(false);
+    const [cancelProcessing, setCancelProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [cancelError, setCancelError] = useState<string | null>(null);
     const [showCancelDialog, setShowCancelDialog] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [refundLineIds, setRefundLineIds] = useState<Set<number>>(new Set());
 
-    function baseUrl(path = '') {
-        return `/${teamSlug}/laboratories${path}`;
-    }
-
     function saveResults() {
-        setProcessing(true);
+        if (saveProcessing || stepProcessing) {
+            return;
+        }
+
+        setSaveProcessing(true);
         setFormError(null);
 
         router.patch(
-            baseUrl(`/${laboratory.id}/results`),
+            updateLabResult.url({
+                current_team: teamSlug,
+                laboratory: laboratory.id,
+            }),
             buildResultPayload(values),
             {
                 preserveScroll: true,
@@ -70,7 +83,7 @@ export default function LaboratoryShow({
                     setFormError(
                         Object.values(errors)[0] ?? 'Unable to update results.',
                     ),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setSaveProcessing(false),
             },
         );
     }
@@ -78,26 +91,41 @@ export default function LaboratoryShow({
     function openCancelDialog() {
         // Pre-select all pending (not completed) lines
         const pendingIds = new Set(
-            laboratory.lines.filter((line) => !line.completed).map((line) => line.id),
+            laboratory.lines
+                .filter((line) => !line.completed)
+                .map((line) => line.id),
         );
         setRefundLineIds(pendingIds);
+        setCancelError(null);
         setShowCancelDialog(true);
     }
 
     function cancelLaboratory() {
-        setProcessing(true);
-        setFormError(null);
+        if (cancelProcessing || refundLineIds.size === 0) {
+            return;
+        }
+
+        setCancelProcessing(true);
+        setCancelError(null);
 
         router.post(
-            baseUrl(`/${laboratory.id}/cancel`),
+            cancelLaboratoryRoute.url({
+                current_team: teamSlug,
+                laboratory: laboratory.id,
+            }),
             { refund_line_ids: Array.from(refundLineIds) },
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    setShowCancelConfirm(false);
+                    setShowCancelDialog(false);
+                    setRefundLineIds(new Set());
+                },
                 onError: (errors) =>
-                    setFormError(
+                    setCancelError(
                         Object.values(errors)[0] ?? 'Unable to cancel request.',
                     ),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setCancelProcessing(false),
             },
         );
     }
@@ -114,12 +142,19 @@ export default function LaboratoryShow({
                     />
                     <div className="flex flex-wrap gap-2">
                         <Button type="button" asChild>
-                            <Link href={baseUrl(`/${laboratory.id}/print`)}>
+                            <Link
+                                href={printLaboratory.url({
+                                    current_team: teamSlug,
+                                    laboratory: laboratory.id,
+                                })}
+                            >
                                 Print result
                             </Link>
                         </Button>
                         <Button asChild variant="secondary">
-                            <Link href={baseUrl('/history')}>History</Link>
+                            <Link href={laboratoryHistory.url(teamSlug)}>
+                                History
+                            </Link>
                         </Button>
                         {laboratory.status === 'submitted' ? (
                             <Button
@@ -147,93 +182,157 @@ export default function LaboratoryShow({
                 {/* Results card */}
                 <div>
                     <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle>Results</CardTitle>
-                            <Badge variant="secondary" className="capitalize">
-                                {laboratory.status}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {editing ? (
-                            <LabResultEntryLayout
-                                form={resultForm}
-                                values={values}
-                                onChange={setValues}
-                                onSubmitResults={saveResults}
-                                onSaveStep={(testIndex) => {
-                                    const flatTests = flattenTests(resultForm);
-                                    const test = flatTests[testIndex];
-                                    if (!test) return;
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Results</CardTitle>
+                                <Badge
+                                    variant="secondary"
+                                    className="capitalize"
+                                >
+                                    {laboratory.status}
+                                </Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {editing ? (
+                                <LabResultEntryLayout
+                                    form={resultForm}
+                                    values={values}
+                                    onChange={setValues}
+                                    onSubmitResults={saveResults}
+                                    onSaveStep={(testIndex) => {
+                                        const flatTests =
+                                            flattenTests(resultForm);
+                                        const test = flatTests[testIndex];
+                                        if (
+                                            !test ||
+                                            saveProcessing ||
+                                            stepProcessing
+                                        ) {
+                                            return;
+                                        }
 
-                                    const stepLines = {};
-                                    const stepTestResults = {};
-                                    const stepInventoryConsumption = {};
+                                        const stepLines: Record<
+                                            string,
+                                            string
+                                        > = {};
+                                        const stepTestResults: Record<
+                                            string,
+                                            {
+                                                price_list_id: number;
+                                                result: string;
+                                            }[]
+                                        > = {};
+                                        const stepInventoryConsumption: Record<
+                                            string,
+                                            LabInventoryConsumption[]
+                                        > = {};
 
-                                    if (test.kind === 'simple') {
-                                        const val = values.lines[String(test.id)];
-                                        if (val) stepLines[String(test.id)] = val;
-                                    } else if (test.kind === 'parameters') {
-                                        const testResultMap = values.testResults[String(test.id)] || {};
-                                        const rows = Object.entries(testResultMap)
-                                            .filter(([, r]) => r)
-                                            .map(([pid, r]) => ({ price_list_id: Number(pid), result: r }));
-                                        if (rows.length > 0) stepTestResults[String(test.id)] = rows;
-                                    }
+                                        if (test.kind === 'simple') {
+                                            const val =
+                                                values.lines[String(test.id)];
+                                            if (val)
+                                                stepLines[String(test.id)] =
+                                                    val;
+                                        } else if (test.kind === 'parameters') {
+                                            const testResultMap =
+                                                values.testResults[
+                                                    String(test.id)
+                                                ] || {};
+                                            const rows = Object.entries(
+                                                testResultMap,
+                                            )
+                                                .filter(([, r]) => r)
+                                                .map(([pid, r]) => ({
+                                                    price_list_id: Number(pid),
+                                                    result: r,
+                                                }));
+                                            if (rows.length > 0)
+                                                stepTestResults[
+                                                    String(test.id)
+                                                ] = rows;
+                                        }
 
-                                    const consumptionRows = values.inventoryConsumption[String(test.id)] || [];
-                                    const filtered = consumptionRows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
-                                    if (filtered.length > 0) {
-                                        stepInventoryConsumption[String(test.id)] = filtered;
-                                    }
+                                        const consumptionRows =
+                                            values.inventoryConsumption[
+                                                String(test.id)
+                                            ] || [];
+                                        const filtered = consumptionRows.filter(
+                                            (row) =>
+                                                row.lab_inventory_id > 0 &&
+                                                row.quantity > 0,
+                                        );
+                                        if (filtered.length > 0) {
+                                            stepInventoryConsumption[
+                                                String(test.id)
+                                            ] = filtered;
+                                        }
 
-                                    setProcessing(true);
-                                    setFormError(null);
-                                    router.patch(
-                                        baseUrl(`/${laboratory.id}/results`),
-                                        { lines: stepLines, testResults: stepTestResults, inventoryConsumption: stepInventoryConsumption },
-                                        {
-                                            preserveScroll: true,
-                                            onError: (errors) =>
-                                                setFormError(
-                                                    Object.values(errors)[0] ?? 'Unable to save step results.',
-                                                ),
-                                            onFinish: () => setProcessing(false),
-                                        },
-                                    );
-                                }}
-                                selected={{
-                                    patientId: laboratory.patientId,
-                                    patientName: laboratory.patientName,
-                                    birthDate: laboratory.birthDate,
-                                    age: laboratory.age,
-                                    gender: laboratory.gender,
-                                    doctorName: laboratory.doctorName,
-                                    createdAt: laboratory.createdAt,
-                                }}
-                                formError={formError}
-                            />
-                        ) : (
-                            <LabResultInfolist form={resultForm} />
-                        )}
-                    </CardContent>
-                </Card>
+                                        setStepProcessing(true);
+                                        setFormError(null);
+                                        router.patch(
+                                            updateLabResult.url({
+                                                current_team: teamSlug,
+                                                laboratory: laboratory.id,
+                                            }),
+                                            {
+                                                lines: stepLines,
+                                                testResults: stepTestResults,
+                                                inventoryConsumption:
+                                                    stepInventoryConsumption,
+                                            },
+                                            {
+                                                preserveScroll: true,
+                                                onError: (errors) =>
+                                                    setFormError(
+                                                        Object.values(
+                                                            errors,
+                                                        )[0] ??
+                                                            'Unable to save step results.',
+                                                    ),
+                                                onFinish: () =>
+                                                    setStepProcessing(false),
+                                            },
+                                        );
+                                    }}
+                                    selected={{
+                                        patientId: laboratory.patientId,
+                                        patientName: laboratory.patientName,
+                                        birthDate: laboratory.birthDate,
+                                        age: laboratory.age,
+                                        gender: laboratory.gender,
+                                        doctorName: laboratory.doctorName,
+                                        createdAt: laboratory.createdAt,
+                                    }}
+                                    formError={formError}
+                                />
+                            ) : (
+                                <LabResultInfolist form={resultForm} />
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
-
             </div>
 
-            <Dialog open={showCancelDialog} onOpenChange={(open) => {
-                setShowCancelDialog(open);
-                if (!open) {
-                    setRefundLineIds(new Set());
-                }
-            }}>
+            <Dialog
+                open={showCancelDialog}
+                onOpenChange={(open) => {
+                    if (cancelProcessing) {
+                        return;
+                    }
+                    setShowCancelDialog(open);
+                    if (!open) {
+                        setRefundLineIds(new Set());
+                        setCancelError(null);
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Cancel laboratory request?</DialogTitle>
                         <DialogDescription>
-                            Select the tests to refund. Completed tests cannot be refunded.
+                            Select the tests to refund. Completed tests cannot
+                            be refunded.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -252,7 +351,9 @@ export default function LaboratoryShow({
                                             checked={refundLineIds.has(line.id)}
                                             disabled={line.completed}
                                             onCheckedChange={(checked) => {
-                                                const next = new Set(refundLineIds);
+                                                const next = new Set(
+                                                    refundLineIds,
+                                                );
                                                 if (checked) {
                                                     next.add(line.id);
                                                 } else {
@@ -263,7 +364,7 @@ export default function LaboratoryShow({
                                         />
                                         <label
                                             htmlFor={`refund-line-${line.id}`}
-                                            className="text-sm font-medium leading-none cursor-pointer"
+                                            className="cursor-pointer text-sm leading-none font-medium"
                                         >
                                             {line.name}
                                             {line.quantity > 1
@@ -273,10 +374,16 @@ export default function LaboratoryShow({
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
                                         {line.completed ? (
-                                            <span className="text-muted-foreground">Completed</span>
+                                            <span className="text-muted-foreground">
+                                                Completed
+                                            </span>
                                         ) : (
                                             <span className="text-muted-foreground">
-                                                {currencySymbol}{(line.unitPrice * line.quantity).toLocaleString()}
+                                                {currencySymbol}
+                                                {(
+                                                    line.unitPrice *
+                                                    line.quantity
+                                                ).toLocaleString()}
                                             </span>
                                         )}
                                     </div>
@@ -287,12 +394,12 @@ export default function LaboratoryShow({
 
                     {refundLineIds.size > 0 && laboratory.lines ? (
                         <div className="flex justify-end text-sm font-medium">
-                            Refund total:{' '}
-                            {currencySymbol}
+                            Refund total: {currencySymbol}
                             {laboratory.lines
                                 .filter((line) => refundLineIds.has(line.id))
                                 .reduce(
-                                    (sum, line) => sum + line.unitPrice * line.quantity,
+                                    (sum, line) =>
+                                        sum + line.unitPrice * line.quantity,
                                     0,
                                 )
                                 .toLocaleString()}
@@ -305,20 +412,48 @@ export default function LaboratoryShow({
                             onClick={() => {
                                 setShowCancelDialog(false);
                                 setRefundLineIds(new Set());
+                                setCancelError(null);
                             }}
                         >
                             Keep request
                         </Button>
                         <Button
                             variant="destructive"
-                            disabled={processing || refundLineIds.size === 0}
-                            onClick={cancelLaboratory}
+                            disabled={refundLineIds.size === 0}
+                            onClick={() => {
+                                setShowCancelDialog(false);
+                                setShowCancelConfirm(true);
+                            }}
                         >
-                            {processing ? 'Cancelling…' : 'Cancel & refund'}
+                            Review cancellation
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={showCancelConfirm}
+                onOpenChange={(open) => {
+                    if (cancelProcessing) {
+                        return;
+                    }
+                    setShowCancelConfirm(open);
+                    if (!open) {
+                        setCancelError(null);
+                    }
+                }}
+                title="Cancel laboratory request?"
+                description={
+                    cancelError ??
+                    `This will cancel the request and refund ${refundLineIds.size} selected test${refundLineIds.size === 1 ? '' : 's'}.`
+                }
+                confirmLabel={
+                    cancelProcessing ? 'Cancelling…' : 'Cancel & refund'
+                }
+                destructive
+                processing={cancelProcessing}
+                onConfirm={cancelLaboratory}
+            />
         </>
     );
 }

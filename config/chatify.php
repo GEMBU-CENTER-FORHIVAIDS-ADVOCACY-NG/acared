@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+use App\Models\User;
+use Chatify\Models\Conversation;
+use Chatify\Models\ConversationParticipant;
+use Chatify\Models\Favorite;
+use Chatify\Models\Message;
+use Chatify\Models\UserBlock;
+use Chatify\Models\UserSetting;
 
 return [
     'name' => env('CHATIFY_NAME', 'Chatify Messenger'),
@@ -8,13 +15,13 @@ return [
     'storage_disk_name' => env('CHATIFY_STORAGE_DISK', 'public'),
 
     'models' => [
-        'user' => env('CHATIFY_USER_MODEL', App\Models\User::class),
-        'conversation' => Chatify\Models\Conversation::class,
-        'message' => Chatify\Models\Message::class,
-        'participant' => Chatify\Models\ConversationParticipant::class,
-        'favorite' => Chatify\Models\Favorite::class,
-        'block' => Chatify\Models\UserBlock::class,
-        'user_setting' => Chatify\Models\UserSetting::class,
+        'user' => env('CHATIFY_USER_MODEL', User::class),
+        'conversation' => Conversation::class,
+        'message' => Message::class,
+        'participant' => ConversationParticipant::class,
+        'favorite' => Favorite::class,
+        'block' => UserBlock::class,
+        'user_setting' => UserSetting::class,
     ],
 
     'tables' => [
@@ -136,11 +143,14 @@ return [
         'asset_url' => env('CHATIFY_ASSET_URL'),
         'broadcast' => [
             'driver' => env('CHATIFY_BROADCAST_DRIVER', env('BROADCAST_CONNECTION', 'null')),
-            'key' => env('PUSHER_APP_KEY'),
+            'key' => env('PUSHER_APP_KEY', env('REVERB_APP_KEY')),
             'cluster' => env('PUSHER_APP_CLUSTER', 'mt1'),
-            'wsHost' => env('PUSHER_HOST'),
-            'wsPort' => (int) env('PUSHER_PORT', 443),
-            'forceTLS' => filter_var(env('PUSHER_APP_USETLS', true), FILTER_VALIDATE_BOOL),
+            'wsHost' => env('PUSHER_HOST', env('REVERB_HOST')),
+            'wsPort' => (int) env('PUSHER_PORT', env('REVERB_PORT', 443)),
+            'forceTLS' => filter_var(
+                env('PUSHER_APP_USETLS', env('REVERB_SCHEME', 'https') === 'https'),
+                FILTER_VALIDATE_BOOL,
+            ),
         ],
     ],
 
@@ -158,15 +168,15 @@ return [
         'enabled' => env('CHATIFY_SOUNDS_ENABLED', true),
         'incoming_message' => [
             'enabled' => env('CHATIFY_SOUND_INCOMING_ENABLED', true),
-            'url' => env('CHATIFY_SOUND_INCOMING', '/vendor/chatify/sounds/incoming.wav'),
+            'url' => env('CHATIFY_SOUND_INCOMING', '/vendor/chatify/sounds/incoming.mp3'),
         ],
         'outgoing_message' => [
             'enabled' => env('CHATIFY_SOUND_OUTGOING_ENABLED', true),
-            'url' => env('CHATIFY_SOUND_OUTGOING', '/vendor/chatify/sounds/outgoing.wav'),
+            'url' => env('CHATIFY_SOUND_OUTGOING', '/vendor/chatify/sounds/outgoing.mp3'),
         ],
         'typing' => [
             'enabled' => env('CHATIFY_SOUND_TYPING_ENABLED', false),
-            'url' => env('CHATIFY_SOUND_TYPING', '/vendor/chatify/sounds/typing.wav'),
+            'url' => env('CHATIFY_SOUND_TYPING', '/vendor/chatify/sounds/typing.mp3'),
         ],
     ],
 

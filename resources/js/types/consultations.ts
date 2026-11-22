@@ -170,7 +170,12 @@ export type ConsultationSidebar = {
     timeSlots: ConsultationTimeSlot[];
     availableCount: number;
     monthStats: { scheduled: number; started: number; completed: number };
-    upcoming: { id: number; name: string; meta: string; status: string }[];
+    admittedPatients: {
+        id: number;
+        name: string;
+        meta: string;
+        wardBed: string;
+    }[];
 };
 
 export type ConsultationFilters = {

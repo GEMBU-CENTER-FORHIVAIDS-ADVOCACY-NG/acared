@@ -24,7 +24,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { exportMethod as exportReport, index } from '@/routes/reports/laboratory-tests';
+import {
+    exportMethod as exportReport,
+    index,
+} from '@/routes/reports/laboratory-tests';
 
 type TestRow = {
     id: number;
@@ -40,6 +43,7 @@ type Filters = {
     from: string;
     to: string;
     perPage: number;
+    page?: number;
 };
 
 type Summary = {
@@ -57,6 +61,16 @@ type Paginator = {
     total: number;
 };
 
+function formatReportDateLocal(value: string | null): string {
+    if (!value) {
+        return formatReportDate(null);
+    }
+
+    return formatReportDate(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+    );
+}
+
 export default function LaboratoryTests({
     tests,
     summary,
@@ -71,6 +85,11 @@ export default function LaboratoryTests({
     const team = usePage().props.currentTeam?.slug ?? '';
     const { printRef, handlePrint } = useReportPrint();
     const [search, setSearch] = useState(filters.q);
+    const [isVisiting, setIsVisiting] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const hasInvalidRange = Boolean(
+        filters.from && filters.to && filters.from > filters.to,
+    );
 
     const money = (value: number) =>
         `${currencySymbol}${value.toLocaleString(undefined, {
@@ -80,6 +99,11 @@ export default function LaboratoryTests({
 
     const visit = (patch: Partial<Filters>) => {
         const next = { ...filters, ...patch };
+        if (next.from && next.to && next.from > next.to) {
+            return;
+        }
+
+        setIsVisiting(true);
         router.get(
             index.url({ current_team: team }),
             {
@@ -89,8 +113,22 @@ export default function LaboratoryTests({
                 perPage: next.perPage,
                 page: next.page || undefined,
             },
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setIsVisiting(false),
+            },
         );
+    };
+    const printReport = () => {
+        setIsPrinting(true);
+        const finishPrint = () => {
+            setIsPrinting(false);
+            window.removeEventListener('afterprint', finishPrint);
+        };
+        window.addEventListener('afterprint', finishPrint);
+        handlePrint();
     };
 
     return (
@@ -98,21 +136,25 @@ export default function LaboratoryTests({
             <Head title="Laboratory tests report" />
             <ClinicalReportLayout active="laboratory-tests">
                 <div className="flex w-full flex-col space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                    <div className="no-print flex flex-wrap items-center justify-between gap-3">
                         <Heading
                             variant="small"
                             title="Laboratory tests report"
                             description="Individual test items with their categories — submitted laboratory requests only."
                         />
                         <div className="flex gap-2">
-                            <Button variant="outline" onClick={handlePrint}>
-                                Print
+                            <Button
+                                variant="outline"
+                                onClick={printReport}
+                                disabled={isPrinting}
+                            >
+                                {isPrinting ? 'Printing…' : 'Print'}
                             </Button>
                             <Button variant="outline" asChild>
                                 <a
                                     href={exportReport.url(
                                         { current_team: team },
-                                        { query: { ...filters, q: search } },
+                                        { query: { ...filters } },
                                     )}
                                 >
                                     Export CSV
@@ -121,7 +163,7 @@ export default function LaboratoryTests({
                         </div>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 no-print">
+                    <div className="no-print grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <StatCard
                             title="Test types"
                             value={summary.testTypes.toLocaleString()}
@@ -144,7 +186,7 @@ export default function LaboratoryTests({
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-end gap-2 no-print">
+                    <div className="no-print flex flex-wrap items-end gap-2">
                         <form
                             className="flex items-end gap-2"
                             onSubmit={(event) => {
@@ -153,20 +195,28 @@ export default function LaboratoryTests({
                             }}
                         >
                             <div className="space-y-1">
-                                <Label>Search</Label>
+                                <Label htmlFor="lab-tests-search">Search</Label>
                                 <Input
+                                    id="lab-tests-search"
                                     value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
                                     placeholder="Search item or category..."
                                 />
                             </div>
-                            <Button variant="secondary" type="submit">
-                                Search
+                            <Button
+                                variant="secondary"
+                                type="submit"
+                                disabled={isVisiting}
+                            >
+                                {isVisiting ? 'Searching…' : 'Search'}
                             </Button>
                         </form>
                         <div className="space-y-1">
-                            <Label>From</Label>
+                            <Label htmlFor="lab-tests-from">From</Label>
                             <Input
+                                id="lab-tests-from"
                                 type="date"
                                 value={filters.from ?? ''}
                                 onChange={(event) =>
@@ -178,8 +228,9 @@ export default function LaboratoryTests({
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label>To</Label>
+                            <Label htmlFor="lab-tests-to">To</Label>
                             <Input
+                                id="lab-tests-to"
                                 type="date"
                                 value={filters.to ?? ''}
                                 onChange={(event) =>
@@ -190,84 +241,114 @@ export default function LaboratoryTests({
                                 }
                             />
                         </div>
+                        {hasInvalidRange && (
+                            <p
+                                role="alert"
+                                className="w-full text-xs text-destructive"
+                            >
+                                From date must be on or before to date.
+                            </p>
+                        )}
                     </div>
 
                     <div ref={printRef} className="report-print-container">
                         <h2 className="mb-3 text-lg font-semibold">
-                            {reportTitle()} from {formatReportDate(filters.from)} to {formatReportDate(filters.to)}
+                            {reportTitle()} from{' '}
+                            {formatReportDateLocal(filters.from)} to{' '}
+                            {formatReportDateLocal(filters.to)}
                         </h2>
                         <Card>
                             <CardContent className="p-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>#</TableHead>
-                                            <TableHead>Category</TableHead>
-                                            <TableHead>Item</TableHead>
-                                            <TableHead className="text-right">Times Performed</TableHead>
-                                            <TableHead className="text-right">Revenue</TableHead>
-                                            <TableHead className="text-right">Cost</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {tests.data.length === 0 ? (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell
-                                                    colSpan={6}
-                                                    className="py-10 text-center text-muted-foreground"
-                                                >
-                                                    No laboratory tests found for this period.
-                                                </TableCell>
+                                                <TableHead>#</TableHead>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead>Item</TableHead>
+                                                <TableHead className="text-right">
+                                                    Times Performed
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Revenue
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Cost
+                                                </TableHead>
                                             </TableRow>
-                                        ) : (
-                                            tests.data.map((row, index) => (
-                                                <TableRow key={row.id}>
-                                                    <TableCell>
-                                                        {(tests.current_page - 1) * tests.per_page + index + 1}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {row.category}
-                                                    </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        {row.name}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {row.count.toLocaleString()}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {money(row.revenue)}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {money(row.cost)}
+                                        </TableHeader>
+                                        <TableBody>
+                                            {tests.data.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell
+                                                        colSpan={6}
+                                                        className="py-10 text-center text-muted-foreground"
+                                                    >
+                                                        No laboratory tests
+                                                        found for this period.
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
+                                            ) : (
+                                                tests.data.map((row, index) => (
+                                                    <TableRow key={row.id}>
+                                                        <TableCell>
+                                                            {(tests.current_page -
+                                                                1) *
+                                                                tests.per_page +
+                                                                index +
+                                                                1}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {row.category}
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">
+                                                            {row.name}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {row.count.toLocaleString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {money(row.revenue)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            {money(row.cost)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                        {tests.data.length > 0 && (
+                                            <TableFooter>
+                                                <TableRow className="font-semibold">
+                                                    <TableCell colSpan={3}>
+                                                        TOTAL
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {summary.totalTests.toLocaleString()}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            summary.totalRevenue,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {money(
+                                                            summary.totalCost,
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            </TableFooter>
                                         )}
-                                    </TableBody>
-                                    {tests.data.length > 0 && (
-                                        <TableFooter>
-                                            <TableRow className="font-semibold">
-                                                <TableCell colSpan={3}>
-                                                    TOTAL
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {summary.totalTests.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {money(summary.totalRevenue)}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {money(summary.totalCost)}
-                                                </TableCell>
-                                            </TableRow>
-                                        </TableFooter>
-                                    )}
-                                </Table>
+                                    </Table>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
 
-                    <div className="no-print">
+                    <div
+                        className={`no-print ${isVisiting ? 'pointer-events-none opacity-60' : ''}`}
+                        aria-busy={isVisiting}
+                    >
                         <Pagination
                             meta={{
                                 currentPage: tests.current_page,
@@ -276,7 +357,9 @@ export default function LaboratoryTests({
                                 total: tests.total,
                             }}
                             onPageChange={(page) => visit({ page })}
-                            onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
+                            onPerPageChange={(perPage) =>
+                                visit({ perPage, page: 1 })
+                            }
                         />
                     </div>
                 </div>

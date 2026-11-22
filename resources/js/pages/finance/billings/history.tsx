@@ -2,17 +2,13 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Banknote, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -45,11 +41,13 @@ type LayoutProps = {
 const today = new Date().toISOString().split('T')[0];
 
 const STATUS_BADGE: Record<string, string> = {
-    paid: 'bg-emerald-100 text-emerald-800',
-    billed: 'bg-amber-100 text-amber-800',
-    scheduled: 'bg-sky-100 text-sky-800',
-    started: 'bg-amber-100 text-amber-800',
-    completed: 'bg-emerald-100 text-emerald-800',
+    paid: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+    billed: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    scheduled: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
+    started:
+        'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    completed:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
 };
 
 export default function BillingHistory({
@@ -69,7 +67,8 @@ export default function BillingHistory({
     const [search, setSearch] = useState(filters.q);
     const [from, setFrom] = useState(filters.from ?? today);
     const [to, setTo] = useState(filters.to ?? today);
-    const [processing, setProcessing] = useState(false);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [toDelete, setToDelete] = useState<BillingListItem | null>(null);
 
     const applyFilters = useCallback(
@@ -106,20 +105,23 @@ export default function BillingHistory({
     }
 
     function deleteBilling() {
-        if (!toDelete) {
+        if (!toDelete || deleteProcessing) {
             return;
         }
 
-        setProcessing(true);
+        setDeleteProcessing(true);
+        setDeleteError(null);
 
         router.delete(
             BillingController.destroy.url([teamSlug ?? '', toDelete.id]),
             {
                 preserveScroll: true,
-                onFinish: () => {
-                    setProcessing(false);
-                    setToDelete(null);
-                },
+                onSuccess: () => setToDelete(null),
+                onError: (errors) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Unable to delete billing.',
+                    ),
+                onFinish: () => setDeleteProcessing(false),
             },
         );
     }
@@ -149,7 +151,9 @@ export default function BillingHistory({
                             description="Paid billings and collected revenue."
                         />
                         <Button asChild data-test="record-payment">
-                            <Link href={index(teamSlug).url}>Record payment</Link>
+                            <Link href={index(teamSlug).url}>
+                                Record payment
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -164,10 +168,12 @@ export default function BillingHistory({
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-semibold tabular-nums">
-                                {currencySymbol} {summary.total.toLocaleString()}
+                                {currencySymbol}{' '}
+                                {summary.total.toLocaleString()}
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">
-                                {summary.count} billing{summary.count !== 1 ? 's' : ''}
+                                {summary.count} billing
+                                {summary.count !== 1 ? 's' : ''}
                             </p>
                         </CardContent>
                     </Card>
@@ -183,16 +189,21 @@ export default function BillingHistory({
                             applyFilters({ q: search, from: null, to: null });
                         }}
                     >
+                        <Label
+                            htmlFor="billing-history-search"
+                            className="sr-only"
+                        >
+                            Search patient or cashier
+                        </Label>
                         <Input
+                            id="billing-history-search"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search patient, cashier..."
                             className="max-w-sm"
                             data-test="billing-search"
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
 
                     <div className="flex items-end gap-2">
@@ -250,11 +261,21 @@ export default function BillingHistory({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>
+                                    <TableHead
+                                        aria-sort={
+                                            filters.sort === 'patient_id'
+                                                ? filters.direction === 'asc'
+                                                    ? 'ascending'
+                                                    : 'descending'
+                                                : 'none'
+                                        }
+                                    >
                                         <button
                                             type="button"
-                                            className="inline-flex items-center"
-                                            onClick={() => toggleSort('patient_id')}
+                                            className="inline-flex items-center hover:underline"
+                                            onClick={() =>
+                                                toggleSort('patient_id')
+                                            }
                                         >
                                             Patient ID
                                             {sortIndicator('patient_id')}
@@ -263,31 +284,57 @@ export default function BillingHistory({
                                     <TableHead>Patient</TableHead>
                                     <TableHead>Cashier</TableHead>
                                     <TableHead>Billable Type</TableHead>
-                                    <TableHead>
+                                    <TableHead
+                                        aria-sort={
+                                            filters.sort === 'total'
+                                                ? filters.direction === 'asc'
+                                                    ? 'ascending'
+                                                    : 'descending'
+                                                : 'none'
+                                        }
+                                    >
                                         <button
                                             type="button"
-                                            className="inline-flex items-center"
+                                            className="inline-flex items-center hover:underline"
                                             onClick={() => toggleSort('total')}
                                         >
                                             Total
                                             {sortIndicator('total')}
                                         </button>
                                     </TableHead>
-                                    <TableHead>
+                                    <TableHead
+                                        aria-sort={
+                                            filters.sort === 'status'
+                                                ? filters.direction === 'asc'
+                                                    ? 'ascending'
+                                                    : 'descending'
+                                                : 'none'
+                                        }
+                                    >
                                         <button
                                             type="button"
-                                            className="inline-flex items-center"
+                                            className="inline-flex items-center hover:underline"
                                             onClick={() => toggleSort('status')}
                                         >
                                             Status
                                             {sortIndicator('status')}
                                         </button>
                                     </TableHead>
-                                    <TableHead>
+                                    <TableHead
+                                        aria-sort={
+                                            filters.sort === 'created_at'
+                                                ? filters.direction === 'asc'
+                                                    ? 'ascending'
+                                                    : 'descending'
+                                                : 'none'
+                                        }
+                                    >
                                         <button
                                             type="button"
-                                            className="inline-flex items-center"
-                                            onClick={() => toggleSort('created_at')}
+                                            className="inline-flex items-center hover:underline"
+                                            onClick={() =>
+                                                toggleSort('created_at')
+                                            }
                                         >
                                             Date
                                             {sortIndicator('created_at')}
@@ -330,7 +377,9 @@ export default function BillingHistory({
                                                 {billing.total.toLocaleString()}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge className={`${STATUS_BADGE[billing.status] ?? 'bg-muted text-muted-foreground'} capitalize`}>
+                                                <Badge
+                                                    className={`${STATUS_BADGE[billing.status] ?? 'bg-muted text-muted-foreground'} capitalize`}
+                                                >
                                                     {billing.status}
                                                 </Badge>
                                             </TableCell>
@@ -343,20 +392,26 @@ export default function BillingHistory({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
+                                                            aria-label={`Actions for billing #${billing.id}`}
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
                                                             <Link
                                                                 href={BillingController.show.url(
                                                                     [
-                                                                        teamSlug ?? '',
+                                                                        teamSlug ??
+                                                                            '',
                                                                         billing.id,
                                                                     ],
                                                                 )}
@@ -366,9 +421,15 @@ export default function BillingHistory({
                                                             </Link>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
-                                                            disabled={billing.status === 'paid'}
+                                                            variant="destructive"
+                                                            disabled={
+                                                                billing.status ===
+                                                                'paid'
+                                                            }
                                                             onClick={() =>
-                                                                setToDelete(billing)
+                                                                setToDelete(
+                                                                    billing,
+                                                                )
                                                             }
                                                         >
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -397,17 +458,27 @@ export default function BillingHistory({
                 />
             </div>
 
+            {deleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete billing"
+                    />
+                </div>
+            ) : null}
             <ConfirmDialog
                 open={toDelete !== null}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !deleteProcessing) {
                         setToDelete(null);
+                        setDeleteError(null);
                     }
                 }}
-                processing={processing}
+                processing={deleteProcessing}
                 title={`Delete billing #${toDelete?.id ?? ''}?`}
                 description="This removes the recorded payment. This cannot be undone."
-                confirmLabel="Delete"
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
                 onConfirm={deleteBilling}
             />
         </>

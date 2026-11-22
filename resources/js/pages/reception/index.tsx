@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { AlertCircle, CalendarPlus, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import ReceptionController from '@/actions/App/Http/Controllers/ReceptionController';
@@ -24,10 +24,10 @@ import { index } from '@/routes/reception';
 import type {
     BillingOption,
     ConsultationDailyTimelineEvent,
-    ConsultationSidebar,
     DoctorOption,
     NurseOption,
     ReceptionAppointment,
+    ReceptionSidebar,
     ReceptionStats,
     Team,
 } from '@/types';
@@ -91,7 +91,7 @@ export default function ReceptionIndex({
     billingOptions: BillingOption[];
     vitalSigns: VitalSignOption[];
     dailyTimeline: ConsultationDailyTimelineEvent[];
-    sidebar: ConsultationSidebar;
+    sidebar: ReceptionSidebar;
     filters: { q: string };
 }) {
     const page = usePage<LayoutProps>();
@@ -99,14 +99,21 @@ export default function ReceptionIndex({
     const [search, setSearch] = useState(filters.q);
 
     function applySearch() {
+        setSearching(true);
         router.get(
             index.url(teamSlug, {
                 query: {
                     q: search || undefined,
+                    date: sidebar.selectedDate || undefined,
                 },
             }),
             {},
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setSearching(false),
+            },
         );
     }
 
@@ -115,8 +122,8 @@ export default function ReceptionIndex({
     const [formVisible, setFormVisible] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
     const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER);
-    const [transferFromType, setTransferFromType] = useState<'appointment' | 'nursing' | null>(null);
     const [processing, setProcessing] = useState(false);
+    const [searching, setSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const statCards = [
@@ -143,20 +150,43 @@ export default function ReceptionIndex({
     ];
 
     const STATUS_BADGE: Record<string, string> = {
-        warning: 'bg-amber-100 text-amber-800',
-        info: 'bg-sky-100 text-sky-800',
-        success: 'bg-emerald-100 text-emerald-800',
-        danger: 'bg-rose-100 text-rose-800',
+        warning:
+            'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+        info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+        success:
+            'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+        danger: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
         gray: 'bg-muted text-muted-foreground',
     };
 
     function applyDate(date: string) {
+        setSearching(true);
         router.get(
             index.url(teamSlug, { query: { date, q: search || undefined } }),
             {},
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setSearching(false),
+            },
         );
     }
+
+    const transferOptions = Array.from(
+        new Map(
+            [...appointments, ...nursingAppointments]
+                .filter((appointment) =>
+                    ['scheduled', 'started', 'completed'].includes(
+                        appointment.status,
+                    ),
+                )
+                .map(
+                    (appointment) =>
+                        [appointment.patientId, appointment] as const,
+                ),
+        ).values(),
+    );
 
     function openSchedule(startsAt?: string) {
         setAppointmentForm({
@@ -169,6 +199,10 @@ export default function ReceptionIndex({
     }
 
     function resetForm() {
+        if (processing) {
+            return;
+        }
+
         setAppointmentForm(EMPTY_APPOINTMENT);
         setStaffType('doctor');
         setError(null);
@@ -232,12 +266,11 @@ export default function ReceptionIndex({
     function openTransferWithPatient(patientId: string) {
         // Determine if the patient comes from an appointment or nursing record
         const fromNursing = nursingAppointments.some(
-            (a) => a.patientId === patientId
+            (a) => a.patientId === patientId,
         );
-        setTransferFromType(fromNursing ? 'nursing' : 'appointment');
         setTransferForm({
             patient_id: patientId,
-            transferTo: fromNursing ? 'doctor' : 'doctor',
+            transferTo: fromNursing ? 'doctor' : 'nurse',
             doctor_id: '',
             nurse_id: '',
         });
@@ -249,22 +282,16 @@ export default function ReceptionIndex({
         setProcessing(true);
         setError(null);
 
-        router.patch(
-            ReceptionController.transfer.url(teamSlug),
-            transferForm,
-            {
-                preserveScroll: true,
-                onError: (errors: Record<string, string>) =>
-                    setError(
-                        Object.values(errors)[0] ?? 'Something went wrong.',
-                    ),
-                onSuccess: () => {
-                    setTransferOpen(false);
-                    setTransferForm(EMPTY_TRANSFER);
-                },
-                onFinish: () => setProcessing(false),
+        router.patch(ReceptionController.transfer.url(teamSlug), transferForm, {
+            preserveScroll: true,
+            onError: (errors: Record<string, string>) =>
+                setError(Object.values(errors)[0] ?? 'Something went wrong.'),
+            onSuccess: () => {
+                setTransferOpen(false);
+                setTransferForm(EMPTY_TRANSFER);
             },
-        );
+            onFinish: () => setProcessing(false),
+        });
     }
 
     return (
@@ -278,13 +305,17 @@ export default function ReceptionIndex({
                         description="Triage overview and appointment scheduling."
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="secondary" onClick={openTransfer}>
+                        <Button
+                            variant="secondary"
+                            onClick={openTransfer}
+                            disabled={processing}
+                        >
                             Transfer patient
                         </Button>
                         <Button
                             onClick={() => openSchedule()}
                             data-test="open-schedule-appointment"
-                            disabled={formVisible}
+                            disabled={formVisible || processing}
                         >
                             <CalendarPlus className="mr-2 size-4" />
                             Schedule appointment
@@ -337,7 +368,9 @@ export default function ReceptionIndex({
                     <Card className="flex flex-col">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                             <CardTitle className="text-base">
-                                {formVisible ? 'Schedule appointment' : sidebar.calendarLabel}
+                                {formVisible
+                                    ? 'Schedule appointment'
+                                    : sidebar.calendarLabel}
                             </CardTitle>
                             {formVisible && (
                                 <Button
@@ -345,6 +378,8 @@ export default function ReceptionIndex({
                                     size="sm"
                                     className="h-8 w-8 p-0"
                                     onClick={resetForm}
+                                    aria-label="Close scheduling form"
+                                    disabled={processing}
                                 >
                                     <X className="size-4" />
                                 </Button>
@@ -354,56 +389,83 @@ export default function ReceptionIndex({
                             {formVisible ? (
                                 <div className="space-y-4">
                                     <p className="text-xs text-muted-foreground">
-                                        Select a billing record and a doctor or nurse.
-                                        Appointments are scheduled for 10 minutes.
+                                        Select a billing record and a doctor or
+                                        nurse. Appointments are scheduled for 10
+                                        minutes.
                                     </p>
 
                                     <div className="space-y-2">
                                         <Label htmlFor="appointment-billing">
-                                            Patient (Billing) <span className="text-destructive">*</span>
+                                            Patient (Billing){' '}
+                                            <span className="text-destructive">
+                                                *
+                                            </span>
                                         </Label>
                                         <SelectNative
                                             id="appointment-billing"
                                             placeholder="Select patient (billing)"
                                             value={appointmentForm.billing_id}
                                             onChange={(event) =>
-                                                setAppointmentForm((current) => ({
-                                                    ...current,
-                                                    billing_id: event.target.value,
-                                                    vital_signs: event.target.value
-                                                        ? vitalSigns.map((vitalSign) => ({
-                                                              price_list_id: String(
-                                                                  vitalSign.id,
-                                                              ),
-                                                              results: '',
-                                                          }))
-                                                        : [],
-                                                }))
+                                                setAppointmentForm(
+                                                    (current) => ({
+                                                        ...current,
+                                                        billing_id:
+                                                            event.target.value,
+                                                        vital_signs: event
+                                                            .target.value
+                                                            ? vitalSigns.map(
+                                                                  (
+                                                                      vitalSign,
+                                                                  ) => ({
+                                                                      price_list_id:
+                                                                          String(
+                                                                              vitalSign.id,
+                                                                          ),
+                                                                      results:
+                                                                          '',
+                                                                  }),
+                                                              )
+                                                            : [],
+                                                    }),
+                                                )
                                             }
                                             data-test="appointment-billing"
                                         >
-                                            <option value="">Select patient (billing)</option>
+                                            <option value="">
+                                                Select patient (billing)
+                                            </option>
                                             {billingOptions.map((option) => (
-                                                <option key={option.id} value={option.id}>
+                                                <option
+                                                    key={option.id}
+                                                    value={option.id}
+                                                >
                                                     {option.label}
                                                 </option>
                                             ))}
                                         </SelectNative>
-                                        {appointmentForm.billing_id && (
+                                        {appointmentForm.billing_id &&
                                             (() => {
-                                                const selectedBilling = billingOptions.find(
-                                                    (opt) => String(opt.id) === appointmentForm.billing_id,
-                                                );
+                                                const selectedBilling =
+                                                    billingOptions.find(
+                                                        (opt) =>
+                                                            String(opt.id) ===
+                                                            appointmentForm.billing_id,
+                                                    );
                                                 return selectedBilling?.category ? (
-                                                    <Badge variant="secondary" className="mt-1.5">
-                                                        {selectedBilling.category}
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="mt-1.5"
+                                                    >
+                                                        {
+                                                            selectedBilling.category
+                                                        }
                                                     </Badge>
                                                 ) : null;
-                                            })()
-                                        )}
+                                            })()}
                                         {billingOptions.length === 0 ? (
                                             <p className="text-xs text-amber-600 dark:text-amber-400">
-                                                No billings currently available for scheduling.
+                                                No billings currently available
+                                                for scheduling.
                                             </p>
                                         ) : null}
                                     </div>
@@ -413,13 +475,19 @@ export default function ReceptionIndex({
                                         <div className="flex gap-2">
                                             <button
                                                 type="button"
+                                                aria-pressed={
+                                                    staffType === 'doctor'
+                                                }
+                                                disabled={processing}
                                                 onClick={() => {
                                                     setStaffType('doctor');
-                                                    setAppointmentForm((current) => ({
-                                                        ...current,
-                                                        doctor_id: '',
-                                                        nurse_id: '',
-                                                    }));
+                                                    setAppointmentForm(
+                                                        (current) => ({
+                                                            ...current,
+                                                            doctor_id: '',
+                                                            nurse_id: '',
+                                                        }),
+                                                    );
                                                 }}
                                                 className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                                                     staffType === 'doctor'
@@ -431,13 +499,19 @@ export default function ReceptionIndex({
                                             </button>
                                             <button
                                                 type="button"
+                                                aria-pressed={
+                                                    staffType === 'nurse'
+                                                }
+                                                disabled={processing}
                                                 onClick={() => {
                                                     setStaffType('nurse');
-                                                    setAppointmentForm((current) => ({
-                                                        ...current,
-                                                        doctor_id: '',
-                                                        nurse_id: '',
-                                                    }));
+                                                    setAppointmentForm(
+                                                        (current) => ({
+                                                            ...current,
+                                                            doctor_id: '',
+                                                            nurse_id: '',
+                                                        }),
+                                                    );
                                                 }}
                                                 className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                                                     staffType === 'nurse'
@@ -452,18 +526,29 @@ export default function ReceptionIndex({
                                             <SelectNative
                                                 id="appointment-doctor"
                                                 placeholder="Select a doctor"
-                                                value={appointmentForm.doctor_id}
+                                                value={
+                                                    appointmentForm.doctor_id
+                                                }
                                                 onChange={(event) =>
-                                                    setAppointmentForm((current) => ({
-                                                        ...current,
-                                                        doctor_id: event.target.value,
-                                                    }))
+                                                    setAppointmentForm(
+                                                        (current) => ({
+                                                            ...current,
+                                                            doctor_id:
+                                                                event.target
+                                                                    .value,
+                                                        }),
+                                                    )
                                                 }
                                                 data-test="appointment-doctor"
                                             >
-                                                <option value="">Select a doctor</option>
+                                                <option value="">
+                                                    Select a doctor
+                                                </option>
                                                 {doctorOptions.map((option) => (
-                                                    <option key={option.id} value={option.id}>
+                                                    <option
+                                                        key={option.id}
+                                                        value={option.id}
+                                                    >
                                                         {option.name}
                                                     </option>
                                                 ))}
@@ -474,16 +559,25 @@ export default function ReceptionIndex({
                                                 placeholder="Select a nurse"
                                                 value={appointmentForm.nurse_id}
                                                 onChange={(event) =>
-                                                    setAppointmentForm((current) => ({
-                                                        ...current,
-                                                        nurse_id: event.target.value,
-                                                    }))
+                                                    setAppointmentForm(
+                                                        (current) => ({
+                                                            ...current,
+                                                            nurse_id:
+                                                                event.target
+                                                                    .value,
+                                                        }),
+                                                    )
                                                 }
                                                 data-test="appointment-nurse"
                                             >
-                                                <option value="">Select a nurse</option>
+                                                <option value="">
+                                                    Select a nurse
+                                                </option>
                                                 {nurseOptions.map((option) => (
-                                                    <option key={option.id} value={option.id}>
+                                                    <option
+                                                        key={option.id}
+                                                        value={option.id}
+                                                    >
                                                         {option.name}
                                                     </option>
                                                 ))}
@@ -493,42 +587,55 @@ export default function ReceptionIndex({
 
                                     <div className="space-y-2">
                                         <Label htmlFor="appointment-start">
-                                            Appointment date and time <span className="text-destructive">*</span>
+                                            Appointment date and time{' '}
+                                            <span className="text-destructive">
+                                                *
+                                            </span>
                                         </Label>
                                         <Input
                                             id="appointment-start"
                                             type="datetime-local"
                                             value={appointmentForm.starts_at}
                                             onChange={(event) =>
-                                                setAppointmentForm((current) => ({
-                                                    ...current,
-                                                    starts_at: event.target.value,
-                                                }))
+                                                setAppointmentForm(
+                                                    (current) => ({
+                                                        ...current,
+                                                        starts_at:
+                                                            event.target.value,
+                                                    }),
+                                                )
                                             }
                                             data-test="appointment-start"
                                         />
                                         <p className="text-xs text-muted-foreground">
-                                            Default consultation slot is 10 minutes.
+                                            Default consultation slot is 10
+                                            minutes.
                                         </p>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="appointment-purpose">Purpose</Label>
+                                        <Label htmlFor="appointment-purpose">
+                                            Purpose
+                                        </Label>
                                         <Textarea
                                             id="appointment-purpose"
                                             rows={2}
                                             placeholder="Consultation purpose, notes, or patient complaints..."
                                             value={appointmentForm.purpose}
                                             onChange={(event) =>
-                                                setAppointmentForm((current) => ({
-                                                    ...current,
-                                                    purpose: event.target.value,
-                                                }))
+                                                setAppointmentForm(
+                                                    (current) => ({
+                                                        ...current,
+                                                        purpose:
+                                                            event.target.value,
+                                                    }),
+                                                )
                                             }
                                         />
                                     </div>
 
-                                    {appointmentForm.billing_id && vitalSigns.length > 0 ? (
+                                    {appointmentForm.billing_id &&
+                                    vitalSigns.length > 0 ? (
                                         <section
                                             className="space-y-3 rounded-lg border bg-card p-3"
                                             aria-labelledby="appointment-vital-signs"
@@ -541,24 +648,28 @@ export default function ReceptionIndex({
                                                     Vital signs triage
                                                 </h3>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Enter results for vital signs (optional).
+                                                    Enter results for vital
+                                                    signs (optional).
                                                 </p>
                                             </div>
                                             <div className="space-y-3">
                                                 {appointmentForm.vital_signs.map(
                                                     (vitalSign, index) => {
-                                                        const option = vitalSigns.find(
-                                                            (item) =>
-                                                                String(item.id) ===
-                                                                vitalSign.price_list_id,
-                                                        );
+                                                        const option =
+                                                            vitalSigns.find(
+                                                                (item) =>
+                                                                    String(
+                                                                        item.id,
+                                                                    ) ===
+                                                                    vitalSign.price_list_id,
+                                                            );
 
                                                         return (
                                                             <div
                                                                 key={
                                                                     vitalSign.price_list_id
                                                                 }
-                                                                className="grid gap-2 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center bg-background"
+                                                                className="grid gap-2 rounded-md border bg-background p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center"
                                                             >
                                                                 <div className="space-y-0.5">
                                                                     <Label
@@ -579,9 +690,13 @@ export default function ReceptionIndex({
                                                                     value={
                                                                         vitalSign.results
                                                                     }
-                                                                    onChange={(event) =>
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
                                                                         setAppointmentForm(
-                                                                            (current) => ({
+                                                                            (
+                                                                                current,
+                                                                            ) => ({
                                                                                 ...current,
                                                                                 vital_signs:
                                                                                     current.vital_signs.map(
@@ -615,18 +730,22 @@ export default function ReceptionIndex({
                                     ) : null}
 
                                     {error ? (
-                                        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                                            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                                        <div
+                                            className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive"
+                                            role="alert"
+                                        >
+                                            <AlertCircle className="mt-0.5 size-4 shrink-0" />
                                             <span>{error}</span>
                                         </div>
                                     ) : null}
 
-                                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                                    <div className="flex items-center justify-end gap-2 border-t pt-2">
                                         <Button
                                             type="button"
                                             variant="outline"
                                             size="sm"
                                             onClick={resetForm}
+                                            disabled={processing}
                                         >
                                             Cancel
                                         </Button>
@@ -657,16 +776,40 @@ export default function ReceptionIndex({
                                         }}
                                     >
                                         <div className="relative flex-1">
-                                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                             <Input
+                                                aria-label="Search visits"
                                                 className="pl-10"
                                                 value={search}
                                                 placeholder="Search visits..."
-                                                onChange={(event) => setSearch(event.target.value)}
+                                                disabled={
+                                                    searching || processing
+                                                }
+                                                onChange={(event) =>
+                                                    setSearch(
+                                                        event.target.value,
+                                                    )
+                                                }
                                             />
                                         </div>
-                                        <Button type="submit" size="sm" className="shrink-0" variant="default">
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            className="shrink-0"
+                                            variant="default"
+                                            aria-label={
+                                                searching
+                                                    ? 'Searching visits'
+                                                    : 'Search visits'
+                                            }
+                                            disabled={searching || processing}
+                                        >
                                             <Search className="h-4 w-4" />
+                                            <span className="sr-only">
+                                                {searching
+                                                    ? 'Searching...'
+                                                    : 'Search'}
+                                            </span>
                                         </Button>
                                     </form>
 
@@ -680,23 +823,32 @@ export default function ReceptionIndex({
                                             </span>
                                         ))}
                                         {sidebar.days.map((day) => (
-                                            <span
+                                            <button
                                                 key={day.date}
-                                                onClick={() => {
-                                                    if (day.inMonth) {
-                                                        applyDate(day.date);
-                                                    }
-                                                }}
-                                                className={`flex h-8 cursor-default items-center justify-center rounded-md ${
+                                                type="button"
+                                                onClick={() =>
+                                                    applyDate(day.date)
+                                                }
+                                                disabled={
+                                                    !day.inMonth ||
+                                                    searching ||
+                                                    processing
+                                                }
+                                                aria-label={`Select ${day.date}`}
+                                                aria-pressed={
+                                                    sidebar.selectedDate ===
+                                                    day.date
+                                                }
+                                                className={`flex h-8 items-center justify-center rounded-md text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 ${
                                                     day.isToday
                                                         ? 'bg-primary text-primary-foreground'
                                                         : day.hasAppointments
                                                           ? 'bg-muted font-medium'
                                                           : ''
-                                                } ${day.inMonth ? 'cursor-pointer hover:bg-accent' : 'opacity-40'} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                                                } ${day.inMonth ? 'hover:bg-accent' : ''} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
                                             >
                                                 {day.day}
-                                            </span>
+                                            </button>
                                         ))}
                                     </div>
 
@@ -709,10 +861,12 @@ export default function ReceptionIndex({
                                                 <span
                                                     key={slot.label}
                                                     className={`rounded px-2 py-0.5 text-xs ${
-                                                        slot.status === 'available'
-                                                            ? 'bg-emerald-100 text-emerald-800'
-                                                            : slot.status === 'booked'
-                                                              ? 'bg-rose-100 text-rose-800'
+                                                        slot.status ===
+                                                        'available'
+                                                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'
+                                                            : slot.status ===
+                                                                'booked'
+                                                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300'
                                                               : STATUS_BADGE.gray
                                                     }`}
                                                 >
@@ -721,7 +875,6 @@ export default function ReceptionIndex({
                                             ))}
                                         </div>
                                     </div>
-
                                 </div>
                             )}
                         </CardContent>
@@ -730,7 +883,14 @@ export default function ReceptionIndex({
             </div>
 
             {/* Transfer Patient Dialog */}
-            <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+            <Dialog
+                open={transferOpen}
+                onOpenChange={(open) => {
+                    if (!open && !processing) {
+                        setTransferOpen(false);
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Transfer patient</DialogTitle>
@@ -749,6 +909,7 @@ export default function ReceptionIndex({
                             <SelectNative
                                 id="transfer-patient"
                                 value={transferForm.patient_id}
+                                disabled={processing}
                                 onChange={(event) =>
                                     setTransferForm((current) => ({
                                         ...current,
@@ -758,22 +919,16 @@ export default function ReceptionIndex({
                                 data-test="transfer-patient"
                             >
                                 <option value="">Select a patient</option>
-                                {[...appointments, ...nursingAppointments]
-                                    .filter((appointment) =>
-                                        ['scheduled', 'started', 'completed'].includes(
-                                            appointment.status,
-                                        ),
-                                    )
-                                    .map((appointment) => (
-                                        <option
-                                            key={appointment.patientId}
-                                            value={appointment.patientId}
-                                        >
-                                            {appointment.patientId} -{' '}
-                                            {appointment.patientName ??
-                                                'Unknown patient'}
-                                        </option>
-                                    ))}
+                                {transferOptions.map((appointment) => (
+                                    <option
+                                        key={appointment.patientId}
+                                        value={appointment.patientId}
+                                    >
+                                        {appointment.patientId} -{' '}
+                                        {appointment.patientName ??
+                                            'Unknown patient'}
+                                    </option>
+                                ))}
                             </SelectNative>
                         </div>
 
@@ -783,7 +938,9 @@ export default function ReceptionIndex({
                             </Label>
                             <SelectNative
                                 id="transfer-to-type"
+                                aria-label="Transfer to"
                                 value={transferForm.transferTo}
+                                disabled={processing}
                                 onChange={(event) =>
                                     setTransferForm((current) => ({
                                         ...current,
@@ -808,6 +965,7 @@ export default function ReceptionIndex({
                                 <SelectNative
                                     id="transfer-doctor"
                                     value={transferForm.doctor_id}
+                                    disabled={processing}
                                     onChange={(event) =>
                                         setTransferForm((current) => ({
                                             ...current,
@@ -829,12 +987,11 @@ export default function ReceptionIndex({
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                <Label htmlFor="transfer-nurse">
-                                    To nurse
-                                </Label>
+                                <Label htmlFor="transfer-nurse">To nurse</Label>
                                 <SelectNative
                                     id="transfer-nurse"
                                     value={transferForm.nurse_id}
+                                    disabled={processing}
                                     onChange={(event) =>
                                         setTransferForm((current) => ({
                                             ...current,
@@ -857,13 +1014,22 @@ export default function ReceptionIndex({
                         )}
 
                         {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
+                            <p
+                                className="text-sm text-destructive"
+                                role="alert"
+                            >
+                                {error}
+                            </p>
                         ) : null}
                     </div>
 
                     <DialogFooter className="gap-2">
                         <DialogClose asChild>
-                            <Button type="button" variant="secondary">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={processing}
+                            >
                                 Cancel
                             </Button>
                         </DialogClose>

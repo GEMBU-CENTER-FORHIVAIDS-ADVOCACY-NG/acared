@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,11 +37,30 @@ export default function BillingShow({
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
 
-    function print() {
+    useEffect(() => {
         const cleanup = () =>
             document.body.classList.remove('printing-billing-receipt');
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                cleanup();
+            }
+        };
+
+        window.addEventListener('afterprint', cleanup);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            cleanup();
+            window.removeEventListener('afterprint', cleanup);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange,
+            );
+        };
+    }, []);
+
+    function print() {
         document.body.classList.add('printing-billing-receipt');
-        window.addEventListener('afterprint', cleanup, { once: true });
         window.print();
     }
 
@@ -60,7 +80,7 @@ export default function BillingShow({
                             Print receipt
                         </Button>
                         <Button asChild variant="secondary">
-                            <Link href={index(teamSlug)}>Back</Link>
+                            <Link href={index(teamSlug ?? '').url}>Back</Link>
                         </Button>
                     </div>
                 </div>
@@ -71,7 +91,9 @@ export default function BillingShow({
                             {currentTeam?.name ?? 'Facility'}
                         </p>
                         {currentTeam?.email && (
-                            <p className="mt-1 text-[11px]">{currentTeam.email}</p>
+                            <p className="mt-1 text-[11px]">
+                                {currentTeam.email}
+                            </p>
                         )}
                         {currentTeam?.address && (
                             <p className="text-[11px]">{currentTeam.address}</p>

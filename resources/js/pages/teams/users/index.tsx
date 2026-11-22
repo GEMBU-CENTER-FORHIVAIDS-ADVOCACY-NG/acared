@@ -1,6 +1,15 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, EyeOff, MoreHorizontal, Pencil, Trash2, UserPlus, X } from 'lucide-react';
+import {
+    Eye,
+    EyeOff,
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+    UserPlus,
+    X,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -24,6 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Select,
     SelectContent,
@@ -95,8 +105,11 @@ export default function TeamUsersIndex({
     const [editProcessing, setEditProcessing] = useState(false);
     const [editShowPassword, setEditShowPassword] = useState(false);
 
-    const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
+    const [deletingMember, setDeletingMember] = useState<TeamMember | null>(
+        null,
+    );
     const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const handlePageChange = (page: number) => {
         router.get(
@@ -107,16 +120,10 @@ export default function TeamUsersIndex({
     };
 
     const handlePerPageChange = (perPage: number) => {
-        router.get(
-            index({ team: team.slug }),
-            { page: 1, per_page: perPage },
-        );
+        router.get(index({ team: team.slug }), { page: 1, per_page: perPage });
     };
 
-    const pageTitle = useMemo(
-        () => `Users — ${team.name}`,
-        [team.name],
-    );
+    const pageTitle = useMemo(() => `Users — ${team.name}`, [team.name]);
 
     const handleCreateUser = (e: React.FormEvent) => {
         e.preventDefault();
@@ -162,7 +169,12 @@ export default function TeamUsersIndex({
             email: member.email,
             password: '',
             team_role: member.role,
-            spatie_roles: [],
+            spatie_roles: (member.spatieRoles ?? [])
+                .map(
+                    (roleName) =>
+                        spatieRoles.find((role) => role.name === roleName)?.id,
+                )
+                .filter((id): id is number => id !== undefined),
         });
         setEditErrors({});
         setEditShowPassword(false);
@@ -171,11 +183,12 @@ export default function TeamUsersIndex({
 
     const handleUpdateUser = (e: React.FormEvent) => {
         e.preventDefault();
-        setEditProcessing(true);
 
         if (!editingMember) {
             return;
         }
+
+        setEditProcessing(true);
 
         router.patch(
             update({ team: team.slug, user: editingMember.id }),
@@ -218,17 +231,20 @@ export default function TeamUsersIndex({
         }
 
         setDeleteProcessing(true);
+        setDeleteError(null);
 
-        router.delete(
-            destroy({ team: team.slug, user: deletingMember.id }),
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setDeleteProcessing(false);
-                    setDeletingMember(null);
-                },
+        router.delete(destroy({ team: team.slug, user: deletingMember.id }), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setDeletingMember(null);
+                setDeleteError(null);
             },
-        );
+            onError: (errs: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errs)[0] ?? 'Unable to delete user.',
+                ),
+            onFinish: () => setDeleteProcessing(false),
+        });
     };
 
     return (
@@ -245,14 +261,18 @@ export default function TeamUsersIndex({
                         />
 
                         {permissions.canAddMember && (
-                            <Button
-                                onClick={() => setDialogOpen(true)}
-                            >
+                            <Button onClick={() => setDialogOpen(true)}>
                                 <UserPlus className="mr-2 h-4 w-4" />
                                 Add user
                             </Button>
                         )}
                     </div>
+                    {deleteError ? (
+                        <AlertError
+                            errors={[deleteError]}
+                            title="Unable to delete user."
+                        />
+                    ) : null}
 
                     <div className="rounded-lg border">
                         <Table>
@@ -271,7 +291,10 @@ export default function TeamUsersIndex({
                             <TableBody>
                                 {members.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                        <TableCell
+                                            colSpan={6}
+                                            className="text-center text-muted-foreground"
+                                        >
                                             No users found in this team.
                                         </TableCell>
                                     </TableRow>
@@ -283,12 +306,18 @@ export default function TeamUsersIndex({
                                                     <Avatar className="h-8 w-8">
                                                         {member.avatar ? (
                                                             <AvatarImage
-                                                                src={member.avatar}
-                                                                alt={member.name}
+                                                                src={
+                                                                    member.avatar
+                                                                }
+                                                                alt={
+                                                                    member.name
+                                                                }
                                                             />
                                                         ) : null}
                                                         <AvatarFallback>
-                                                            {getInitials(member.name)}
+                                                            {getInitials(
+                                                                member.name,
+                                                            )}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <span className="font-medium">
@@ -305,33 +334,45 @@ export default function TeamUsersIndex({
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                {member.spatieRoles && member.spatieRoles.length > 0 ? (
+                                                {member.spatieRoles &&
+                                                member.spatieRoles.length >
+                                                    0 ? (
                                                     <div className="flex flex-wrap gap-1">
-                                                        {member.spatieRoles.map((role) => (
-                                                            <Badge
-                                                                key={role}
-                                                                variant="outline"
-                                                            >
-                                                                {role}
-                                                            </Badge>
-                                                        ))}
+                                                        {member.spatieRoles.map(
+                                                            (role) => (
+                                                                <Badge
+                                                                    key={role}
+                                                                    variant="outline"
+                                                                >
+                                                                    {role}
+                                                                </Badge>
+                                                            ),
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-muted-foreground">—</span>
+                                                    <span className="text-muted-foreground">
+                                                        —
+                                                    </span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
                                                 {member.created_at
-                                                    ? new Date(member.created_at).toLocaleDateString()
+                                                    ? new Date(
+                                                          member.created_at,
+                                                      ).toLocaleDateString()
                                                     : '—'}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                {(permissions.canUpdateMember || permissions.canRemoveMember) && (
+                                                {(permissions.canUpdateMember ||
+                                                    permissions.canRemoveMember) && (
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
+                                                                aria-label={`Actions for ${member.name}`}
                                                             >
                                                                 <MoreHorizontal className="size-4" />
                                                             </Button>
@@ -340,7 +381,9 @@ export default function TeamUsersIndex({
                                                             {permissions.canUpdateMember && (
                                                                 <DropdownMenuItem
                                                                     onClick={() =>
-                                                                        handleEditMember(member)
+                                                                        handleEditMember(
+                                                                            member,
+                                                                        )
                                                                     }
                                                                 >
                                                                     <Pencil className="mr-2 h-4 w-4" />
@@ -350,7 +393,9 @@ export default function TeamUsersIndex({
                                                             {permissions.canRemoveMember && (
                                                                 <DropdownMenuItem
                                                                     onClick={() =>
-                                                                        setDeletingMember(member)
+                                                                        setDeletingMember(
+                                                                            member,
+                                                                        )
                                                                     }
                                                                 >
                                                                     <Trash2 className="mr-2 h-4 w-4" />
@@ -384,7 +429,8 @@ export default function TeamUsersIndex({
                     <DialogHeader>
                         <DialogTitle>Add user to team</DialogTitle>
                         <DialogDescription>
-                            Create a new user account and add them to {team.name}.
+                            Create a new user account and add them to{' '}
+                            {team.name}.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -398,6 +444,7 @@ export default function TeamUsersIndex({
                                     setForm({ ...form, name: e.target.value })
                                 }
                                 placeholder="Full name"
+                                required
                             />
                             <InputError message={errors.name} />
                         </div>
@@ -412,6 +459,7 @@ export default function TeamUsersIndex({
                                     setForm({ ...form, email: e.target.value })
                                 }
                                 placeholder="email@example.com"
+                                required
                             />
                             <InputError message={errors.email} />
                         </div>
@@ -430,13 +478,21 @@ export default function TeamUsersIndex({
                                         })
                                     }
                                     placeholder="Minimum 7 characters"
+                                    required
                                 />
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                                    aria-label={
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                    onClick={() =>
+                                        setShowPassword(!showPassword)
+                                    }
                                 >
                                     {showPassword ? (
                                         <EyeOff className="h-4 w-4" />
@@ -451,6 +507,7 @@ export default function TeamUsersIndex({
                         <div className="grid gap-2">
                             <Label htmlFor="team_role">Team role</Label>
                             <Select
+                                required
                                 value={form.team_role}
                                 onValueChange={(value) =>
                                     setForm({ ...form, team_role: value })
@@ -484,8 +541,13 @@ export default function TeamUsersIndex({
                                             <Button
                                                 key={role.id}
                                                 type="button"
-                                                variant={isSelected ? 'default' : 'outline'}
+                                                variant={
+                                                    isSelected
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
                                                 size="sm"
+                                                aria-pressed={isSelected}
                                                 onClick={() =>
                                                     handleSpatieRoleToggle(
                                                         role.id,
@@ -508,6 +570,7 @@ export default function TeamUsersIndex({
                             <Button
                                 type="button"
                                 variant="outline"
+                                disabled={processing}
                                 onClick={() => {
                                     setDialogOpen(false);
                                     setErrors({});
@@ -517,6 +580,7 @@ export default function TeamUsersIndex({
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={processing}>
+                                {processing && <Spinner />}
                                 {processing ? 'Creating...' : 'Create user'}
                             </Button>
                         </DialogFooter>
@@ -541,9 +605,13 @@ export default function TeamUsersIndex({
                                 id="edit-name"
                                 value={editForm.name}
                                 onChange={(e) =>
-                                    setEditForm({ ...editForm, name: e.target.value })
+                                    setEditForm({
+                                        ...editForm,
+                                        name: e.target.value,
+                                    })
                                 }
                                 placeholder="Full name"
+                                required
                             />
                             <InputError message={editErrors.name} />
                         </div>
@@ -555,19 +623,27 @@ export default function TeamUsersIndex({
                                 type="email"
                                 value={editForm.email}
                                 onChange={(e) =>
-                                    setEditForm({ ...editForm, email: e.target.value })
+                                    setEditForm({
+                                        ...editForm,
+                                        email: e.target.value,
+                                    })
                                 }
                                 placeholder="email@example.com"
+                                required
                             />
                             <InputError message={editErrors.email} />
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="edit-password">Password (leave blank to keep current)</Label>
+                            <Label htmlFor="edit-password">
+                                Password (leave blank to keep current)
+                            </Label>
                             <div className="relative">
                                 <Input
                                     id="edit-password"
-                                    type={editShowPassword ? 'text' : 'password'}
+                                    type={
+                                        editShowPassword ? 'text' : 'password'
+                                    }
                                     value={editForm.password}
                                     onChange={(e) =>
                                         setEditForm({
@@ -581,8 +657,15 @@ export default function TeamUsersIndex({
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                    onClick={() => setEditShowPassword(!editShowPassword)}
+                                    className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                                    aria-label={
+                                        editShowPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                    onClick={() =>
+                                        setEditShowPassword(!editShowPassword)
+                                    }
                                 >
                                     {editShowPassword ? (
                                         <EyeOff className="h-4 w-4" />
@@ -597,9 +680,13 @@ export default function TeamUsersIndex({
                         <div className="grid gap-2">
                             <Label htmlFor="edit-team_role">Team role</Label>
                             <Select
+                                required
                                 value={editForm.team_role}
                                 onValueChange={(value) =>
-                                    setEditForm({ ...editForm, team_role: value })
+                                    setEditForm({
+                                        ...editForm,
+                                        team_role: value,
+                                    })
                                 }
                             >
                                 <SelectTrigger id="edit-team_role">
@@ -625,13 +712,20 @@ export default function TeamUsersIndex({
                                 <div className="flex flex-wrap gap-2">
                                     {spatieRoles.map((role) => {
                                         const isSelected =
-                                            editForm.spatie_roles.includes(role.id);
+                                            editForm.spatie_roles.includes(
+                                                role.id,
+                                            );
                                         return (
                                             <Button
                                                 key={role.id}
                                                 type="button"
-                                                variant={isSelected ? 'default' : 'outline'}
+                                                variant={
+                                                    isSelected
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
                                                 size="sm"
+                                                aria-pressed={isSelected}
                                                 onClick={() =>
                                                     handleEditSpatieRoleToggle(
                                                         role.id,
@@ -654,6 +748,7 @@ export default function TeamUsersIndex({
                             <Button
                                 type="button"
                                 variant="outline"
+                                disabled={editProcessing}
                                 onClick={() => {
                                     setEditDialogOpen(false);
                                     setEditErrors({});
@@ -664,6 +759,7 @@ export default function TeamUsersIndex({
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={editProcessing}>
+                                {editProcessing && <Spinner />}
                                 {editProcessing ? 'Saving...' : 'Save changes'}
                             </Button>
                         </DialogFooter>
@@ -682,11 +778,10 @@ export default function TeamUsersIndex({
                 processing={deleteProcessing}
                 title={`Delete "${deletingMember?.name ?? ''}"?`}
                 description="This will permanently remove the user from the team and delete their account. This cannot be undone."
-                confirmLabel="Delete"
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
                 destructive
                 onConfirm={handleDeleteMember}
             />
         </>
     );
 }
-

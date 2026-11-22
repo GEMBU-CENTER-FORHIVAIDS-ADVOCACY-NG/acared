@@ -1,7 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
+import TabsBar from '@/components/tabs-bar';
 import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
 import { TreatmentViewModal } from '@/components/treatment-view-modal';
 import { PrescriptionViewModal } from '@/components/prescription-view-modal';
@@ -11,7 +14,6 @@ import { ExaminationViewModal } from '@/components/examination-view-modal';
 import { DiagnosisViewModal } from '@/components/diagnosis-view-modal';
 import { AdmissionViewModal } from '@/components/admission-view-modal';
 import { EndAppointmentModal } from '@/components/end-appointment-modal';
-import { notesToString, parseExaminationNotes } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,9 +37,14 @@ import {
 } from '@/components/ui/sheet';
 import { SelectNative } from '@/components/ui/select-native';
 import { Textarea } from '@/components/ui/textarea';
+import { home } from '@/routes';
 import { index as recordsIndex } from '@/routes/nursing/records';
 import { end, start, transfer, view } from '@/routes/nursing/records';
-import { destroy as historyDestroy, store as historyStore, update as historyUpdate } from '@/routes/nursing/records/histories';
+import {
+    destroy as historyDestroy,
+    store as historyStore,
+    update as historyUpdate,
+} from '@/routes/nursing/records/histories';
 import {
     destroy as presentPregnancyDestroy,
     store as presentPregnancyStore,
@@ -48,11 +55,7 @@ import {
     store as previousPregnancyStore,
     update as previousPregnancyUpdate,
 } from '@/routes/nursing/records/previous-pregnancy';
-import {
-    destroy,
-    store,
-    update,
-} from '@/routes/nursing/records/records';
+import { destroy, store, update } from '@/routes/nursing/records/records';
 import { ConsultationRecordForm } from '@/pages/consultations/record-form';
 import { NursingExaminationForm } from '@/pages/nursing/nursing-examination-form';
 import { Input } from '@/components/ui/input';
@@ -82,7 +85,12 @@ import type {
 } from '@/types';
 import type { Team } from '@/types';
 
-type NursingSection = 'overview' | 'history' | 'present-pregnancy' | 'previous-pregnancy' | ConsultationRecordType;
+type NursingSection =
+    | 'overview'
+    | 'history'
+    | 'present-pregnancy'
+    | 'previous-pregnancy'
+    | ConsultationRecordType;
 
 const SECTIONS: { key: NursingSection; label: string }[] = [
     { key: 'overview', label: 'Overview' },
@@ -100,10 +108,12 @@ const SECTIONS: { key: NursingSection; label: string }[] = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-    warning: 'bg-amber-100 text-amber-800',
-    info: 'bg-sky-100 text-sky-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    danger: 'bg-rose-100 text-rose-800',
+    warning:
+        'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+    success:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    danger: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
     gray: 'bg-muted text-muted-foreground',
 };
 
@@ -269,7 +279,12 @@ const emptyPresentPregnancyForm: PresentPregnancyForm = {
 };
 
 const LIE_OPTIONS = ['longitudinal', 'transverse', 'oblique'];
-const POSITION_OPTIONS = ['left anterior', 'left posterior', 'right anterior', 'right posterior'];
+const POSITION_OPTIONS = [
+    'left anterior',
+    'left posterior',
+    'right anterior',
+    'right posterior',
+];
 
 type PreviousPregnancyForm = {
     year: string;
@@ -363,87 +378,151 @@ export default function NursingRecordsView({
     );
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
-    const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
-    const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
+    const [viewVitalSigns, setViewVitalSigns] =
+        useState<ConsultationRecord | null>(null);
+    const [viewTreatment, setViewTreatment] =
+        useState<ConsultationRecord | null>(null);
+    const [viewPrescription, setViewPrescription] =
+        useState<ConsultationRecord | null>(null);
     const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
-    const [viewComplaint, setViewComplaint] = useState<ConsultationRecord | null>(null);
-    const [viewExamination, setViewExamination] = useState<ConsultationRecord | null>(null);
-    const [viewDiagnosis, setViewDiagnosis] = useState<ConsultationRecord | null>(null);
-    const [viewAdmission, setViewAdmission] = useState<ConsultationRecord | null>(null);
+    const [viewComplaint, setViewComplaint] =
+        useState<ConsultationRecord | null>(null);
+    const [viewExamination, setViewExamination] =
+        useState<ConsultationRecord | null>(null);
+    const [viewDiagnosis, setViewDiagnosis] =
+        useState<ConsultationRecord | null>(null);
+    const [viewAdmission, setViewAdmission] =
+        useState<ConsultationRecord | null>(null);
     const [showEndAppointment, setShowEndAppointment] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    const [recordToDelete, setRecordToDelete] =
+        useState<ConsultationRecord | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [showStartConfirm, setShowStartConfirm] = useState(false);
+    const [startProcessing, setStartProcessing] = useState(false);
+    const [showEndConfirm, setShowEndConfirm] = useState(false);
+    const [endProcessing, setEndProcessing] = useState(false);
 
     // History state
     const [historyFormOpen, setHistoryFormOpen] = useState(false);
     const [historyEditId, setHistoryEditId] = useState<number | null>(null);
-    const [historyForm, setHistoryForm] = useState<HistoryForm>(emptyHistoryForm);
+    const [historyForm, setHistoryForm] =
+        useState<HistoryForm>(emptyHistoryForm);
     const [historyProcessing, setHistoryProcessing] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
+    const [historyToDelete, setHistoryToDelete] = useState<HistoryItem | null>(
+        null,
+    );
+    const [historyDeleteProcessing, setHistoryDeleteProcessing] =
+        useState(false);
 
     // Present Pregnancy state
     const [presentPregFormOpen, setPresentPregFormOpen] = useState(false);
-    const [presentPregEditId, setPresentPregEditId] = useState<number | null>(null);
-    const [presentPregForm, setPresentPregForm] = useState<PresentPregnancyForm>(emptyPresentPregnancyForm);
+    const [presentPregEditId, setPresentPregEditId] = useState<number | null>(
+        null,
+    );
+    const [presentPregForm, setPresentPregForm] =
+        useState<PresentPregnancyForm>(emptyPresentPregnancyForm);
     const [presentPregProcessing, setPresentPregProcessing] = useState(false);
-    const [presentPregError, setPresentPregError] = useState<string | null>(null);
+    const [presentPregError, setPresentPregError] = useState<string | null>(
+        null,
+    );
+    const [presentPregToDelete, setPresentPregToDelete] =
+        useState<PresentPregnancyItem | null>(null);
+    const [presentPregDeleteProcessing, setPresentPregDeleteProcessing] =
+        useState(false);
 
     // Previous Pregnancy state
     const [previousPregFormOpen, setPreviousPregFormOpen] = useState(false);
-    const [previousPregEditId, setPreviousPregEditId] = useState<number | null>(null);
-    const [previousPregForm, setPreviousPregForm] = useState<PreviousPregnancyForm>(emptyPreviousPregnancyForm);
+    const [previousPregEditId, setPreviousPregEditId] = useState<number | null>(
+        null,
+    );
+    const [previousPregForm, setPreviousPregForm] =
+        useState<PreviousPregnancyForm>(emptyPreviousPregnancyForm);
     const [previousPregProcessing, setPreviousPregProcessing] = useState(false);
-    const [previousPregError, setPreviousPregError] = useState<string | null>(null);
+    const [previousPregError, setPreviousPregError] = useState<string | null>(
+        null,
+    );
+    const [previousPregToDelete, setPreviousPregToDelete] =
+        useState<PreviousPregnancyItem | null>(null);
+    const [previousPregDeleteProcessing, setPreviousPregDeleteProcessing] =
+        useState(false);
 
     // Transfer state
     const [transferOpen, setTransferOpen] = useState(false);
+    const [showTransferConfirm, setShowTransferConfirm] = useState(false);
     const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER);
     const [transferProcessing, setTransferProcessing] = useState(false);
     const [transferError, setTransferError] = useState<string | null>(null);
 
-    const recordType = (section !== 'overview' && section !== 'history' && section !== 'present-pregnancy' && section !== 'previous-pregnancy')
-        ? section
-        : null;
+    const transferTargetLabel =
+        transferForm.transferTo === 'doctor'
+            ? (doctorOptions.find(
+                  (option) => option.id === Number(transferForm.doctor_id),
+              )?.name ?? 'the selected doctor')
+            : (nurseOptions.find(
+                  (option) => option.id === Number(transferForm.nurse_id),
+              )?.name ?? 'the selected nurse');
+
+    const recordType =
+        section !== 'overview' &&
+        section !== 'history' &&
+        section !== 'present-pregnancy' &&
+        section !== 'previous-pregnancy'
+            ? section
+            : null;
 
     const isPaginated = recordType
-        ? typeof records[recordType] !== 'undefined'
-            && 'data' in records[recordType]
-            && 'currentPage' in records[recordType]
+        ? typeof records[recordType] !== 'undefined' &&
+          'data' in records[recordType] &&
+          'currentPage' in records[recordType]
         : false;
 
     const paginatedRecords: PaginatedConsultationRecords | null = isPaginated
-        ? records[recordType as keyof typeof records] as PaginatedConsultationRecords
+        ? (records[
+              recordType as keyof typeof records
+          ] as PaginatedConsultationRecords)
         : null;
 
     const currentRecords: ConsultationRecord[] = isPaginated
-        ? paginatedRecords?.data ?? []
+        ? (paginatedRecords?.data ?? [])
         : recordType
-            ? (records[recordType] as ConsultationRecord[])
-            : [];
+          ? (records[recordType] as ConsultationRecord[])
+          : [];
 
     function applyPagination(page: number, perPage?: number) {
         if (!recordType) {
             return;
         }
 
-        const currentPerPage = perPage ?? (pagination as ConsultationPagination)?.perPage ?? 25;
+        const currentPerPage =
+            perPage ?? (pagination as ConsultationPagination)?.perPage ?? 25;
 
         router.get(
-            view.url({
-                current_team: teamSlug,
-                nursing: nursing.id,
-                section: recordType,
-            }, {
-                query: {
-                    page,
-                    perPage: currentPerPage,
+            view.url(
+                {
+                    current_team: teamSlug,
+                    nursing: nursing.id,
+                    section: recordType,
                 },
-            }),
+                {
+                    query: {
+                        page,
+                        perPage: currentPerPage,
+                    },
+                },
+            ),
             {},
             { preserveState: false, preserveScroll: true, replace: true },
         );
     }
 
     function switchSection(next: NursingSection) {
+        if (nursing.status === 'scheduled' && next !== 'overview') {
+            return;
+        }
+
         router.get(
             view.url({
                 current_team: teamSlug,
@@ -545,14 +624,92 @@ export default function NursingRecordsView({
         }
     }
 
-    function endNursing() {
+    function destroyRecord(record: ConsultationRecord) {
+        setActionError(null);
+        setRecordToDelete(record);
+    }
+
+    function confirmDelete() {
+        if (!recordType || !recordToDelete) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+        setActionError(null);
+
+        router.delete(
+            destroy.url({
+                current_team: teamSlug,
+                nursing: nursing.id,
+                type: recordType,
+                record: recordToDelete.id,
+            }),
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setRecordToDelete(null),
+                onFinish: () => setDeleteProcessing(false),
+            },
+        );
+    }
+
+    function openStartConfirm() {
+        setActionError(null);
+        setShowStartConfirm(true);
+    }
+
+    function confirmStartANC() {
+        setStartProcessing(true);
+        setActionError(null);
+
+        router.patch(
+            start.url({
+                current_team: teamSlug,
+                nursing: nursing.id,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setShowStartConfirm(false),
+                onFinish: () => setStartProcessing(false),
+            },
+        );
+    }
+
+    function openEndConfirm() {
+        setActionError(null);
+        setShowEndConfirm(true);
+    }
+
+    function confirmEndANC() {
+        setEndProcessing(true);
+        setActionError(null);
+
         router.patch(
             end.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
             }),
             {},
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => {
+                    setShowEndConfirm(false);
+                    setShowEndAppointment(false);
+                },
+                onFinish: () => setEndProcessing(false),
+            },
         );
     }
 
@@ -611,44 +768,6 @@ export default function NursingRecordsView({
         }
     }
 
-    function destroyRecord(record: ConsultationRecord) {
-        if (!recordType) {
-            return;
-        }
-
-        router.delete(
-            destroy.url({
-                current_team: teamSlug,
-                nursing: nursing.id,
-                type: recordType,
-                record: record.id,
-            }),
-            { preserveScroll: true },
-        );
-    }
-
-    function startANC() {
-        router.patch(
-            start.url({
-                current_team: teamSlug,
-                nursing: nursing.id,
-            }),
-            {},
-            { preserveScroll: true },
-        );
-    }
-
-    function endANC() {
-        router.patch(
-            end.url({
-                current_team: teamSlug,
-                nursing: nursing.id,
-            }),
-            {},
-            { preserveScroll: true },
-        );
-    }
-
     // History handlers
     function startHistoryCreate() {
         setHistoryEditId(null);
@@ -682,7 +801,9 @@ export default function NursingRecordsView({
         const opts = {
             preserveScroll: true,
             onError: (errors: Record<string, string>) =>
-                setHistoryError(Object.values(errors)[0] ?? 'Something went wrong.'),
+                setHistoryError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
             onSuccess: () => {
                 setHistoryFormOpen(false);
                 setHistoryEditId(null);
@@ -712,14 +833,34 @@ export default function NursingRecordsView({
         }
     }
 
-    function deleteHistory(id: number) {
+    function deleteHistory(item: HistoryItem) {
+        setActionError(null);
+        setHistoryToDelete(item);
+    }
+
+    function confirmDeleteHistory() {
+        if (!historyToDelete) {
+            return;
+        }
+
+        setHistoryDeleteProcessing(true);
+        setActionError(null);
+
         router.delete(
             historyDestroy.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
-                history: id,
+                history: historyToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setHistoryToDelete(null),
+                onFinish: () => setHistoryDeleteProcessing(false),
+            },
         );
     }
 
@@ -753,9 +894,19 @@ export default function NursingRecordsView({
 
     function renderHistoryStatusBadge(status: string | null) {
         if (!status) return '—';
-        if (status === 'yes') return <Badge className="bg-emerald-100 text-emerald-800">Yes</Badge>;
-        if (status === 'no') return <Badge className="bg-muted text-muted-foreground">No</Badge>;
-        return <Badge className="bg-amber-100 text-amber-800">Others</Badge>;
+        if (status === 'yes')
+            return (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    Yes
+                </Badge>
+            );
+        if (status === 'no')
+            return <Badge className="bg-muted text-muted-foreground">No</Badge>;
+        return (
+            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                Others
+            </Badge>
+        );
     }
 
     // Present Pregnancy handlers
@@ -769,7 +920,9 @@ export default function NursingRecordsView({
     function startPresentPregEdit(record: PresentPregnancyItem) {
         setPresentPregEditId(record.id);
         setPresentPregForm({
-            date: record.date ? record.date.split('T')[0] : new Date().toISOString().split('T')[0],
+            date: record.date
+                ? record.date.split('T')[0]
+                : new Date().toISOString().split('T')[0],
             bp: record.bp ?? '',
             gA: record.gA ?? '',
             weight: record.weight?.toString() ?? '',
@@ -780,7 +933,12 @@ export default function NursingRecordsView({
             position: record.position ?? '',
             fhr: record.fhr?.toString() ?? '',
             hb: record.hb?.toString() ?? '',
-            oedema: record.oedema === true ? 'yes' : record.oedema === false ? 'no' : '',
+            oedema:
+                record.oedema === true
+                    ? 'yes'
+                    : record.oedema === false
+                      ? 'no'
+                      : '',
         });
         setPresentPregError(null);
         setPresentPregFormOpen(true);
@@ -795,7 +953,9 @@ export default function NursingRecordsView({
             date: presentPregForm.date,
             bp: presentPregForm.bp || null,
             g_a: presentPregForm.gA || null,
-            weight: presentPregForm.weight ? parseFloat(presentPregForm.weight) : null,
+            weight: presentPregForm.weight
+                ? parseFloat(presentPregForm.weight)
+                : null,
             lmp: presentPregForm.lmp || null,
             edd: presentPregForm.edd || null,
             sfh: presentPregForm.sfh ? parseFloat(presentPregForm.sfh) : null,
@@ -803,13 +963,20 @@ export default function NursingRecordsView({
             position: presentPregForm.position || null,
             fhr: presentPregForm.fhr ? parseInt(presentPregForm.fhr, 10) : null,
             hb: presentPregForm.hb ? parseFloat(presentPregForm.hb) : null,
-            oedema: presentPregForm.oedema === 'yes' ? true : presentPregForm.oedema === 'no' ? false : null,
+            oedema:
+                presentPregForm.oedema === 'yes'
+                    ? true
+                    : presentPregForm.oedema === 'no'
+                      ? false
+                      : null,
         };
 
         const opts = {
             preserveScroll: true,
             onError: (errors: Record<string, string>) =>
-                setPresentPregError(Object.values(errors)[0] ?? 'Something went wrong.'),
+                setPresentPregError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
             onSuccess: () => {
                 setPresentPregFormOpen(false);
                 setPresentPregEditId(null);
@@ -839,24 +1006,52 @@ export default function NursingRecordsView({
         }
     }
 
-    function deletePresentPregnancy(id: number) {
+    function deletePresentPregnancy(record: PresentPregnancyItem) {
+        setActionError(null);
+        setPresentPregToDelete(record);
+    }
+
+    function confirmDeletePresentPregnancy() {
+        if (!presentPregToDelete) {
+            return;
+        }
+
+        setPresentPregDeleteProcessing(true);
+        setActionError(null);
+
         router.delete(
             presentPregnancyDestroy.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
-                presentPregnancy: id,
+                presentPregnancy: presentPregToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setPresentPregToDelete(null),
+                onFinish: () => setPresentPregDeleteProcessing(false),
+            },
         );
     }
 
-    function updatePresentPregField(field: keyof PresentPregnancyForm, value: string) {
+    function updatePresentPregField(
+        field: keyof PresentPregnancyForm,
+        value: string,
+    ) {
         setPresentPregForm((prev) => ({ ...prev, [field]: value }));
     }
 
     function renderOedemaBadge(value: boolean | null) {
         if (value === null) return '—';
-        if (value) return <Badge className="bg-emerald-100 text-emerald-800">Present</Badge>;
+        if (value)
+            return (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    Present
+                </Badge>
+            );
         return <Badge className="bg-muted text-muted-foreground">Absent</Badge>;
     }
 
@@ -875,8 +1070,18 @@ export default function NursingRecordsView({
             ga: record.ga ?? '',
             durationOfPregnancy: record.durationOfPregnancy ?? '',
             durationOfLabour: record.durationOfLabour ?? '',
-            abortion: record.abortion === true ? 'yes' : record.abortion === false ? 'no' : '',
-            iufd: record.iufd === true ? 'yes' : record.iufd === false ? 'no' : '',
+            abortion:
+                record.abortion === true
+                    ? 'yes'
+                    : record.abortion === false
+                      ? 'no'
+                      : '',
+            iufd:
+                record.iufd === true
+                    ? 'yes'
+                    : record.iufd === false
+                      ? 'no'
+                      : '',
             aph: record.aph === true ? 'yes' : record.aph === false ? 'no' : '',
             pph: record.pph === true ? 'yes' : record.pph === false ? 'no' : '',
             sex: record.sex ?? '',
@@ -895,16 +1100,40 @@ export default function NursingRecordsView({
         setPreviousPregError(null);
 
         const payload = {
-            year: previousPregForm.year ? parseInt(previousPregForm.year, 10) : null,
+            year: previousPregForm.year
+                ? parseInt(previousPregForm.year, 10)
+                : null,
             ga: previousPregForm.ga || null,
             duration_of_pregnancy: previousPregForm.durationOfPregnancy || null,
             duration_of_labour: previousPregForm.durationOfLabour || null,
-            abortion: previousPregForm.abortion === 'yes' ? true : previousPregForm.abortion === 'no' ? false : null,
-            iufd: previousPregForm.iufd === 'yes' ? true : previousPregForm.iufd === 'no' ? false : null,
-            aph: previousPregForm.aph === 'yes' ? true : previousPregForm.aph === 'no' ? false : null,
-            pph: previousPregForm.pph === 'yes' ? true : previousPregForm.pph === 'no' ? false : null,
+            abortion:
+                previousPregForm.abortion === 'yes'
+                    ? true
+                    : previousPregForm.abortion === 'no'
+                      ? false
+                      : null,
+            iufd:
+                previousPregForm.iufd === 'yes'
+                    ? true
+                    : previousPregForm.iufd === 'no'
+                      ? false
+                      : null,
+            aph:
+                previousPregForm.aph === 'yes'
+                    ? true
+                    : previousPregForm.aph === 'no'
+                      ? false
+                      : null,
+            pph:
+                previousPregForm.pph === 'yes'
+                    ? true
+                    : previousPregForm.pph === 'no'
+                      ? false
+                      : null,
             sex: previousPregForm.sex || null,
-            weight: previousPregForm.weight ? parseFloat(previousPregForm.weight) : null,
+            weight: previousPregForm.weight
+                ? parseFloat(previousPregForm.weight)
+                : null,
             mode_of_delivery: previousPregForm.modeOfDelivery || null,
             age_life: previousPregForm.ageLife || null,
             age_death: previousPregForm.ageDeath || null,
@@ -913,7 +1142,9 @@ export default function NursingRecordsView({
         const opts = {
             preserveScroll: true,
             onError: (errors: Record<string, string>) =>
-                setPreviousPregError(Object.values(errors)[0] ?? 'Something went wrong.'),
+                setPreviousPregError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
             onSuccess: () => {
                 setPreviousPregFormOpen(false);
                 setPreviousPregEditId(null);
@@ -943,24 +1174,52 @@ export default function NursingRecordsView({
         }
     }
 
-    function deletePreviousPregnancy(id: number) {
+    function deletePreviousPregnancy(record: PreviousPregnancyItem) {
+        setActionError(null);
+        setPreviousPregToDelete(record);
+    }
+
+    function confirmDeletePreviousPregnancy() {
+        if (!previousPregToDelete) {
+            return;
+        }
+
+        setPreviousPregDeleteProcessing(true);
+        setActionError(null);
+
         router.delete(
             previousPregnancyDestroy.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
-                previousPregnancy: id,
+                previousPregnancy: previousPregToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setPreviousPregToDelete(null),
+                onFinish: () => setPreviousPregDeleteProcessing(false),
+            },
         );
     }
 
-    function updatePreviousPregField(field: keyof PreviousPregnancyForm, value: string) {
+    function updatePreviousPregField(
+        field: keyof PreviousPregnancyForm,
+        value: string,
+    ) {
         setPreviousPregForm((prev) => ({ ...prev, [field]: value }));
     }
 
     function renderYesNoBadge(value: boolean | null) {
         if (value === null) return '—';
-        if (value) return <Badge className="bg-emerald-100 text-emerald-800">Yes</Badge>;
+        if (value)
+            return (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    Yes
+                </Badge>
+            );
         return <Badge className="bg-muted text-muted-foreground">No</Badge>;
     }
 
@@ -968,7 +1227,22 @@ export default function NursingRecordsView({
     function openTransfer() {
         setTransferForm(EMPTY_TRANSFER);
         setTransferError(null);
+        setShowTransferConfirm(false);
         setTransferOpen(true);
+    }
+
+    function openTransferConfirm() {
+        if (
+            !(transferForm.transferTo === 'doctor'
+                ? transferForm.doctor_id
+                : transferForm.nurse_id)
+        ) {
+            setTransferError(`Please select a ${transferForm.transferTo}.`);
+            return;
+        }
+
+        setTransferError(null);
+        setShowTransferConfirm(true);
     }
 
     function submitTransfer() {
@@ -988,6 +1262,7 @@ export default function NursingRecordsView({
                         Object.values(errors)[0] ?? 'Something went wrong.',
                     ),
                 onSuccess: () => {
+                    setShowTransferConfirm(false);
                     setTransferOpen(false);
                     setTransferForm(EMPTY_TRANSFER);
                 },
@@ -1018,47 +1293,38 @@ export default function NursingRecordsView({
                         <Button
                             size="sm"
                             variant="secondary"
+                            disabled={transferProcessing}
                             onClick={openTransfer}
                         >
                             Transfer patient
                         </Button>
                         {nursing.status === 'scheduled' ? (
-                            <Button onClick={startANC}>
-                                Start ANC
+                            <Button
+                                disabled={startProcessing}
+                                onClick={openStartConfirm}
+                            >
+                                {startProcessing ? 'Starting...' : 'Start ANC'}
                             </Button>
                         ) : null}
                         {nursing.status === 'in_progress' ? (
                             <Button
                                 variant="secondary"
-                                onClick={endANC}
+                                disabled={endProcessing}
+                                onClick={openEndConfirm}
                             >
-                                End ANC
+                                {endProcessing ? 'Ending...' : 'End ANC'}
                             </Button>
                         ) : null}
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    {SECTIONS.map((item) => {
-                        const isDisabled =
-                            nursing.status === 'scheduled' &&
-                            item.key !== 'overview';
+                <TabsBar
+                    items={SECTIONS}
+                    value={section}
+                    onChange={(key) => switchSection(key as NursingSection)}
+                />
 
-                        return (
-                            <Button
-                                key={item.key}
-                                size="sm"
-                                variant={
-                                    item.key === section ? 'default' : 'secondary'
-                                }
-                                disabled={isDisabled}
-                                onClick={() => switchSection(item.key)}
-                            >
-                                {item.label}
-                            </Button>
-                        );
-                    })}
-                </div>
+                {actionError ? <AlertError errors={[actionError]} /> : null}
 
                 {section === 'overview' ? (
                     <Card>
@@ -1078,11 +1344,11 @@ export default function NursingRecordsView({
                             />
                             <DetailRow label="Gender" value={detail.gender} />
                             <DetailRow label="Age" value={detail.age} />
-                            <DetailRow label="Category" value={detail.category} />
                             <DetailRow
-                                label="Nurse"
-                                value={detail.nurseName}
+                                label="Category"
+                                value={detail.category}
                             />
+                            <DetailRow label="Nurse" value={detail.nurseName} />
                             <DetailRow
                                 label="Billing"
                                 value={
@@ -1106,11 +1372,7 @@ export default function NursingRecordsView({
                                 <p className="text-xs text-muted-foreground">
                                     Status
                                 </p>
-                                <Badge
-                                    className={
-                                        STATUS_BADGE.gray
-                                    }
-                                >
+                                <Badge className={STATUS_BADGE.gray}>
                                     {detail.status.replace('_', ' ')}
                                 </Badge>
                             </div>
@@ -1135,16 +1397,19 @@ export default function NursingRecordsView({
                                         {histories.data.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="rounded-lg border p-4 space-y-4"
+                                                className="space-y-4 rounded-lg border p-4"
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <p className="text-sm font-medium">
-                                                            {item.nurseName ?? 'Unknown nurse'}
+                                                            {item.nurseName ??
+                                                                'Unknown nurse'}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
                                                             {item.createdAt
-                                                                ? new Date(item.createdAt).toLocaleString()
+                                                                ? new Date(
+                                                                      item.createdAt,
+                                                                  ).toLocaleString()
                                                                 : ''}
                                                         </p>
                                                     </div>
@@ -1153,14 +1418,25 @@ export default function NursingRecordsView({
                                                             <Button
                                                                 size="sm"
                                                                 variant="secondary"
-                                                                onClick={() => startHistoryEdit(item)}
+                                                                onClick={() =>
+                                                                    startHistoryEdit(
+                                                                        item,
+                                                                    )
+                                                                }
                                                             >
                                                                 Edit
                                                             </Button>
                                                             <Button
                                                                 size="sm"
-                                                                variant="outline"
-                                                                onClick={() => deleteHistory(item.id)}
+                                                                variant="destructive"
+                                                                disabled={
+                                                                    historyDeleteProcessing
+                                                                }
+                                                                onClick={() =>
+                                                                    deleteHistory(
+                                                                        item,
+                                                                    )
+                                                                }
                                                             >
                                                                 Delete
                                                             </Button>
@@ -1174,27 +1450,47 @@ export default function NursingRecordsView({
                                                             Family History
                                                         </h4>
                                                         <div className="space-y-1">
-                                                            {FAMILY_HISTORY_FIELDS.map((field) => {
-                                                                const value = item.familyHistory[field.key];
-                                                                return (
-                                                                    <div
-                                                                        key={field.key}
-                                                                        className="flex items-center justify-between text-sm"
-                                                                    >
-                                                                        <span className="text-muted-foreground">
-                                                                            {field.label}
-                                                                        </span>
-                                                                        <div className="flex items-center gap-2">
-                                                                            {renderHistoryStatusBadge(value?.status ?? null)}
-                                                                            {value?.status === 'others' && value.others && (
-                                                                                <span className="text-xs text-muted-foreground">
-                                                                                    ({value.others})
-                                                                                </span>
-                                                                            )}
+                                                            {FAMILY_HISTORY_FIELDS.map(
+                                                                (field) => {
+                                                                    const value =
+                                                                        item
+                                                                            .familyHistory[
+                                                                            field
+                                                                                .key
+                                                                        ];
+                                                                    return (
+                                                                        <div
+                                                                            key={
+                                                                                field.key
+                                                                            }
+                                                                            className="flex items-center justify-between text-sm"
+                                                                        >
+                                                                            <span className="text-muted-foreground">
+                                                                                {
+                                                                                    field.label
+                                                                                }
+                                                                            </span>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {renderHistoryStatusBadge(
+                                                                                    value?.status ??
+                                                                                        null,
+                                                                                )}
+                                                                                {value?.status ===
+                                                                                    'others' &&
+                                                                                    value.others && (
+                                                                                        <span className="text-xs text-muted-foreground">
+                                                                                            (
+                                                                                            {
+                                                                                                value.others
+                                                                                            }
+                                                                                            )
+                                                                                        </span>
+                                                                                    )}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                );
-                                                            })}
+                                                                    );
+                                                                },
+                                                            )}
                                                         </div>
                                                     </div>
 
@@ -1203,20 +1499,34 @@ export default function NursingRecordsView({
                                                             Surgical History
                                                         </h4>
                                                         <div className="space-y-1">
-                                                            {SURGICAL_HISTORY_FIELDS.map((field) => {
-                                                                const value = item.surgicalHistory[field.key];
-                                                                return (
-                                                                    <div
-                                                                        key={field.key}
-                                                                        className="flex items-center justify-between text-sm"
-                                                                    >
-                                                                        <span className="text-muted-foreground">
-                                                                            {field.label}
-                                                                        </span>
-                                                                        {renderHistoryStatusBadge(value?.status ?? null)}
-                                                                    </div>
-                                                                );
-                                                            })}
+                                                            {SURGICAL_HISTORY_FIELDS.map(
+                                                                (field) => {
+                                                                    const value =
+                                                                        item
+                                                                            .surgicalHistory[
+                                                                            field
+                                                                                .key
+                                                                        ];
+                                                                    return (
+                                                                        <div
+                                                                            key={
+                                                                                field.key
+                                                                            }
+                                                                            className="flex items-center justify-between text-sm"
+                                                                        >
+                                                                            <span className="text-muted-foreground">
+                                                                                {
+                                                                                    field.label
+                                                                                }
+                                                                            </span>
+                                                                            {renderHistoryStatusBadge(
+                                                                                value?.status ??
+                                                                                    null,
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                },
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1246,33 +1556,47 @@ export default function NursingRecordsView({
                             }}
                             onPageChange={(page) => {
                                 router.get(
-                                    view.url({
-                                        current_team: teamSlug,
-                                        nursing: nursing.id,
-                                        section: 'history',
-                                    }, {
-                                        query: {
-                                            page,
+                                    view.url(
+                                        {
+                                            current_team: teamSlug,
+                                            nursing: nursing.id,
+                                            section: 'history',
                                         },
-                                    }),
+                                        {
+                                            query: {
+                                                page,
+                                            },
+                                        },
+                                    ),
                                     {},
-                                    { preserveState: true, preserveScroll: true, replace: true },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    },
                                 );
                             }}
                             onPerPageChange={(perPage) => {
                                 router.get(
-                                    view.url({
-                                        current_team: teamSlug,
-                                        nursing: nursing.id,
-                                        section: 'history',
-                                    }, {
-                                        query: {
-                                            page: 1,
-                                            perPage,
+                                    view.url(
+                                        {
+                                            current_team: teamSlug,
+                                            nursing: nursing.id,
+                                            section: 'history',
                                         },
-                                    }),
+                                        {
+                                            query: {
+                                                page: 1,
+                                                perPage,
+                                            },
+                                        },
+                                    ),
                                     {},
-                                    { preserveState: true, preserveScroll: true, replace: true },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    },
                                 );
                             }}
                         />
@@ -1282,7 +1606,10 @@ export default function NursingRecordsView({
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Present pregnancy records</CardTitle>
-                                <Button size="sm" onClick={startPresentPregCreate}>
+                                <Button
+                                    size="sm"
+                                    onClick={startPresentPregCreate}
+                                >
                                     New
                                 </Button>
                             </CardHeader>
@@ -1299,81 +1626,143 @@ export default function NursingRecordsView({
                                                     <TableHead>Date</TableHead>
                                                     <TableHead>BP</TableHead>
                                                     <TableHead>G/A</TableHead>
-                                                    <TableHead>Weight</TableHead>
+                                                    <TableHead>
+                                                        Weight
+                                                    </TableHead>
                                                     <TableHead>LMP</TableHead>
                                                     <TableHead>EDD</TableHead>
                                                     <TableHead>SFH</TableHead>
                                                     <TableHead>Lie</TableHead>
-                                                    <TableHead>Position</TableHead>
+                                                    <TableHead>
+                                                        Position
+                                                    </TableHead>
                                                     <TableHead>FHR</TableHead>
                                                     <TableHead>HB</TableHead>
-                                                    <TableHead>Oedema</TableHead>
+                                                    <TableHead>
+                                                        Oedema
+                                                    </TableHead>
                                                     <TableHead>Nurse</TableHead>
-                                                    <TableHead>Actions</TableHead>
+                                                    <TableHead>
+                                                        Actions
+                                                    </TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {presentPregnancies.data.map((record) => (
-                                                    <TableRow key={record.id}>
-                                                        <TableCell>
-                                                            {record.date
-                                                                ? new Date(record.date).toLocaleDateString()
-                                                                : '—'}
-                                                        </TableCell>
-                                                        <TableCell>{record.bp ?? '—'}</TableCell>
-                                                        <TableCell>{record.gA ?? '—'}</TableCell>
-                                                        <TableCell>{record.weight ?? '—'}</TableCell>
-                                                        <TableCell>
-                                                            {record.lmp
-                                                                ? new Date(record.lmp).toLocaleDateString()
-                                                                : '—'}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {record.edd
-                                                                ? new Date(record.edd).toLocaleDateString()
-                                                                : '—'}
-                                                        </TableCell>
-                                                        <TableCell>{record.sfh ?? '—'}</TableCell>
-                                                        <TableCell>
-                                                            {record.lie ? (
-                                                                <span className="capitalize">{record.lie}</span>
-                                                            ) : (
-                                                                '—'
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {record.position ? (
-                                                                <span className="capitalize">{record.position}</span>
-                                                            ) : (
-                                                                '—'
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell>{record.fhr ?? '—'}</TableCell>
-                                                        <TableCell>{record.hb ?? '—'}</TableCell>
-                                                        <TableCell>{renderOedemaBadge(record.oedema)}</TableCell>
-                                                        <TableCell>{record.nurseName ?? '—'}</TableCell>
-                                                        <TableCell>
-                                                            {record.canEdit ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="secondary"
-                                                                        onClick={() => startPresentPregEdit(record)}
-                                                                    >
-                                                                        Edit
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => deletePresentPregnancy(record.id)}
-                                                                    >
-                                                                        Delete
-                                                                    </Button>
-                                                                </div>
-                                                            ) : null}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
+                                                {presentPregnancies.data.map(
+                                                    (record) => (
+                                                        <TableRow
+                                                            key={record.id}
+                                                        >
+                                                            <TableCell>
+                                                                {record.date
+                                                                    ? new Date(
+                                                                          record.date,
+                                                                      ).toLocaleDateString()
+                                                                    : '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.bp ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.gA ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.weight ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.lmp
+                                                                    ? new Date(
+                                                                          record.lmp,
+                                                                      ).toLocaleDateString()
+                                                                    : '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.edd
+                                                                    ? new Date(
+                                                                          record.edd,
+                                                                      ).toLocaleDateString()
+                                                                    : '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.sfh ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.lie ? (
+                                                                    <span className="capitalize">
+                                                                        {
+                                                                            record.lie
+                                                                        }
+                                                                    </span>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.position ? (
+                                                                    <span className="capitalize">
+                                                                        {
+                                                                            record.position
+                                                                        }
+                                                                    </span>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.fhr ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.hb ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {renderOedemaBadge(
+                                                                    record.oedema,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.nurseName ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.canEdit ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="secondary"
+                                                                            onClick={() =>
+                                                                                startPresentPregEdit(
+                                                                                    record,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="destructive"
+                                                                            disabled={
+                                                                                presentPregDeleteProcessing
+                                                                            }
+                                                                            onClick={() =>
+                                                                                deletePresentPregnancy(
+                                                                                    record,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            Delete
+                                                                        </Button>
+                                                                    </div>
+                                                                ) : null}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ),
+                                                )}
                                             </TableBody>
                                         </Table>
                                     </div>
@@ -1389,33 +1778,47 @@ export default function NursingRecordsView({
                             }}
                             onPageChange={(page) => {
                                 router.get(
-                                    view.url({
-                                        current_team: teamSlug,
-                                        nursing: nursing.id,
-                                        section: 'present-pregnancy',
-                                    }, {
-                                        query: {
-                                            page,
+                                    view.url(
+                                        {
+                                            current_team: teamSlug,
+                                            nursing: nursing.id,
+                                            section: 'present-pregnancy',
                                         },
-                                    }),
+                                        {
+                                            query: {
+                                                page,
+                                            },
+                                        },
+                                    ),
                                     {},
-                                    { preserveState: true, preserveScroll: true, replace: true },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    },
                                 );
                             }}
                             onPerPageChange={(perPage) => {
                                 router.get(
-                                    view.url({
-                                        current_team: teamSlug,
-                                        nursing: nursing.id,
-                                        section: 'present-pregnancy',
-                                    }, {
-                                        query: {
-                                            page: 1,
-                                            perPage,
+                                    view.url(
+                                        {
+                                            current_team: teamSlug,
+                                            nursing: nursing.id,
+                                            section: 'present-pregnancy',
                                         },
-                                    }),
+                                        {
+                                            query: {
+                                                page: 1,
+                                                perPage,
+                                            },
+                                        },
+                                    ),
                                     {},
-                                    { preserveState: true, preserveScroll: true, replace: true },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    },
                                 );
                             }}
                         />
@@ -1424,8 +1827,13 @@ export default function NursingRecordsView({
                     <>
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Previous pregnancy records</CardTitle>
-                                <Button size="sm" onClick={startPreviousPregCreate}>
+                                <CardTitle>
+                                    Previous pregnancy records
+                                </CardTitle>
+                                <Button
+                                    size="sm"
+                                    onClick={startPreviousPregCreate}
+                                >
                                     New
                                 </Button>
                             </CardHeader>
@@ -1441,66 +1849,144 @@ export default function NursingRecordsView({
                                                 <TableRow>
                                                     <TableHead>Year</TableHead>
                                                     <TableHead>GA</TableHead>
-                                                    <TableHead>Pregnancy</TableHead>
-                                                    <TableHead>Labour</TableHead>
-                                                    <TableHead>Abortion</TableHead>
+                                                    <TableHead>
+                                                        Pregnancy
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Labour
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Abortion
+                                                    </TableHead>
                                                     <TableHead>IUFD</TableHead>
                                                     <TableHead>APH</TableHead>
                                                     <TableHead>PPH</TableHead>
                                                     <TableHead>Sex</TableHead>
-                                                    <TableHead>Weight</TableHead>
-                                                    <TableHead>Delivery</TableHead>
-                                                    <TableHead>Age (Life)</TableHead>
-                                                    <TableHead>Age (Death)</TableHead>
+                                                    <TableHead>
+                                                        Weight
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Delivery
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Age (Life)
+                                                    </TableHead>
+                                                    <TableHead>
+                                                        Age (Death)
+                                                    </TableHead>
                                                     <TableHead>Nurse</TableHead>
-                                                    <TableHead>Actions</TableHead>
+                                                    <TableHead>
+                                                        Actions
+                                                    </TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {previousPregnancies.data.map((record) => (
-                                                    <TableRow key={record.id}>
-                                                        <TableCell>{record.year ?? '—'}</TableCell>
-                                                        <TableCell>{record.ga ?? '—'}</TableCell>
-                                                        <TableCell>{record.durationOfPregnancy ?? '—'}</TableCell>
-                                                        <TableCell>{record.durationOfLabour ?? '—'}</TableCell>
-                                                        <TableCell>{renderYesNoBadge(record.abortion)}</TableCell>
-                                                        <TableCell>{renderYesNoBadge(record.iufd)}</TableCell>
-                                                        <TableCell>{renderYesNoBadge(record.aph)}</TableCell>
-                                                        <TableCell>{renderYesNoBadge(record.pph)}</TableCell>
-                                                        <TableCell>
-                                                            {record.sex ? (
-                                                                <span className="capitalize">{record.sex}</span>
-                                                            ) : (
-                                                                '—'
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell>{record.weight ?? '—'}</TableCell>
-                                                        <TableCell>{record.modeOfDelivery ?? '—'}</TableCell>
-                                                        <TableCell>{record.ageLife ?? '—'}</TableCell>
-                                                        <TableCell>{record.ageDeath ?? '—'}</TableCell>
-                                                        <TableCell>{record.nurseName ?? '—'}</TableCell>
-                                                        <TableCell>
-                                                            {record.canEdit ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="secondary"
-                                                                        onClick={() => startPreviousPregEdit(record)}
-                                                                    >
-                                                                        Edit
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => deletePreviousPregnancy(record.id)}
-                                                                    >
-                                                                        Delete
-                                                                    </Button>
-                                                                </div>
-                                                            ) : null}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
+                                                {previousPregnancies.data.map(
+                                                    (record) => (
+                                                        <TableRow
+                                                            key={record.id}
+                                                        >
+                                                            <TableCell>
+                                                                {record.year ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.ga ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.durationOfPregnancy ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.durationOfLabour ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {renderYesNoBadge(
+                                                                    record.abortion,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {renderYesNoBadge(
+                                                                    record.iufd,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {renderYesNoBadge(
+                                                                    record.aph,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {renderYesNoBadge(
+                                                                    record.pph,
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.sex ? (
+                                                                    <span className="capitalize">
+                                                                        {
+                                                                            record.sex
+                                                                        }
+                                                                    </span>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.weight ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.modeOfDelivery ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.ageLife ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.ageDeath ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.nurseName ??
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {record.canEdit ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="secondary"
+                                                                            onClick={() =>
+                                                                                startPreviousPregEdit(
+                                                                                    record,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="destructive"
+                                                                            disabled={
+                                                                                previousPregDeleteProcessing
+                                                                            }
+                                                                            onClick={() =>
+                                                                                deletePreviousPregnancy(
+                                                                                    record,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            Delete
+                                                                        </Button>
+                                                                    </div>
+                                                                ) : null}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ),
+                                                )}
                                             </TableBody>
                                         </Table>
                                     </div>
@@ -1516,33 +2002,47 @@ export default function NursingRecordsView({
                             }}
                             onPageChange={(page) => {
                                 router.get(
-                                    view.url({
-                                        current_team: teamSlug,
-                                        nursing: nursing.id,
-                                        section: 'previous-pregnancy',
-                                    }, {
-                                        query: {
-                                            page,
+                                    view.url(
+                                        {
+                                            current_team: teamSlug,
+                                            nursing: nursing.id,
+                                            section: 'previous-pregnancy',
                                         },
-                                    }),
+                                        {
+                                            query: {
+                                                page,
+                                            },
+                                        },
+                                    ),
                                     {},
-                                    { preserveState: true, preserveScroll: true, replace: true },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    },
                                 );
                             }}
                             onPerPageChange={(perPage) => {
                                 router.get(
-                                    view.url({
-                                        current_team: teamSlug,
-                                        nursing: nursing.id,
-                                        section: 'previous-pregnancy',
-                                    }, {
-                                        query: {
-                                            page: 1,
-                                            perPage,
+                                    view.url(
+                                        {
+                                            current_team: teamSlug,
+                                            nursing: nursing.id,
+                                            section: 'previous-pregnancy',
                                         },
-                                    }),
+                                        {
+                                            query: {
+                                                page: 1,
+                                                perPage,
+                                            },
+                                        },
+                                    ),
                                     {},
-                                    { preserveState: true, preserveScroll: true, replace: true },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    },
                                 );
                             }}
                         />
@@ -1576,17 +2076,37 @@ export default function NursingRecordsView({
                                                     recordType as ConsultationRecordType
                                                 }
                                                 record={record}
-                                                currencySymbol={currencySymbol}
                                                 onEdit={() => openEdit(record)}
-                                                onDelete={() => destroyRecord(record)}
-                                                onViewVitalSigns={(r) => setViewVitalSigns(r)}
-                                                onViewTreatment={(r) => setViewTreatment(r)}
-                                                onViewPrescription={(r) => setViewPrescription(r)}
-                                                onViewLaboratory={(id) => setViewLaboratory(id)}
-                                                onViewComplaint={(r) => setViewComplaint(r)}
-                                                onViewExamination={(r) => setViewExamination(r)}
-                                                onViewDiagnosis={(r) => setViewDiagnosis(r)}
-                                                onViewAdmission={(r) => setViewAdmission(r)}
+                                                onDelete={() =>
+                                                    destroyRecord(record)
+                                                }
+                                                deleteProcessing={
+                                                    deleteProcessing
+                                                }
+                                                onViewVitalSigns={(r) =>
+                                                    setViewVitalSigns(r)
+                                                }
+                                                onViewTreatment={(r) =>
+                                                    setViewTreatment(r)
+                                                }
+                                                onViewPrescription={(r) =>
+                                                    setViewPrescription(r)
+                                                }
+                                                onViewLaboratory={(id) =>
+                                                    setViewLaboratory(id)
+                                                }
+                                                onViewComplaint={(r) =>
+                                                    setViewComplaint(r)
+                                                }
+                                                onViewExamination={(r) =>
+                                                    setViewExamination(r)
+                                                }
+                                                onViewDiagnosis={(r) =>
+                                                    setViewDiagnosis(r)
+                                                }
+                                                onViewAdmission={(r) =>
+                                                    setViewAdmission(r)
+                                                }
                                             />
                                         ))}
                                     </div>
@@ -1723,7 +2243,7 @@ export default function NursingRecordsView({
                 open={showEndAppointment}
                 onEndAppointment={() => {
                     setShowEndAppointment(false);
-                    endNursing();
+                    openEndConfirm();
                 }}
                 onContinue={() => setShowEndAppointment(false)}
             />
@@ -1731,7 +2251,7 @@ export default function NursingRecordsView({
             <Sheet
                 open={historyFormOpen}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !historyProcessing) {
                         setHistoryFormOpen(false);
                         setHistoryEditId(null);
                     }
@@ -1743,60 +2263,84 @@ export default function NursingRecordsView({
                             {historyEditId ? 'Edit' : 'New'} history record
                         </SheetTitle>
                         <SheetDescription>
-                            Record family, social, and surgical history for this patient.
+                            Record family, social, and surgical history for this
+                            patient.
                         </SheetDescription>
                     </SheetHeader>
 
                     <form onSubmit={submitHistory}>
                         <div className="space-y-4 px-4 pb-4">
-                            {historyError && (
-                                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                    {historyError}
-                                </p>
-                            )}
+                            {historyError ? (
+                                <AlertError errors={[historyError]} />
+                            ) : null}
 
                             <div>
-                                <Label className="text-base font-semibold">Family History</Label>
+                                <Label className="text-base font-semibold">
+                                    Family History
+                                </Label>
                                 <div className="mt-2 grid grid-cols-2 gap-4">
                                     {FAMILY_HISTORY_FIELDS.map((field) => (
-                                        <div key={field.key} className="space-y-2">
-                                            <Label className="text-sm">{field.label}</Label>
+                                        <div
+                                            key={field.key}
+                                            className="space-y-2"
+                                        >
+                                            <Label className="text-sm">
+                                                {field.label}
+                                            </Label>
                                             <div className="flex gap-4">
-                                                {['yes', 'no', 'others'].map((option) => (
-                                                    <label
-                                                        key={option}
-                                                        className="flex items-center gap-2 text-sm"
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            name={`family-${field.key}`}
-                                                            value={option}
-                                                            checked={
-                                                                historyForm.familyHistory[field.key]?.status === option
-                                                            }
-                                                            onChange={() =>
-                                                                updateHistoryFamilyHistory(
-                                                                    field.key,
-                                                                    'status',
-                                                                    option,
-                                                                )
-                                                            }
-                                                        />
-                                                        <span className="capitalize">{option}</span>
-                                                    </label>
-                                                ))}
+                                                {['yes', 'no', 'others'].map(
+                                                    (option) => (
+                                                        <label
+                                                            key={option}
+                                                            className="flex items-center gap-2 text-sm"
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`family-${field.key}`}
+                                                                value={option}
+                                                                checked={
+                                                                    historyForm
+                                                                        .familyHistory[
+                                                                        field
+                                                                            .key
+                                                                    ]
+                                                                        ?.status ===
+                                                                    option
+                                                                }
+                                                                onChange={() =>
+                                                                    updateHistoryFamilyHistory(
+                                                                        field.key,
+                                                                        'status',
+                                                                        option,
+                                                                    )
+                                                                }
+                                                            />
+                                                            <span className="capitalize">
+                                                                {option}
+                                                            </span>
+                                                        </label>
+                                                    ),
+                                                )}
                                             </div>
-                                            {historyForm.familyHistory[field.key]?.status === 'others' && (
+                                            {historyForm.familyHistory[
+                                                field.key
+                                            ]?.status === 'others' && (
                                                 <input
                                                     type="text"
                                                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                                                     placeholder="Specify condition"
-                                                    value={historyForm.familyHistory[field.key]?.others ?? ''}
+                                                    value={
+                                                        historyForm
+                                                            .familyHistory[
+                                                            field.key
+                                                        ]?.others ?? ''
+                                                    }
                                                     onChange={(e) =>
                                                         updateHistoryFamilyHistory(
                                                             field.key,
                                                             'others',
-                                                            e.target.value || null,
+                                                            e.target.value ||
+                                                                null,
                                                         )
                                                     }
                                                 />
@@ -1807,35 +2351,52 @@ export default function NursingRecordsView({
                             </div>
 
                             <div>
-                                <Label className="text-base font-semibold">Surgical History</Label>
+                                <Label className="text-base font-semibold">
+                                    Surgical History
+                                </Label>
                                 <div className="mt-2 grid grid-cols-2 gap-4">
                                     {SURGICAL_HISTORY_FIELDS.map((field) => (
-                                        <div key={field.key} className="space-y-2">
-                                            <Label className="text-sm">{field.label}</Label>
+                                        <div
+                                            key={field.key}
+                                            className="space-y-2"
+                                        >
+                                            <Label className="text-sm">
+                                                {field.label}
+                                            </Label>
                                             <div className="flex gap-4">
-                                                {['yes', 'no', 'others'].map((option) => (
-                                                    <label
-                                                        key={option}
-                                                        className="flex items-center gap-2 text-sm"
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            name={`surgical-${field.key}`}
-                                                            value={option}
-                                                            checked={
-                                                                historyForm.surgicalHistory[field.key]?.status === option
-                                                            }
-                                                            onChange={() =>
-                                                                updateHistorySurgicalHistory(
-                                                                    field.key,
-                                                                    'status',
-                                                                    option,
-                                                                )
-                                                            }
-                                                        />
-                                                        <span className="capitalize">{option}</span>
-                                                    </label>
-                                                ))}
+                                                {['yes', 'no', 'others'].map(
+                                                    (option) => (
+                                                        <label
+                                                            key={option}
+                                                            className="flex items-center gap-2 text-sm"
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`surgical-${field.key}`}
+                                                                value={option}
+                                                                checked={
+                                                                    historyForm
+                                                                        .surgicalHistory[
+                                                                        field
+                                                                            .key
+                                                                    ]
+                                                                        ?.status ===
+                                                                    option
+                                                                }
+                                                                onChange={() =>
+                                                                    updateHistorySurgicalHistory(
+                                                                        field.key,
+                                                                        'status',
+                                                                        option,
+                                                                    )
+                                                                }
+                                                            />
+                                                            <span className="capitalize">
+                                                                {option}
+                                                            </span>
+                                                        </label>
+                                                    ),
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -1843,12 +2404,17 @@ export default function NursingRecordsView({
                             </div>
 
                             <div className="space-y-3">
-                                <Label htmlFor="social-history">Social History</Label>
+                                <Label htmlFor="social-history">
+                                    Social History
+                                </Label>
                                 <Textarea
                                     id="social-history"
                                     value={historyForm.socialHistory}
                                     onChange={(e) =>
-                                        setHistoryForm((prev) => ({ ...prev, socialHistory: e.target.value }))
+                                        setHistoryForm((prev) => ({
+                                            ...prev,
+                                            socialHistory: e.target.value,
+                                        }))
                                     }
                                     placeholder="Enter social history notes..."
                                     rows={4}
@@ -1869,7 +2435,9 @@ export default function NursingRecordsView({
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={historyProcessing}>
-                                {historyProcessing ? 'Saving...' : 'Save history'}
+                                {historyProcessing
+                                    ? 'Saving...'
+                                    : 'Save history'}
                             </Button>
                         </SheetFooter>
                     </form>
@@ -1880,7 +2448,7 @@ export default function NursingRecordsView({
             <Sheet
                 open={presentPregFormOpen}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !presentPregProcessing) {
                         setPresentPregFormOpen(false);
                         setPresentPregEditId(null);
                     }
@@ -1889,7 +2457,8 @@ export default function NursingRecordsView({
                 <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
                     <SheetHeader>
                         <SheetTitle>
-                            {presentPregEditId ? 'Edit' : 'New'} present pregnancy record
+                            {presentPregEditId ? 'Edit' : 'New'} present
+                            pregnancy record
                         </SheetTitle>
                         <SheetDescription>
                             Record antenatal visit details for this patient.
@@ -1898,11 +2467,9 @@ export default function NursingRecordsView({
 
                     <form onSubmit={submitPresentPregnancy}>
                         <div className="space-y-4 px-4 pb-4">
-                            {presentPregError && (
-                                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                    {presentPregError}
-                                </p>
-                            )}
+                            {presentPregError ? (
+                                <AlertError errors={[presentPregError]} />
+                            ) : null}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -1911,7 +2478,12 @@ export default function NursingRecordsView({
                                         id="pp-date"
                                         type="date"
                                         value={presentPregForm.date}
-                                        onChange={(e) => updatePresentPregField('date', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'date',
+                                                e.target.value,
+                                            )
+                                        }
                                         required
                                     />
                                 </div>
@@ -1922,7 +2494,12 @@ export default function NursingRecordsView({
                                         type="text"
                                         placeholder="e.g. 120/80"
                                         value={presentPregForm.bp}
-                                        onChange={(e) => updatePresentPregField('bp', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'bp',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1932,18 +2509,30 @@ export default function NursingRecordsView({
                                         type="text"
                                         placeholder="e.g. 28"
                                         value={presentPregForm.gA}
-                                        onChange={(e) => updatePresentPregField('gA', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'gA',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="pp-weight">Weight (kg)</Label>
+                                    <Label htmlFor="pp-weight">
+                                        Weight (kg)
+                                    </Label>
                                     <Input
                                         id="pp-weight"
                                         type="number"
                                         step="0.01"
                                         placeholder="e.g. 65.5"
                                         value={presentPregForm.weight}
-                                        onChange={(e) => updatePresentPregField('weight', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'weight',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1952,7 +2541,12 @@ export default function NursingRecordsView({
                                         id="pp-lmp"
                                         type="date"
                                         value={presentPregForm.lmp}
-                                        onChange={(e) => updatePresentPregField('lmp', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'lmp',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1961,7 +2555,12 @@ export default function NursingRecordsView({
                                         id="pp-edd"
                                         type="date"
                                         value={presentPregForm.edd}
-                                        onChange={(e) => updatePresentPregField('edd', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'edd',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1972,21 +2571,31 @@ export default function NursingRecordsView({
                                         step="0.1"
                                         placeholder="e.g. 30.5"
                                         value={presentPregForm.sfh}
-                                        onChange={(e) => updatePresentPregField('sfh', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'sfh',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="pp-lie">Lie</Label>
                                     <Select
                                         value={presentPregForm.lie}
-                                        onValueChange={(value) => updatePresentPregField('lie', value)}
+                                        onValueChange={(value) =>
+                                            updatePresentPregField('lie', value)
+                                        }
                                     >
                                         <SelectTrigger id="pp-lie">
                                             <SelectValue placeholder="Select lie" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {LIE_OPTIONS.map((option) => (
-                                                <SelectItem key={option} value={option}>
+                                                <SelectItem
+                                                    key={option}
+                                                    value={option}
+                                                >
                                                     {option}
                                                 </SelectItem>
                                             ))}
@@ -1994,17 +2603,27 @@ export default function NursingRecordsView({
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="pp-position">Position</Label>
+                                    <Label htmlFor="pp-position">
+                                        Position
+                                    </Label>
                                     <Select
                                         value={presentPregForm.position}
-                                        onValueChange={(value) => updatePresentPregField('position', value)}
+                                        onValueChange={(value) =>
+                                            updatePresentPregField(
+                                                'position',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="pp-position">
                                             <SelectValue placeholder="Select position" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {POSITION_OPTIONS.map((option) => (
-                                                <SelectItem key={option} value={option}>
+                                                <SelectItem
+                                                    key={option}
+                                                    value={option}
+                                                >
                                                     {option}
                                                 </SelectItem>
                                             ))}
@@ -2018,7 +2637,12 @@ export default function NursingRecordsView({
                                         type="number"
                                         placeholder="e.g. 140"
                                         value={presentPregForm.fhr}
-                                        onChange={(e) => updatePresentPregField('fhr', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'fhr',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -2029,21 +2653,35 @@ export default function NursingRecordsView({
                                         step="0.1"
                                         placeholder="e.g. 12.5"
                                         value={presentPregForm.hb}
-                                        onChange={(e) => updatePresentPregField('hb', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePresentPregField(
+                                                'hb',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="pp-oedema">Oedema</Label>
                                     <Select
                                         value={presentPregForm.oedema}
-                                        onValueChange={(value) => updatePresentPregField('oedema', value)}
+                                        onValueChange={(value) =>
+                                            updatePresentPregField(
+                                                'oedema',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="pp-oedema">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Present</SelectItem>
-                                            <SelectItem value="no">Absent</SelectItem>
+                                            <SelectItem value="yes">
+                                                Present
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                Absent
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2062,8 +2700,13 @@ export default function NursingRecordsView({
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={presentPregProcessing}>
-                                {presentPregProcessing ? 'Saving...' : 'Save record'}
+                            <Button
+                                type="submit"
+                                disabled={presentPregProcessing}
+                            >
+                                {presentPregProcessing
+                                    ? 'Saving...'
+                                    : 'Save record'}
                             </Button>
                         </SheetFooter>
                     </form>
@@ -2074,7 +2717,7 @@ export default function NursingRecordsView({
             <Sheet
                 open={previousPregFormOpen}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !previousPregProcessing) {
                         setPreviousPregFormOpen(false);
                         setPreviousPregEditId(null);
                     }
@@ -2083,7 +2726,8 @@ export default function NursingRecordsView({
                 <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
                     <SheetHeader>
                         <SheetTitle>
-                            {previousPregEditId ? 'Edit' : 'New'} previous pregnancy record
+                            {previousPregEditId ? 'Edit' : 'New'} previous
+                            pregnancy record
                         </SheetTitle>
                         <SheetDescription>
                             Record past pregnancy history for this patient.
@@ -2092,11 +2736,9 @@ export default function NursingRecordsView({
 
                     <form onSubmit={submitPreviousPregnancy}>
                         <div className="space-y-4 px-4 pb-4">
-                            {previousPregError && (
-                                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                    {previousPregError}
-                                </p>
-                            )}
+                            {previousPregError ? (
+                                <AlertError errors={[previousPregError]} />
+                            ) : null}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -2106,7 +2748,12 @@ export default function NursingRecordsView({
                                         type="number"
                                         placeholder="e.g. 2020"
                                         value={previousPregForm.year}
-                                        onChange={(e) => updatePreviousPregField('year', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'year',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -2116,41 +2763,75 @@ export default function NursingRecordsView({
                                         type="text"
                                         placeholder="e.g. 40 weeks"
                                         value={previousPregForm.ga}
-                                        onChange={(e) => updatePreviousPregField('ga', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'ga',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-dur-preg">Duration of Pregnancy</Label>
+                                    <Label htmlFor="vp-dur-preg">
+                                        Duration of Pregnancy
+                                    </Label>
                                     <Input
                                         id="vp-dur-preg"
                                         type="text"
                                         placeholder="e.g. 40 weeks"
-                                        value={previousPregForm.durationOfPregnancy}
-                                        onChange={(e) => updatePreviousPregField('durationOfPregnancy', e.target.value)}
+                                        value={
+                                            previousPregForm.durationOfPregnancy
+                                        }
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'durationOfPregnancy',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-dur-labour">Duration of Labour</Label>
+                                    <Label htmlFor="vp-dur-labour">
+                                        Duration of Labour
+                                    </Label>
                                     <Input
                                         id="vp-dur-labour"
                                         type="text"
                                         placeholder="e.g. 12 hours"
-                                        value={previousPregForm.durationOfLabour}
-                                        onChange={(e) => updatePreviousPregField('durationOfLabour', e.target.value)}
+                                        value={
+                                            previousPregForm.durationOfLabour
+                                        }
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'durationOfLabour',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-abortion">Abortion</Label>
+                                    <Label htmlFor="vp-abortion">
+                                        Abortion
+                                    </Label>
                                     <Select
                                         value={previousPregForm.abortion}
-                                        onValueChange={(value) => updatePreviousPregField('abortion', value)}
+                                        onValueChange={(value) =>
+                                            updatePreviousPregField(
+                                                'abortion',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="vp-abortion">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2158,14 +2839,23 @@ export default function NursingRecordsView({
                                     <Label htmlFor="vp-iufd">IUFD</Label>
                                     <Select
                                         value={previousPregForm.iufd}
-                                        onValueChange={(value) => updatePreviousPregField('iufd', value)}
+                                        onValueChange={(value) =>
+                                            updatePreviousPregField(
+                                                'iufd',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="vp-iufd">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2173,14 +2863,23 @@ export default function NursingRecordsView({
                                     <Label htmlFor="vp-aph">APH</Label>
                                     <Select
                                         value={previousPregForm.aph}
-                                        onValueChange={(value) => updatePreviousPregField('aph', value)}
+                                        onValueChange={(value) =>
+                                            updatePreviousPregField(
+                                                'aph',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="vp-aph">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2188,14 +2887,23 @@ export default function NursingRecordsView({
                                     <Label htmlFor="vp-pph">PPH</Label>
                                     <Select
                                         value={previousPregForm.pph}
-                                        onValueChange={(value) => updatePreviousPregField('pph', value)}
+                                        onValueChange={(value) =>
+                                            updatePreviousPregField(
+                                                'pph',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="vp-pph">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2203,56 +2911,93 @@ export default function NursingRecordsView({
                                     <Label htmlFor="vp-sex">Sex</Label>
                                     <Select
                                         value={previousPregForm.sex}
-                                        onValueChange={(value) => updatePreviousPregField('sex', value)}
+                                        onValueChange={(value) =>
+                                            updatePreviousPregField(
+                                                'sex',
+                                                value,
+                                            )
+                                        }
                                     >
                                         <SelectTrigger id="vp-sex">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="male">Male</SelectItem>
-                                            <SelectItem value="female">Female</SelectItem>
+                                            <SelectItem value="male">
+                                                Male
+                                            </SelectItem>
+                                            <SelectItem value="female">
+                                                Female
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-weight">Weight (kg)</Label>
+                                    <Label htmlFor="vp-weight">
+                                        Weight (kg)
+                                    </Label>
                                     <Input
                                         id="vp-weight"
                                         type="number"
                                         step="0.01"
                                         placeholder="e.g. 3.2"
                                         value={previousPregForm.weight}
-                                        onChange={(e) => updatePreviousPregField('weight', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'weight',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-delivery">Mode of Delivery</Label>
+                                    <Label htmlFor="vp-delivery">
+                                        Mode of Delivery
+                                    </Label>
                                     <Input
                                         id="vp-delivery"
                                         type="text"
                                         placeholder="e.g. Normal"
                                         value={previousPregForm.modeOfDelivery}
-                                        onChange={(e) => updatePreviousPregField('modeOfDelivery', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'modeOfDelivery',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-age-life">Age (Life)</Label>
+                                    <Label htmlFor="vp-age-life">
+                                        Age (Life)
+                                    </Label>
                                     <Input
                                         id="vp-age-life"
                                         type="text"
                                         placeholder="e.g. 5 years"
                                         value={previousPregForm.ageLife}
-                                        onChange={(e) => updatePreviousPregField('ageLife', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'ageLife',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="vp-age-death">Age (Death)</Label>
+                                    <Label htmlFor="vp-age-death">
+                                        Age (Death)
+                                    </Label>
                                     <Input
                                         id="vp-age-death"
                                         type="text"
                                         placeholder="e.g. 2 years"
                                         value={previousPregForm.ageDeath}
-                                        onChange={(e) => updatePreviousPregField('ageDeath', e.target.value)}
+                                        onChange={(e) =>
+                                            updatePreviousPregField(
+                                                'ageDeath',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -2270,8 +3015,13 @@ export default function NursingRecordsView({
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={previousPregProcessing}>
-                                {previousPregProcessing ? 'Saving...' : 'Save record'}
+                            <Button
+                                type="submit"
+                                disabled={previousPregProcessing}
+                            >
+                                {previousPregProcessing
+                                    ? 'Saving...'
+                                    : 'Save record'}
                             </Button>
                         </SheetFooter>
                     </form>
@@ -2279,7 +3029,15 @@ export default function NursingRecordsView({
             </Sheet>
 
             {/* Transfer Patient Dialog */}
-            <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+            <Dialog
+                open={transferOpen}
+                onOpenChange={(open) => {
+                    if (!open && !transferProcessing) {
+                        setTransferOpen(false);
+                        setShowTransferConfirm(false);
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Transfer patient</DialogTitle>
@@ -2368,30 +3126,142 @@ export default function NursingRecordsView({
                         )}
 
                         {transferError ? (
-                            <p className="text-sm text-destructive">
-                                {transferError}
-                            </p>
+                            <AlertError errors={[transferError]} />
                         ) : null}
                     </div>
 
                     <DialogFooter className="gap-2">
                         <DialogClose asChild>
-                            <Button type="button" variant="secondary">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={transferProcessing}
+                            >
                                 Cancel
                             </Button>
                         </DialogClose>
                         <Button
                             type="button"
-                            onClick={submitTransfer}
+                            onClick={openTransferConfirm}
                             disabled={transferProcessing}
                         >
-                            {transferProcessing
-                                ? 'Transferring...'
-                                : 'Transfer patient'}
+                            Review transfer
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={recordToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setRecordToDelete(null);
+                    }
+                }}
+                title="Delete record"
+                description={`Delete this ${recordType ?? 'record'}? This action cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={confirmDelete}
+            />
+
+            <ConfirmDialog
+                open={showStartConfirm}
+                onOpenChange={(open) => {
+                    if (!open && !startProcessing) {
+                        setShowStartConfirm(false);
+                    }
+                }}
+                title="Start ANC"
+                description="Start antenatal care for this patient?"
+                confirmLabel={startProcessing ? 'Starting...' : 'Start ANC'}
+                processing={startProcessing}
+                onConfirm={confirmStartANC}
+            />
+
+            <ConfirmDialog
+                open={showEndConfirm}
+                onOpenChange={(open) => {
+                    if (!open && !endProcessing) {
+                        setShowEndConfirm(false);
+                    }
+                }}
+                title="End ANC"
+                description="End antenatal care for this patient? This action cannot be undone."
+                confirmLabel={endProcessing ? 'Ending...' : 'End ANC'}
+                destructive
+                processing={endProcessing}
+                onConfirm={confirmEndANC}
+            />
+
+            <ConfirmDialog
+                open={historyToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !historyDeleteProcessing) {
+                        setHistoryToDelete(null);
+                    }
+                }}
+                title="Delete history record"
+                description="Delete this history record? This action cannot be undone."
+                confirmLabel={
+                    historyDeleteProcessing ? 'Deleting...' : 'Delete'
+                }
+                destructive
+                processing={historyDeleteProcessing}
+                onConfirm={confirmDeleteHistory}
+            />
+
+            <ConfirmDialog
+                open={presentPregToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !presentPregDeleteProcessing) {
+                        setPresentPregToDelete(null);
+                    }
+                }}
+                title="Delete present pregnancy record"
+                description="Delete this present pregnancy record? This action cannot be undone."
+                confirmLabel={
+                    presentPregDeleteProcessing ? 'Deleting...' : 'Delete'
+                }
+                destructive
+                processing={presentPregDeleteProcessing}
+                onConfirm={confirmDeletePresentPregnancy}
+            />
+
+            <ConfirmDialog
+                open={previousPregToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !previousPregDeleteProcessing) {
+                        setPreviousPregToDelete(null);
+                    }
+                }}
+                title="Delete previous pregnancy record"
+                description="Delete this previous pregnancy record? This action cannot be undone."
+                confirmLabel={
+                    previousPregDeleteProcessing ? 'Deleting...' : 'Delete'
+                }
+                destructive
+                processing={previousPregDeleteProcessing}
+                onConfirm={confirmDeletePreviousPregnancy}
+            />
+
+            <ConfirmDialog
+                open={showTransferConfirm}
+                onOpenChange={(open) => {
+                    if (!open && !transferProcessing) {
+                        setShowTransferConfirm(false);
+                    }
+                }}
+                title="Confirm transfer"
+                description={`Transfer this patient to ${transferTargetLabel}?`}
+                confirmLabel={
+                    transferProcessing ? 'Transferring...' : 'Transfer'
+                }
+                destructive
+                processing={transferProcessing}
+                onConfirm={submitTransfer}
+            />
         </>
     );
 }
@@ -2405,11 +3275,20 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
     );
 }
 
-const isDisabledForEdit = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+const isDisabledForEdit = (
+    type: ConsultationRecordType,
+    status: string | null | undefined,
+): boolean => {
     if (!status) {
         return false;
     }
-    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    const generalDisabled = [
+        'paid',
+        'submitted',
+        'dispensed',
+        'completed',
+        'cancelled',
+    ];
     if (generalDisabled.includes(status)) {
         return true;
     }
@@ -2422,11 +3301,20 @@ const isDisabledForEdit = (type: ConsultationRecordType, status: string | null |
     return false;
 };
 
-const isDisabledForDelete = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+const isDisabledForDelete = (
+    type: ConsultationRecordType,
+    status: string | null | undefined,
+): boolean => {
     if (!status) {
         return false;
     }
-    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    const generalDisabled = [
+        'paid',
+        'submitted',
+        'dispensed',
+        'completed',
+        'cancelled',
+    ];
     if (generalDisabled.includes(status)) {
         return true;
     }
@@ -2442,9 +3330,9 @@ const isDisabledForDelete = (type: ConsultationRecordType, status: string | null
 function RecordCard({
     type,
     record,
-    currencySymbol,
     onEdit,
     onDelete,
+    deleteProcessing,
     onViewVitalSigns,
     onViewTreatment,
     onViewPrescription,
@@ -2456,9 +3344,9 @@ function RecordCard({
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
-    currencySymbol: string;
     onEdit: () => void;
     onDelete: () => void;
+    deleteProcessing: boolean;
     onViewVitalSigns: (record: ConsultationRecord) => void;
     onViewTreatment: (record: ConsultationRecord) => void;
     onViewPrescription: (record: ConsultationRecord) => void;
@@ -2562,10 +3450,23 @@ function RecordCard({
                         View
                     </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" disabled={isDisabledForEdit(type, record.status)} onClick={onEdit}>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={isDisabledForEdit(type, record.status)}
+                    onClick={onEdit}
+                >
                     Edit
                 </Button>
-                <Button size="sm" variant="outline" disabled={isDisabledForDelete(type, record.status)} onClick={onDelete}>
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={
+                        isDisabledForDelete(type, record.status) ||
+                        deleteProcessing
+                    }
+                    onClick={onDelete}
+                >
                     Delete
                 </Button>
             </div>
@@ -2573,15 +3474,13 @@ function RecordCard({
     );
 }
 
-NursingRecordsView.layout = (props: {
-    currentTeam?: Team | null;
-}) => ({
+NursingRecordsView.layout = (props: { currentTeam?: Team | null }) => ({
     breadcrumbs: [
         {
             title: 'Maternity',
             href: props.currentTeam
                 ? recordsIndex.url(props.currentTeam.slug)
-                : '/',
+                : home.url(),
         },
     ],
 });

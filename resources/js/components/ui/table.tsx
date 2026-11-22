@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 function Table({ className, overflow = 'overflow-x-auto', ...props }: React.ComponentProps<"table"> & { overflow?: string }) {
   return (
-    <div className={cn("relative w-full", overflow)}>
+    <div data-slot="table-container" className={cn("relative w-full", overflow)}>
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}

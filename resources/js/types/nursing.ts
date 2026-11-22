@@ -21,21 +21,20 @@ export type NursingCalendarDay = {
     hasAppointments: boolean;
 };
 
-export type NursingTimeSlot = {
-    label: string;
-    status: 'available' | 'booked' | 'past';
-};
-
 export type NursingSidebar = {
     monthLabel: string;
     calendarLabel: string;
     weekdays: string[];
     days: NursingCalendarDay[];
     selectedDate: string;
-    timeSlots: NursingTimeSlot[];
     availableCount: number;
     monthStats: { scheduled: number; started: number; completed: number };
-    upcoming: { id: number; name: string; meta: string; status: string }[];
+    admittedPatients: {
+        id: number;
+        name: string;
+        meta: string;
+        wardBed: string;
+    }[];
 };
 
 export type NursingFilters = {
@@ -48,4 +47,3 @@ export type NursingStatusOption = {
     value: string;
     label: string;
 };
-

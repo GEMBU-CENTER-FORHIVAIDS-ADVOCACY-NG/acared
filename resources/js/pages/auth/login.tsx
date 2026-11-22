@@ -102,7 +102,7 @@ export default function Login({
                                 data-test="login-button"
                             >
                                 {processing && <Spinner />}
-                                Log in
+                                {processing ? 'Logging in...' : 'Log in'}
                             </Button>
                         </div>
 
@@ -115,7 +115,7 @@ export default function Login({
                                     },
                                 })}
                                 data-test="register-link"
-                                tabIndex={5}
+                                tabIndex={6}
                             >
                                 Sign up
                             </TextLink>
@@ -125,7 +125,7 @@ export default function Login({
             </Form>
 
             {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                <div className="mb-4 text-center text-sm font-medium text-green-600 dark:text-green-400">
                     {status}
                 </div>
             )}

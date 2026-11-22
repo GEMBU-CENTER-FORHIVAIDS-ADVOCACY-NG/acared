@@ -95,6 +95,49 @@ test('calendar events link to the consultation view', function () {
         );
 });
 
+test('the consultations sidebar lists admitted patients for ward rounds', function () {
+    $user = User::factory()->create();
+    $team = $user->currentTeam;
+    $patient = consultationPatient($user);
+    $ward = Ward::factory()->ward()->create(['team_id' => $team->getKey()]);
+    $bed = Ward::factory()->bed($ward)->create(['team_id' => $team->getKey()]);
+
+    $admission = Admission::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => $patient->slug,
+        'doctor_id' => $user->getKey(),
+        'ward_id' => $ward->getKey(),
+        'bed_id' => $bed->getKey(),
+        'status' => 'admitted',
+    ]);
+
+    Admission::factory()->create([
+        'team_id' => $team->getKey(),
+        'patient_id' => consultationPatient($user)->slug,
+        'ward_id' => $ward->getKey(),
+        'status' => 'pending',
+    ]);
+
+    $otherUser = User::factory()->create();
+    Admission::factory()->create([
+        'team_id' => $otherUser->currentTeam->getKey(),
+        'patient_id' => consultationPatient($otherUser)->slug,
+        'ward_id' => Ward::factory()->ward()->create(['team_id' => $otherUser->currentTeam->getKey()])->getKey(),
+        'status' => 'admitted',
+    ]);
+
+    $this->actingAs($user)
+        ->get(consultationTeamUrl($user))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('consultations/index')
+            ->has('sidebar.admittedPatients', 1)
+            ->where('sidebar.admittedPatients.0.id', $admission->getKey())
+            ->where('sidebar.admittedPatients.0.name', $patient->fullName)
+            ->where('sidebar.admittedPatients.0.wardBed', $ward->name.' · '.$bed->name)
+        );
+});
+
 test('the consultation view shows the patient clinical records', function () {
     $user = User::factory()->create();
     $appointment = consultationRecord($user);

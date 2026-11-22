@@ -1,8 +1,20 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CheckCircle, Eye, MoreHorizontal, PackagePlus, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import {
+    CheckCircle,
+    Eye,
+    MoreHorizontal,
+    PackagePlus,
+    Pencil,
+    Plus,
+    Printer,
+    Trash2,
+    X,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +22,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -50,6 +63,7 @@ import type { Team } from '@/types';
 type OrderItemData = {
     id: number;
     inventory_id: number;
+    markup_id: number;
     inventory_name: string;
     quantity: number;
     unitPrice: number;
@@ -113,7 +127,6 @@ type Paginator<T> = {
     total: number;
 };
 
-
 function generateId() {
     return Math.random().toString(36).slice(2, 9);
 }
@@ -160,15 +173,28 @@ export default function PurchaseOrdersIndex({
     const [deleting, setDeleting] = useState<PurchaseOrder | null>(null);
     const [viewing, setViewing] = useState<PurchaseOrder | null>(null);
     const [printing, setPrinting] = useState<PurchaseOrder | null>(null);
+    const [printOrder, setPrintOrder] = useState<PurchaseOrder | null>(null);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-    const [processing, setProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [formProcessing, setFormProcessing] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [formFieldErrors, setFormFieldErrors] = useState<
+        Record<string, string>
+    >({});
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [bulkDeleteProcessing, setBulkDeleteProcessing] = useState(false);
+    const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+    const [approveProcessing, setApproveProcessing] = useState(false);
+    const [approveError, setApproveError] = useState<string | null>(null);
+    const [postProcessing, setPostProcessing] = useState(false);
+    const [postError, setPostError] = useState<string | null>(null);
     const [approving, setApproving] = useState<PurchaseOrder | null>(null);
     const [posting, setPosting] = useState<PurchaseOrder | null>(null);
     const [receivedBy, setReceivedBy] = useState<string>('');
     const [expiryDates, setExpiryDates] = useState<Record<number, string>>({});
-    const { auth } = usePage<{ auth: { user: { id: number; name: string } } }>().props;
+    const { auth } = usePage<{ auth: { user: { id: number; name: string } } }>()
+        .props;
 
     // Calculate totals from items
     const { subPrice, subCost } = useMemo(() => {
@@ -195,7 +221,8 @@ export default function PurchaseOrdersIndex({
         setVendorId('');
         setDiscount('0');
         setItems([createEmptyItem()]);
-        setError(null);
+        setFormError(null);
+        setFormFieldErrors({});
         setFormOpen(true);
     }
 
@@ -207,13 +234,14 @@ export default function PurchaseOrdersIndex({
         const formItems: FormItem[] = po.items.map((item) => ({
             id: String(item.id),
             inventory_id: String(item.inventory_id),
-            markup_id: '',
+            markup_id: String(item.markup_id ?? ''),
             quantity: String(item.quantity),
             unitCost: String(item.unitCost),
             unitPrice: String(item.unitPrice),
         }));
         setItems(formItems.length ? formItems : [createEmptyItem()]);
-        setError(null);
+        setFormError(null);
+        setFormFieldErrors({});
         setFormOpen(true);
     }
 
@@ -234,11 +262,19 @@ export default function PurchaseOrdersIndex({
 
                 // Auto-calculate unitPrice when markup changes
                 if (field === 'markup_id' || field === 'unitCost') {
-                    const markupId = parseInt(field === 'markup_id' ? value : item.markup_id) || 0;
-                    const cost = parseFloat(field === 'unitCost' ? value : item.unitCost) || 0;
+                    const markupId =
+                        parseInt(
+                            field === 'markup_id' ? value : item.markup_id,
+                        ) || 0;
+                    const cost =
+                        parseFloat(
+                            field === 'unitCost' ? value : item.unitCost,
+                        ) || 0;
                     const markup = markups.find((m) => m.id === markupId);
                     if (markup && cost > 0) {
-                        updated.unitPrice = String(cost + (cost * markup.value) / 100);
+                        updated.unitPrice = String(
+                            cost + (cost * markup.value) / 100,
+                        );
                     }
                 }
 
@@ -248,8 +284,9 @@ export default function PurchaseOrdersIndex({
     }
 
     function submit() {
-        setProcessing(true);
-        setError(null);
+        setFormProcessing(true);
+        setFormError(null);
+        setFormFieldErrors({});
 
         // Filter out empty items
         const validItems = items
@@ -265,19 +302,18 @@ export default function PurchaseOrdersIndex({
         // Validate that all items have a markup selected
         const missingMarkup = validItems.find((item) => !item.markup_id);
         if (missingMarkup) {
-            setError('Please select a markup for all order items.');
-            setProcessing(false);
+            setFormError('Please select a markup for all order items.');
+            setFormFieldErrors({
+                items: 'Select a markup for every order item.',
+            });
+            setFormProcessing(false);
             return;
         }
 
         const payload = {
             slug,
             vendor_id: Number(vendorId),
-            user_id: auth.user.id,
-            subPrice,
-            subCost,
             discount: parseFloat(discount) || 0,
-            total,
             status: editing ? editing.status : 'pending',
             items: validItems,
         };
@@ -285,9 +321,14 @@ export default function PurchaseOrdersIndex({
         const options = {
             preserveScroll: true,
             onSuccess: () => setFormOpen(false),
-            onError: (errors: Record<string, string>) =>
-                setError(Object.values(errors)[0] ?? 'Unable to save purchase order.'),
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) => {
+                setFormFieldErrors(errors);
+                setFormError(
+                    Object.values(errors)[0] ??
+                        'Unable to save purchase order.',
+                );
+            },
+            onFinish: () => setFormProcessing(false),
         };
 
         if (editing) {
@@ -300,13 +341,18 @@ export default function PurchaseOrdersIndex({
                 options,
             );
         } else {
-            router.post(purchaseOrderRoutes.store.url(teamSlug), payload, options);
+            router.post(
+                purchaseOrderRoutes.store.url(teamSlug),
+                payload,
+                options,
+            );
         }
     }
 
     function destroy() {
-        if (!deleting) return;
-        setProcessing(true);
+        if (!deleting || deleteProcessing) return;
+        setDeleteProcessing(true);
+        setDeleteError(null);
         router.delete(
             purchaseOrderRoutes.destroy.url({
                 current_team: teamSlug,
@@ -315,14 +361,20 @@ export default function PurchaseOrdersIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setDeleting(null),
-                onFinish: () => setProcessing(false),
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ??
+                            'Unable to delete purchase order.',
+                    ),
+                onFinish: () => setDeleteProcessing(false),
             },
         );
     }
 
     function destroySelected() {
-        if (selectedIds.length === 0) return;
-        setProcessing(true);
+        if (selectedIds.length === 0 || bulkDeleteProcessing) return;
+        setBulkDeleteProcessing(true);
+        setBulkDeleteError(null);
         router.delete(purchaseOrderRoutes.bulk.destroy.url(teamSlug), {
             data: { ids: selectedIds },
             preserveScroll: true,
@@ -330,13 +382,19 @@ export default function PurchaseOrdersIndex({
                 setSelectedIds([]);
                 setBulkDeleteOpen(false);
             },
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) =>
+                setBulkDeleteError(
+                    Object.values(errors)[0] ??
+                        'Unable to delete purchase orders.',
+                ),
+            onFinish: () => setBulkDeleteProcessing(false),
         });
     }
 
     function confirmApprove() {
-        if (!approving) return;
-        setProcessing(true);
+        if (!approving || approveProcessing) return;
+        setApproveProcessing(true);
+        setApproveError(null);
         router.patch(
             purchaseOrderRoutes.approve.url({
                 current_team: teamSlug,
@@ -346,13 +404,19 @@ export default function PurchaseOrdersIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setApproving(null),
-                onFinish: () => setProcessing(false),
+                onError: (errors: Record<string, string>) =>
+                    setApproveError(
+                        Object.values(errors)[0] ??
+                            'Unable to approve purchase order.',
+                    ),
+                onFinish: () => setApproveProcessing(false),
             },
         );
     }
 
     function openPostInventory(po: PurchaseOrder) {
         setPosting(po);
+        setPostError(null);
         setReceivedBy(String(auth.user.id));
         const dates: Record<number, string> = {};
         po.items.forEach((item) => {
@@ -362,8 +426,9 @@ export default function PurchaseOrdersIndex({
     }
 
     function postInventory() {
-        if (!posting) return;
-        setProcessing(true);
+        if (!posting || postProcessing) return;
+        setPostProcessing(true);
+        setPostError(null);
         router.post(
             purchaseOrderRoutes.postInventory.url({
                 current_team: teamSlug,
@@ -380,7 +445,11 @@ export default function PurchaseOrdersIndex({
                     setReceivedBy('');
                     setExpiryDates({});
                 },
-                onFinish: () => setProcessing(false),
+                onError: (errors: Record<string, string>) =>
+                    setPostError(
+                        Object.values(errors)[0] ?? 'Unable to post inventory.',
+                    ),
+                onFinish: () => setPostProcessing(false),
             },
         );
     }
@@ -433,14 +502,22 @@ export default function PurchaseOrdersIndex({
 
     function getStatusBadgeClass(status: string) {
         const classes: Record<string, string> = {
-            pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-            approved: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-            confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+            pending:
+                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+            approved:
+                'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+            confirmed:
+                'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
             posted: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-            received: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-            cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+            received:
+                'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+            cancelled:
+                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
         };
-        return classes[status] ?? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+        return (
+            classes[status] ??
+            'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+        );
     }
 
     return (
@@ -457,21 +534,26 @@ export default function PurchaseOrdersIndex({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex flex-1 items-center gap-2"
+                        className="flex flex-1 flex-wrap items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applySearch();
                         }}
                     >
+                        <Label
+                            htmlFor="purchase-order-search"
+                            className="sr-only"
+                        >
+                            Search purchase orders
+                        </Label>
                         <Input
+                            id="purchase-order-search"
                             className="max-w-sm"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search purchase orders..."
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                     {selectedIds.length > 0 ? (
                         <>
@@ -480,7 +562,11 @@ export default function PurchaseOrdersIndex({
                             </span>
                             <Button
                                 size="sm"
-                                onClick={() => setBulkDeleteOpen(true)}
+                                variant="destructive"
+                                onClick={() => {
+                                    setBulkDeleteError(null);
+                                    setBulkDeleteOpen(true);
+                                }}
                             >
                                 Delete selected
                             </Button>
@@ -509,7 +595,8 @@ export default function PurchaseOrdersIndex({
                                                               ...new Set([
                                                                   ...selectedIds,
                                                                   ...selectableOrders.map(
-                                                                      (po) => po.id,
+                                                                      (po) =>
+                                                                          po.id,
                                                                   ),
                                                               ]),
                                                           ]
@@ -559,13 +646,16 @@ export default function PurchaseOrdersIndex({
                                                         )}
                                                         onChange={(event) =>
                                                             setSelectedIds(
-                                                                event.target.checked
+                                                                event.target
+                                                                    .checked
                                                                     ? [
                                                                           ...selectedIds,
                                                                           po.id,
                                                                       ]
                                                                     : selectedIds.filter(
-                                                                          (id) =>
+                                                                          (
+                                                                              id,
+                                                                          ) =>
                                                                               id !==
                                                                               po.id,
                                                                       ),
@@ -592,7 +682,10 @@ export default function PurchaseOrdersIndex({
                                                 <span
                                                     className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(po.status)}`}
                                                 >
-                                                    {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
+                                                    {po.status
+                                                        .charAt(0)
+                                                        .toUpperCase() +
+                                                        po.status.slice(1)}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
@@ -604,26 +697,39 @@ export default function PurchaseOrdersIndex({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
+                                                            aria-label={`Actions for purchase order ${po.slug}`}
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        {po.status === 'pending' ? (
+                                                        {po.status ===
+                                                        'pending' ? (
                                                             <DropdownMenuItem
-                                                                onClick={() => setApproving(po)}
+                                                                onClick={() =>
+                                                                    setApproving(
+                                                                        po,
+                                                                    )
+                                                                }
                                                             >
                                                                 <CheckCircle className="mr-2 h-4 w-4" />
                                                                 Approve
                                                             </DropdownMenuItem>
                                                         ) : null}
-                                                        {po.status === 'approved' ? (
+                                                        {po.status ===
+                                                        'approved' ? (
                                                             <DropdownMenuItem
-                                                                onClick={() => openPostInventory(po)}
+                                                                onClick={() =>
+                                                                    openPostInventory(
+                                                                        po,
+                                                                    )
+                                                                }
                                                             >
                                                                 <PackagePlus className="mr-2 h-4 w-4" />
                                                                 Post Inventory
@@ -645,7 +751,8 @@ export default function PurchaseOrdersIndex({
                                                             <Printer className="mr-2 h-4 w-4" />
                                                             Print
                                                         </DropdownMenuItem>
-                                                        {po.status === 'pending' ? (
+                                                        {po.status ===
+                                                        'pending' ? (
                                                             <DropdownMenuItem
                                                                 onClick={() =>
                                                                     openEdit(po)
@@ -655,15 +762,25 @@ export default function PurchaseOrdersIndex({
                                                                 Edit
                                                             </DropdownMenuItem>
                                                         ) : null}
-                                                        {po.status === 'pending' ? (
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    setDeleting(po)
-                                                                }
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenuItem>
+                                                        {po.status ===
+                                                        'pending' ? (
+                                                            <>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    variant="destructive"
+                                                                    onClick={() => {
+                                                                        setDeleteError(
+                                                                            null,
+                                                                        );
+                                                                        setDeleting(
+                                                                            po,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </>
                                                         ) : null}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -692,69 +809,119 @@ export default function PurchaseOrdersIndex({
                 <SheetContent className="w-full overflow-y-auto sm:max-w-5xl">
                     <SheetHeader>
                         <SheetTitle>
-                            {editing ? 'Edit purchase order' : 'Create purchase order'}
+                            {editing
+                                ? 'Edit purchase order'
+                                : 'Create purchase order'}
                         </SheetTitle>
                         <SheetDescription>
-                            {editing ? 'Update the purchase order details and items.' : 'Add a new purchase order with items from a vendor.'}
+                            {editing
+                                ? 'Update the purchase order details and items.'
+                                : 'Add a new purchase order with items from a vendor.'}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="flex flex-col gap-4 px-4 py-5">
                         {/* Vendor */}
                         <div className="space-y-2">
-                            <Label htmlFor="vendor_id">Vendor</Label>
+                            <Label htmlFor="po-vendor">Vendor</Label>
                             <Select
                                 value={vendorId}
                                 onValueChange={setVendorId}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger
+                                    id="po-vendor"
+                                    aria-invalid={!!formFieldErrors.vendor_id}
+                                >
                                     <SelectValue placeholder="Select a vendor" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {vendors.map((v) => (
-                                        <SelectItem key={v.id} value={String(v.id)}>
+                                        <SelectItem
+                                            key={v.id}
+                                            value={String(v.id)}
+                                        >
                                             {v.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <InputError message={formFieldErrors.vendor_id} />
                         </div>
 
                         {/* Items Table */}
                         <div className="space-y-2">
                             <Label>Items</Label>
-                            <div className="rounded-lg border overflow-hidden">
+                            <div className="overflow-hidden rounded-lg border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="w-12">#</TableHead>
-                                            <TableHead className="min-w-[280px]">Item</TableHead>
-                                            <TableHead className="min-w-[160px]">Markup <span className="text-destructive">*</span></TableHead>
-                                            <TableHead className="text-right w-20">Qty</TableHead>
-                                            <TableHead className="text-right w-28">Unit Cost</TableHead>
-                                            <TableHead className="text-right w-28">Unit Price</TableHead>
+                                            <TableHead className="w-12">
+                                                #
+                                            </TableHead>
+                                            <TableHead className="min-w-[280px]">
+                                                Item
+                                            </TableHead>
+                                            <TableHead className="min-w-[160px]">
+                                                Markup{' '}
+                                                <span className="text-destructive">
+                                                    *
+                                                </span>
+                                            </TableHead>
+                                            <TableHead className="w-20 text-right">
+                                                Qty
+                                            </TableHead>
+                                            <TableHead className="w-28 text-right">
+                                                Unit Cost
+                                            </TableHead>
+                                            <TableHead className="w-28 text-right">
+                                                Unit Price
+                                            </TableHead>
                                             <TableHead className="w-12"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {items.map((item, index) => (
                                             <TableRow key={item.id}>
-                                                <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {index + 1}
+                                                </TableCell>
                                                 <TableCell>
                                                     <Select
-                                                        value={item.inventory_id}
-                                                        onValueChange={(value) =>
-                                                            updateItem(item.id, 'inventory_id', value)
+                                                        value={
+                                                            item.inventory_id
+                                                        }
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            updateItem(
+                                                                item.id,
+                                                                'inventory_id',
+                                                                value,
+                                                            )
                                                         }
                                                     >
-                                                        <SelectTrigger className="h-8 w-full">
+                                                        <SelectTrigger
+                                                            className="h-8 w-full"
+                                                            aria-label={`Inventory item ${index + 1}`}
+                                                        >
                                                             <SelectValue placeholder="Select item" />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {inventories.map((inv) => (
-                                                                <SelectItem key={inv.id} value={String(inv.id)}>
-                                                                    {inv.label}
-                                                                </SelectItem>
-                                                            ))}
+                                                            {inventories.map(
+                                                                (inv) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            inv.id
+                                                                        }
+                                                                        value={String(
+                                                                            inv.id,
+                                                                        )}
+                                                                    >
+                                                                        {
+                                                                            inv.label
+                                                                        }
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
                                                         </SelectContent>
                                                     </Select>
                                                 </TableCell>
@@ -762,53 +929,97 @@ export default function PurchaseOrdersIndex({
                                                     <Select
                                                         required
                                                         value={item.markup_id}
-                                                        onValueChange={(value) =>
-                                                            updateItem(item.id, 'markup_id', value)
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            updateItem(
+                                                                item.id,
+                                                                'markup_id',
+                                                                value,
+                                                            )
                                                         }
                                                     >
-                                                        <SelectTrigger className="h-8 w-full">
+                                                        <SelectTrigger
+                                                            className="h-8 w-full"
+                                                            aria-label={`Markup for item ${index + 1}`}
+                                                            aria-invalid={
+                                                                !!formFieldErrors.items
+                                                            }
+                                                        >
                                                             <SelectValue placeholder="Markup" />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {markups.map((m) => (
-                                                                <SelectItem key={m.id} value={String(m.id)}>
-                                                                    {m.name} ({m.value}%)
-                                                                </SelectItem>
-                                                            ))}
+                                                            {markups.map(
+                                                                (m) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            m.id
+                                                                        }
+                                                                        value={String(
+                                                                            m.id,
+                                                                        )}
+                                                                    >
+                                                                        {m.name}{' '}
+                                                                        (
+                                                                        {
+                                                                            m.value
+                                                                        }
+                                                                        %)
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
                                                         </SelectContent>
                                                     </Select>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Input
+                                                        id={`po-quantity-${index}`}
                                                         type="number"
                                                         min="1"
+                                                        aria-label={`Quantity for item ${index + 1}`}
                                                         value={item.quantity}
                                                         onChange={(e) =>
-                                                            updateItem(item.id, 'quantity', e.target.value)
+                                                            updateItem(
+                                                                item.id,
+                                                                'quantity',
+                                                                e.target.value,
+                                                            )
                                                         }
                                                         className="h-8 w-full text-right"
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Input
+                                                        id={`po-unit-cost-${index}`}
                                                         type="number"
                                                         min="0"
                                                         step="0.01"
+                                                        aria-label={`Unit cost for item ${index + 1}`}
                                                         value={item.unitCost}
                                                         onChange={(e) =>
-                                                            updateItem(item.id, 'unitCost', e.target.value)
+                                                            updateItem(
+                                                                item.id,
+                                                                'unitCost',
+                                                                e.target.value,
+                                                            )
                                                         }
                                                         className="h-8 w-full text-right"
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Input
+                                                        id={`po-unit-price-${index}`}
                                                         type="number"
                                                         min="0"
                                                         step="0.01"
+                                                        aria-label={`Unit price for item ${index + 1}`}
                                                         value={item.unitPrice}
                                                         onChange={(e) =>
-                                                            updateItem(item.id, 'unitPrice', e.target.value)
+                                                            updateItem(
+                                                                item.id,
+                                                                'unitPrice',
+                                                                e.target.value,
+                                                            )
                                                         }
                                                         className="h-8 w-full text-right"
                                                     />
@@ -819,7 +1030,12 @@ export default function PurchaseOrdersIndex({
                                                             type="button"
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => removeItem(item.id)}
+                                                            aria-label={`Remove item ${index + 1}`}
+                                                            onClick={() =>
+                                                                removeItem(
+                                                                    item.id,
+                                                                )
+                                                            }
                                                             className="h-8 w-8 p-0"
                                                         >
                                                             <X className="h-4 w-4" />
@@ -831,29 +1047,52 @@ export default function PurchaseOrdersIndex({
                                     </TableBody>
                                 </Table>
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-full">
+                            <InputError message={formFieldErrors.items} />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={addItem}
+                                className="w-full"
+                            >
                                 <Plus className="mr-1 h-4 w-4" /> Add item
                             </Button>
                         </div>
 
                         {/* Summary */}
-                        <div className="rounded-lg border p-3 space-y-2">
+                        <div className="space-y-2 rounded-lg border p-3">
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Subtotal (Cost)</span>
-                                <span className="font-medium">{formatCurrency(subCost)}</span>
+                                <span className="text-muted-foreground">
+                                    Subtotal (Cost)
+                                </span>
+                                <span className="font-medium">
+                                    {formatCurrency(subCost)}
+                                </span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Subtotal (Price)</span>
-                                <span className="font-medium">{formatCurrency(subPrice)}</span>
+                                <span className="text-muted-foreground">
+                                    Subtotal (Price)
+                                </span>
+                                <span className="font-medium">
+                                    {formatCurrency(subPrice)}
+                                </span>
                             </div>
                             <div className="flex items-center justify-between gap-2 text-sm">
-                                <span className="text-muted-foreground">Discount</span>
+                                <Label
+                                    htmlFor="po-discount"
+                                    className="text-muted-foreground"
+                                >
+                                    Discount
+                                </Label>
                                 <Input
+                                    id="po-discount"
                                     type="number"
                                     min="0"
                                     step="0.01"
                                     value={discount}
-                                    onChange={(e) => setDiscount(e.target.value)}
+                                    onChange={(e) =>
+                                        setDiscount(e.target.value)
+                                    }
                                     className="h-8 w-24 text-right"
                                 />
                             </div>
@@ -863,19 +1102,29 @@ export default function PurchaseOrdersIndex({
                             </div>
                         </div>
 
-                        {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
+                        <InputError message={formFieldErrors.discount} />
+                        {formError ? (
+                            <AlertError
+                                errors={[formError]}
+                                title="Unable to save purchase order"
+                            />
                         ) : null}
                     </div>
                     <SheetFooter className="flex flex-row items-center gap-2">
                         <Button
                             variant="outline"
+                            disabled={formProcessing}
                             onClick={() => setFormOpen(false)}
                         >
                             Cancel
                         </Button>
-                        <Button disabled={processing || !vendorId} onClick={submit}>
-                            {processing ? 'Saving...' : 'Save purchase order'}
+                        <Button
+                            disabled={formProcessing || !vendorId}
+                            onClick={submit}
+                        >
+                            {formProcessing
+                                ? 'Saving...'
+                                : 'Save purchase order'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -909,7 +1158,10 @@ export default function PurchaseOrdersIndex({
                                 <dt className="text-sm text-muted-foreground">
                                     Status
                                 </dt>
-                                <dd>{viewing.status.charAt(0).toUpperCase() + viewing.status.slice(1)}</dd>
+                                <dd>
+                                    {viewing.status.charAt(0).toUpperCase() +
+                                        viewing.status.slice(1)}
+                                </dd>
                             </div>
                             <div>
                                 <dt className="text-sm text-muted-foreground">
@@ -981,20 +1233,25 @@ export default function PurchaseOrdersIndex({
                         </DialogDescription>
                     </DialogHeader>
                     {printing ? (
-                        <div className="max-h-[70vh] overflow-y-auto space-y-4">
+                        <div className="max-h-[70vh] space-y-4 overflow-y-auto">
                             <div className="flex justify-between">
                                 <div>
                                     <p className="text-sm font-semibold">
                                         {printing.vendor?.name ?? '—'}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        {printing.status.charAt(0).toUpperCase() + printing.status.slice(1)}
+                                        {printing.status
+                                            .charAt(0)
+                                            .toUpperCase() +
+                                            printing.status.slice(1)}
                                     </p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs text-muted-foreground">
                                         {printing.createdAt
-                                            ? new Date(printing.createdAt).toLocaleDateString()
+                                            ? new Date(
+                                                  printing.createdAt,
+                                              ).toLocaleDateString()
                                             : '—'}
                                     </p>
                                 </div>
@@ -1004,9 +1261,15 @@ export default function PurchaseOrdersIndex({
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Item</TableHead>
-                                            <TableHead className="text-right">Qty</TableHead>
-                                            <TableHead className="text-right">Unit Cost</TableHead>
-                                            <TableHead className="text-right">Unit Price</TableHead>
+                                            <TableHead className="text-right">
+                                                Qty
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Unit Cost
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Unit Price
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1019,10 +1282,14 @@ export default function PurchaseOrdersIndex({
                                                     {item.quantity}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {formatCurrency(item.unitCost)}
+                                                    {formatCurrency(
+                                                        item.unitCost,
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {formatCurrency(item.unitPrice)}
+                                                    {formatCurrency(
+                                                        item.unitPrice,
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -1031,20 +1298,34 @@ export default function PurchaseOrdersIndex({
                             </div>
                             <div className="space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Sub Price</span>
-                                    <span>{formatCurrency(printing.subPrice)}</span>
+                                    <span className="text-muted-foreground">
+                                        Sub Price
+                                    </span>
+                                    <span>
+                                        {formatCurrency(printing.subPrice)}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Sub Cost</span>
-                                    <span>{formatCurrency(printing.subCost)}</span>
+                                    <span className="text-muted-foreground">
+                                        Sub Cost
+                                    </span>
+                                    <span>
+                                        {formatCurrency(printing.subCost)}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Discount</span>
-                                    <span>{formatCurrency(printing.discount)}</span>
+                                    <span className="text-muted-foreground">
+                                        Discount
+                                    </span>
+                                    <span>
+                                        {formatCurrency(printing.discount)}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between font-semibold">
                                     <span>Total</span>
-                                    <span>{formatCurrency(printing.total)}</span>
+                                    <span>
+                                        {formatCurrency(printing.total)}
+                                    </span>
                                 </div>
                             </div>
                             <div className="flex justify-end gap-2">
@@ -1058,110 +1339,8 @@ export default function PurchaseOrdersIndex({
                                     onClick={() => {
                                         if (!printing) return;
 
-                                        const printWindow = window.open('', '_blank', 'width=800,height=600');
-
-                                        if (!printWindow) return;
-
-                                        printWindow.document.write(`
-                                            <!DOCTYPE html>
-                                            <html>
-                                            <head>
-                                                <title>Purchase Order ${printing.slug}</title>
-                                                <style>
-                                                    body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
-                                                    h1 { font-size: 18px; margin-bottom: 5px; }
-                                                    .company-header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #333; }
-                                                    .company-name { font-size: 16px; font-weight: bold; margin: 0; }
-                                                    .company-details { color: #555; font-size: 11px; margin: 3px 0 0 0; }
-                                                    .po-title { text-align: center; margin: 15px 0 10px 0; }
-                                                    .po-title h2 { font-size: 16px; margin: 0; }
-                                                    .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-                                                    .status { color: #666; font-size: 11px; }
-                                                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                                                    th { background: #f3f4f6; padding: 8px; text-align: left; border-bottom: 2px solid #ddd; }
-                                                    td { padding: 8px; border-bottom: 1px solid #ddd; }
-                                                    .summary { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; margin-bottom: 40px; }
-                                                    .summary-row { display: flex; justify-content: space-between; width: 200px; }
-                                                    .total { font-weight: bold; font-size: 14px; }
-                                                    .requested-by { margin-bottom: 40px; font-size: 12px; }
-                                                    .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
-                                                    .signature-block { width: 45%; text-align: center; }
-                                                    .signature-line { border-top: 1px solid #333; margin-top: 50px; padding-top: 5px; }
-                                                    @media print { body { padding: 0; } }
-                                                </style>
-                                            </head>
-                                            <body>
-                                                <div class="company-header">
-                                                    <p class="company-name">${currentTeam?.name ?? ''}</p>
-                                                    ${currentTeam?.address ? `<p class="company-details">${currentTeam.address}</p>` : ''}
-                                                    <p class="company-details">${[currentTeam?.phone, currentTeam?.mobile].filter(Boolean).join(' | ')}</p>
-                                                    ${currentTeam?.email ? `<p class="company-details">${currentTeam.email}</p>` : ''}
-                                                </div>
-                                                <div class="po-title">
-                                                    <h2>Purchase Order</h2>
-                                                    <p style="text-align:center;color:#666;margin:2px 0">${printing.slug}</p>
-                                                </div>
-                                                <div class="header">
-                                                    <div>
-                                                        <p style="font-size:11px;color:#666;margin:0">Vendor</p>
-                                                        <p style="font-weight:600;margin:2px 0 0 0">${printing.vendor?.name ?? '—'}</p>
-                                                    </div>
-                                                    <div style="text-align:right">
-                                                        <p style="font-size:11px;color:#666;margin:0">Date</p>
-                                                        <p style="margin:2px 0 0 0">${printing.createdAt ? new Date(printing.createdAt).toLocaleDateString() : '—'}</p>
-                                                        <p class="status">${printing.status.charAt(0).toUpperCase() + printing.status.slice(1)}</p>
-                                                    </div>
-                                                </div>
-                                                <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>#</th>
-                                                            <th>Item</th>
-                                                            <th style="text-align:right">Qty</th>
-                                                            <th style="text-align:right">Unit Cost</th>
-                                                            <th style="text-align:right">Unit Price</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        ${printing.items.map((item, i) => `
-                                                        <tr>
-                                                            <td style="padding:8px;border-bottom:1px solid #ddd">${i + 1}</td>
-                                                            <td style="padding:8px;border-bottom:1px solid #ddd;font-weight:500">${item.inventory_name}</td>
-                                                            <td style="padding:8px;border-bottom:1px solid #ddd;text-align:right">${item.quantity}</td>
-                                                            <td style="padding:8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.unitCost)}</td>
-                                                            <td style="padding:8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.unitPrice)}</td>
-                                                        </tr>`).join('')}
-                                                    </tbody>
-                                                </table>
-                                                <div class="summary">
-                                                    <div class="summary-row"><span>Sub Price</span><span>${formatCurrency(printing.subPrice)}</span></div>
-                                                    <div class="summary-row"><span>Sub Cost</span><span>${formatCurrency(printing.subCost)}</span></div>
-                                                    <div class="summary-row"><span>Discount</span><span>${formatCurrency(printing.discount)}</span></div>
-                                                    <div class="summary-row total"><span>Total</span><span>${formatCurrency(printing.total)}</span></div>
-                                                </div>
-                                                <div class="requested-by">
-                                                    <strong>Requested by:</strong> ${printing.user?.name ?? '—'}
-                                                </div>
-                                                <div class="signatures">
-                                                    <div class="signature-block">
-                                                        <div class="signature-line">
-                                                            <p style="margin:0;font-size:11px;color:#666">Company Stamp / Signature</p>
-                                                        </div>
-                                                    </div>
-                                                    <div class="signature-block">
-                                                        <div class="signature-line">
-                                                            <p style="margin:0;font-size:11px;color:#666">Requested By</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <script>
-                                                    window.onload = function() { window.print(); window.close(); };
-                                                </script>
-                                            </body>
-                                            </html>
-                                        `);
-
-                                        printWindow.document.close();
+                                        setPrintOrder(printing);
+                                        setPrinting(null);
                                     }}
                                 >
                                     <Printer className="mr-2 h-4 w-4" />
@@ -1172,31 +1351,74 @@ export default function PurchaseOrdersIndex({
                     ) : null}
                 </DialogContent>
             </Dialog>
+            {deleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete purchase order"
+                    />
+                </div>
+            ) : null}
+            {bulkDeleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[bulkDeleteError]}
+                        title="Unable to delete purchase orders"
+                    />
+                </div>
+            ) : null}
+            {approveError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[approveError]}
+                        title="Unable to approve purchase order"
+                    />
+                </div>
+            ) : null}
             <ConfirmDialog
                 open={deleting !== null}
-                onOpenChange={(open) => !open && setDeleting(null)}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setDeleting(null);
+                        setDeleteError(null);
+                    }
+                }}
                 title="Delete purchase order?"
-                description={`Delete ${deleting?.slug ?? 'this purchase order'}?`}
-                confirmLabel="Delete"
-                processing={processing}
+                description={`Delete ${deleting?.slug ?? 'this purchase order'}? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                processing={deleteProcessing}
+                destructive
                 onConfirm={destroy}
             />
             <ConfirmDialog
                 open={bulkDeleteOpen}
-                onOpenChange={setBulkDeleteOpen}
+                onOpenChange={(open) => {
+                    if (!open && !bulkDeleteProcessing) {
+                        setBulkDeleteOpen(false);
+                        setBulkDeleteError(null);
+                    }
+                }}
                 title="Delete selected purchase orders?"
-                description={`This deletes ${selectedIds.length} selected purchase order records.`}
-                confirmLabel="Delete selected"
-                processing={processing}
+                description={`This deletes ${selectedIds.length} selected purchase order records. This cannot be undone.`}
+                confirmLabel={
+                    bulkDeleteProcessing ? 'Deleting...' : 'Delete selected'
+                }
+                processing={bulkDeleteProcessing}
+                destructive
                 onConfirm={destroySelected}
             />
             <ConfirmDialog
                 open={approving !== null}
-                onOpenChange={(open) => !open && setApproving(null)}
+                onOpenChange={(open) => {
+                    if (!open && !approveProcessing) {
+                        setApproving(null);
+                        setApproveError(null);
+                    }
+                }}
                 title="Approve purchase order?"
                 description={`Approve ${approving?.slug ?? 'this purchase order'}? It will be ready to post to inventory.`}
-                confirmLabel="Approve"
-                processing={processing}
+                confirmLabel={approveProcessing ? 'Approving...' : 'Approve'}
+                processing={approveProcessing}
                 onConfirm={confirmApprove}
             />
             <Sheet
@@ -1210,24 +1432,30 @@ export default function PurchaseOrdersIndex({
                         <SheetHeader>
                             <SheetTitle>Post to inventory</SheetTitle>
                             <SheetDescription>
-                                This will add the items to inventory stock and update prices.
+                                This will add the items to inventory stock and
+                                update prices.
                             </SheetDescription>
                         </SheetHeader>
                         {posting ? (
                             <div className="flex-1 overflow-y-auto px-4 py-4">
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="received_by">Received by</Label>
+                                        <Label htmlFor="received_by">
+                                            Received by
+                                        </Label>
                                         <Select
                                             value={receivedBy}
                                             onValueChange={setReceivedBy}
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger id="received_by">
                                                 <SelectValue placeholder="Select who received the items" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {users.map((u) => (
-                                                    <SelectItem key={u.id} value={String(u.id)}>
+                                                    <SelectItem
+                                                        key={u.id}
+                                                        value={String(u.id)}
+                                                    >
                                                         {u.name}
                                                     </SelectItem>
                                                 ))}
@@ -1240,59 +1468,273 @@ export default function PurchaseOrdersIndex({
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>Item</TableHead>
-                                                        <TableHead className="text-right">Qty</TableHead>
-                                                        <TableHead className="text-right">Unit Price</TableHead>
-                                                        <TableHead>Expiry Date</TableHead>
+                                                        <TableHead>
+                                                            Item
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            Qty
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            Unit Price
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Expiry Date
+                                                        </TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {posting.items.map((item) => (
-                                                        <TableRow key={item.id}>
-                                                            <TableCell className="font-medium">
-                                                                {item.inventory_name}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                {item.quantity}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                {formatCurrency(item.unitPrice)}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Input
-                                                                    type="date"
-                                                                    value={expiryDates[item.id] ?? ''}
-                                                                    onChange={(e) =>
-                                                                        setExpiryDates({
-                                                                            ...expiryDates,
-                                                                            [item.id]: e.target.value,
-                                                                        })
+                                                    {posting.items.map(
+                                                        (item) => (
+                                                            <TableRow
+                                                                key={item.id}
+                                                            >
+                                                                <TableCell className="font-medium">
+                                                                    {
+                                                                        item.inventory_name
                                                                     }
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    {
+                                                                        item.quantity
+                                                                    }
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    {formatCurrency(
+                                                                        item.unitPrice,
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Input
+                                                                        type="date"
+                                                                        aria-label={`Expiry date for ${item.inventory_name}`}
+                                                                        value={
+                                                                            expiryDates[
+                                                                                item
+                                                                                    .id
+                                                                            ] ??
+                                                                            ''
+                                                                        }
+                                                                        onChange={(
+                                                                            e,
+                                                                        ) =>
+                                                                            setExpiryDates(
+                                                                                {
+                                                                                    ...expiryDates,
+                                                                                    [item.id]:
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ),
+                                                    )}
                                                 </TableBody>
                                             </Table>
                                         </div>
                                     </div>
+                                    {postError ? (
+                                        <AlertError
+                                            errors={[postError]}
+                                            title="Unable to post inventory"
+                                        />
+                                    ) : null}
                                 </div>
                             </div>
                         ) : null}
                         <SheetFooter>
                             <Button
                                 variant="outline"
+                                disabled={postProcessing}
                                 onClick={() => setPosting(null)}
                             >
                                 Cancel
                             </Button>
-                            <Button disabled={processing || !receivedBy} onClick={postInventory}>
-                                {processing ? 'Posting...' : 'Post to inventory'}
+                            <Button
+                                disabled={postProcessing || !receivedBy}
+                                onClick={postInventory}
+                            >
+                                {postProcessing
+                                    ? 'Posting...'
+                                    : 'Post to inventory'}
                             </Button>
                         </SheetFooter>
                     </div>
                 </SheetContent>
             </Sheet>
+
+            {printOrder ? (
+                <div className="fixed inset-0 z-[100000] overflow-y-auto bg-background">
+                    <div className="no-print sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-6 py-3">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPrintOrder(null)}
+                        >
+                            ← Back to purchase orders
+                        </Button>
+                        <Button size="sm" onClick={() => window.print()}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print order
+                        </Button>
+                    </div>
+                    <div
+                        id="purchase-order-print-area"
+                        className="mx-auto max-w-4xl space-y-6 p-8 text-sm"
+                    >
+                        <div className="space-y-1 border-b-2 border-foreground pb-4">
+                            <p className="text-base font-bold">
+                                {currentTeam?.name ?? ''}
+                            </p>
+                            {currentTeam?.address ? (
+                                <p className="text-xs">{currentTeam.address}</p>
+                            ) : null}
+                            <p className="text-xs">
+                                {[currentTeam?.phone, currentTeam?.mobile]
+                                    .filter(Boolean)
+                                    .join(' | ')}
+                            </p>
+                            {currentTeam?.email ? (
+                                <p className="text-xs">{currentTeam.email}</p>
+                            ) : null}
+                        </div>
+                        <div className="text-center">
+                            <h2 className="text-base font-semibold">
+                                Purchase Order
+                            </h2>
+                            <p className="text-xs">{printOrder.slug}</p>
+                        </div>
+                        <div className="flex justify-between">
+                            <div>
+                                <p className="text-xs">Vendor</p>
+                                <p className="font-semibold">
+                                    {printOrder.vendor?.name ?? '—'}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs">Date</p>
+                                <p>
+                                    {printOrder.createdAt
+                                        ? new Date(
+                                              printOrder.createdAt,
+                                          ).toLocaleDateString()
+                                        : '—'}
+                                </p>
+                                <p className="text-xs">
+                                    {printOrder.status.charAt(0).toUpperCase() +
+                                        printOrder.status.slice(1)}
+                                </p>
+                            </div>
+                        </div>
+                        <table className="w-full border-collapse text-sm">
+                            <thead>
+                                <tr className="border-b-2 border-muted">
+                                    <th className="px-2 py-2 text-left">#</th>
+                                    <th className="px-2 py-2 text-left">
+                                        Item
+                                    </th>
+                                    <th className="px-2 py-2 text-right">
+                                        Qty
+                                    </th>
+                                    <th className="px-2 py-2 text-right">
+                                        Unit Cost
+                                    </th>
+                                    <th className="px-2 py-2 text-right">
+                                        Unit Price
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {printOrder.items.map((item, index) => (
+                                    <tr key={item.id} className="border-b">
+                                        <td className="px-2 py-2">
+                                            {index + 1}
+                                        </td>
+                                        <td className="px-2 py-2 font-medium">
+                                            {item.inventory_name}
+                                        </td>
+                                        <td className="px-2 py-2 text-right">
+                                            {item.quantity}
+                                        </td>
+                                        <td className="px-2 py-2 text-right">
+                                            {formatCurrency(item.unitCost)}
+                                        </td>
+                                        <td className="px-2 py-2 text-right">
+                                            {formatCurrency(item.unitPrice)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="ml-auto w-64 space-y-1">
+                            <div className="flex justify-between">
+                                <span>Sub Price</span>
+                                <span>
+                                    {formatCurrency(printOrder.subPrice)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Sub Cost</span>
+                                <span>
+                                    {formatCurrency(printOrder.subCost)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Discount</span>
+                                <span>
+                                    {formatCurrency(printOrder.discount)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between font-semibold">
+                                <span>Total</span>
+                                <span>{formatCurrency(printOrder.total)}</span>
+                            </div>
+                        </div>
+                        <p className="text-sm">
+                            <strong>Requested by:</strong>{' '}
+                            {printOrder.user?.name ?? '—'}
+                        </p>
+                        <div className="grid grid-cols-2 gap-8 pt-10">
+                            <div>
+                                <p className="border-t border-foreground/40 pt-2 text-xs">
+                                    Company Stamp / Signature
+                                </p>
+                            </div>
+                            <div>
+                                <p className="border-t border-foreground/40 pt-2 text-xs">
+                                    Requested By
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <style>{`
+                        @media print {
+                            body * {
+                                visibility: hidden !important;
+                            }
+                            #purchase-order-print-area,
+                            #purchase-order-print-area * {
+                                visibility: visible !important;
+                            }
+                            #purchase-order-print-area {
+                                position: absolute !important;
+                                top: 0 !important;
+                                left: 0 !important;
+                                width: 100% !important;
+                                max-width: none !important;
+                                padding: 0 !important;
+                                color: #000 !important;
+                            }
+                            #purchase-order-print-area tr {
+                                break-inside: avoid !important;
+                            }
+                        }
+                    `}</style>
+                </div>
+            ) : null}
         </>
     );
 }

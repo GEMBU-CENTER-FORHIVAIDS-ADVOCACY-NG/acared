@@ -161,10 +161,16 @@ function LineChart({ revenue }: { revenue: FinanceRevenue }) {
 
     return (
         <div className="overflow-x-auto">
+            <p className="sr-only">
+                {`Revenue collected over the selected period: ${revenue.datasets
+                    .map((dataset) => dataset.label)
+                    .join(', ')}.`}
+            </p>
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 className="h-64 w-full min-w-160"
                 role="img"
+                aria-label="Revenue collected over the selected period, by payment component"
             >
                 {revenue.datasets.map((dataset) => {
                     const points = dataset.data
@@ -214,7 +220,19 @@ function BarChart({ data }: { data: FinancePaymentByMethod }) {
     const max = Math.max(1, ...data.data);
 
     return (
-        <div className="space-y-3">
+        <div
+            className="space-y-3"
+            role="img"
+            aria-label="Payment amounts by method"
+        >
+            <p className="sr-only">
+                {`Payment amounts by method: ${data.labels
+                    .map(
+                        (label, index) =>
+                            `${label}: ${data.data[index].toLocaleString()}`,
+                    )
+                    .join('; ')}.`}
+            </p>
             {data.labels.map((label, index) => (
                 <div key={label} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
@@ -261,20 +279,31 @@ export default function FinanceReport({
     const [period, setPeriod] = useState(filters.period);
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
+    const [isApplying, setIsApplying] = useState(false);
+    const hasInvalidRange = Boolean(from && to && from > to);
 
     const statCards = buildStatCards(currencySymbol, stats, rangeLabel);
 
     function apply(patch: Partial<FinanceFilters>) {
         const next = { ...filters, ...patch };
+        if (next.from && next.to && next.from > next.to) {
+            return;
+        }
 
+        setIsApplying(true);
         router.get(
-            finance.url(),
+            finance.url({ current_team: teamSlug }),
             {
                 period: next.period,
                 from: next.from || undefined,
                 to: next.to || undefined,
             },
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setIsApplying(false),
+            },
         );
     }
 
@@ -291,105 +320,122 @@ export default function FinanceReport({
                     />
 
                     <div className="flex flex-wrap items-end gap-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="finance-period">Period</Label>
-                        <SelectNative
-                            id="finance-period"
-                            value={period}
-                            onChange={(event) => {
-                                setPeriod(event.target.value);
-                                apply({
-                                    period: event.target.value,
-                                    from: null,
-                                    to: null,
-                                });
-                            }}
-                            className="w-44"
-                            data-test="finance-period"
+                        <div className="space-y-2">
+                            <Label htmlFor="finance-period">Period</Label>
+                            <SelectNative
+                                id="finance-period"
+                                value={period}
+                                disabled={isApplying}
+                                onChange={(event) => {
+                                    setPeriod(event.target.value);
+                                    apply({
+                                        period: event.target.value,
+                                        from: null,
+                                        to: null,
+                                    });
+                                }}
+                                className="w-44"
+                                data-test="finance-period"
+                            >
+                                {periodOptions.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </SelectNative>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="finance-from">From</Label>
+                            <Input
+                                id="finance-from"
+                                type="date"
+                                value={from}
+                                onChange={(event) =>
+                                    setFrom(event.target.value)
+                                }
+                                className="w-40"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="finance-to">To</Label>
+                            <Input
+                                id="finance-to"
+                                type="date"
+                                value={to}
+                                onChange={(event) => setTo(event.target.value)}
+                                className="w-40"
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                apply({ from: from || null, to: to || null })
+                            }
+                            disabled={isApplying || hasInvalidRange}
                         >
-                            {periodOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </SelectNative>
+                            {isApplying ? 'Applying…' : 'Apply'}
+                        </Button>
+                        {hasInvalidRange && (
+                            <p
+                                role="alert"
+                                className="w-full text-xs text-destructive"
+                            >
+                                From date must be on or before to date.
+                            </p>
+                        )}
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="finance-from">From</Label>
-                        <Input
-                            id="finance-from"
-                            type="date"
-                            value={from}
-                            onChange={(event) => setFrom(event.target.value)}
-                            className="w-40"
-                        />
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {statCards.map((card) => (
+                            <Card key={card.title}>
+                                <CardHeader className="pb-2">
+                                    <CardDescription>
+                                        {card.title}
+                                    </CardDescription>
+                                    <CardTitle
+                                        className={`text-2xl ${TONE_CLASSES[card.tone]}`}
+                                    >
+                                        {card.value}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-xs text-muted-foreground">
+                                        {card.description}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="finance-to">To</Label>
-                        <Input
-                            id="finance-to"
-                            type="date"
-                            value={to}
-                            onChange={(event) => setTo(event.target.value)}
-                            className="w-40"
-                        />
-                    </div>
-                    <Button
-                        type="button"
-                        onClick={() =>
-                            apply({ from: from || null, to: to || null })
-                        }
-                    >
-                        Apply
-                    </Button>
-                </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {statCards.map((card) => (
-                        <Card key={card.title}>
-                            <CardHeader className="pb-2">
-                                <CardDescription>{card.title}</CardDescription>
-                                <CardTitle
-                                    className={`text-2xl ${TONE_CLASSES[card.tone]}`}
-                                >
-                                    {card.value}
-                                </CardTitle>
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <Card className="lg:col-span-2">
+                            <CardHeader>
+                                <CardTitle>Revenue overview</CardTitle>
+                                <CardDescription>
+                                    Payment components collected over time.
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-xs text-muted-foreground">
-                                    {card.description}
-                                </p>
+                                <LineChart revenue={revenue} />
                             </CardContent>
                         </Card>
-                    ))}
-                </div>
 
-                <div className="grid gap-4 lg:grid-cols-3">
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle>Revenue overview</CardTitle>
-                            <CardDescription>
-                                Payment components collected over time.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <LineChart revenue={revenue} />
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Amount by payment method</CardTitle>
-                            <CardDescription>
-                                Payment amounts for the selected period.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <BarChart data={paymentByMethod} />
-                        </CardContent>
-                    </Card>
-                </div>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Amount by payment method</CardTitle>
+                                <CardDescription>
+                                    Payment amounts for the selected period.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <BarChart data={paymentByMethod} />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </FinancialReportLayout>
         </>
@@ -400,7 +446,7 @@ FinanceReport.layout = (props: LayoutProps) => ({
     breadcrumbs: [
         {
             title: 'Finance summary',
-            href: finance(props.currentTeam?.slug).url,
+            href: props.currentTeam ? finance.url(props.currentTeam.slug) : '#',
         },
     ],
 });

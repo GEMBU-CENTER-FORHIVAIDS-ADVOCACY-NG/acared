@@ -1,3 +1,5 @@
+import type { ConsultationSidebar } from './consultations';
+
 export type ReceptionStats = {
     awaitingBooking: string;
     completedAppointments: string;
@@ -26,6 +28,10 @@ export type ReceptionAppointment = {
 export type ReceptionFilters = {
     dateFilter: string;
     dateFilterLabel: string;
+};
+
+export type ReceptionSidebar = Omit<ConsultationSidebar, 'admittedPatients'> & {
+    upcoming: { id: number; name: string; meta: string; status: string }[];
 };
 
 export type ReceptionOption = {

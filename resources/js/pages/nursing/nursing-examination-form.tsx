@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -29,7 +30,12 @@ EXAMINATION_FIELDS.forEach((field) => {
 });
 
 function parseNotes(
-    notes: string | Record<string, unknown>[] | Record<string, unknown> | null | undefined,
+    notes:
+        | string
+        | Record<string, unknown>[]
+        | Record<string, unknown>
+        | null
+        | undefined,
 ): ExaminationNotesData {
     if (typeof notes === 'string') {
         try {
@@ -48,7 +54,13 @@ function parseNotes(
     if (typeof notes === 'object' && notes !== null && !Array.isArray(notes)) {
         const result: ExaminationNotesData = {};
         EXAMINATION_FIELDS.forEach((field) => {
-            result[field] = String(notes[field] ?? '');
+            const value = notes[field];
+            result[field] =
+                typeof value === 'string'
+                    ? value
+                    : value == null
+                      ? ''
+                      : JSON.stringify(value);
         });
         return result;
     }
@@ -59,7 +71,9 @@ function parseNotes(
     return result;
 }
 
-function initialValues(record: ConsultationRecord | null): ExaminationNotesData {
+function initialValues(
+    record: ConsultationRecord | null,
+): ExaminationNotesData {
     if (!record) {
         return { ...EMPTY_NOTES };
     }
@@ -83,7 +97,14 @@ export function NursingExaminationForm({
     }
 
     return (
-        <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
+        <Sheet
+            open={open}
+            onOpenChange={(next) => {
+                if (!next && !processing) {
+                    onClose();
+                }
+            }}
+        >
             <SheetContent className="w-full overflow-y-auto sm:max-w-4xl">
                 <SheetHeader>
                     <SheetTitle>
@@ -96,11 +117,7 @@ export function NursingExaminationForm({
                 </SheetHeader>
 
                 <div className="space-y-4 px-4 pb-4">
-                    {error ? (
-                        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                            {error}
-                        </p>
-                    ) : null}
+                    {error ? <AlertError errors={[error]} /> : null}
 
                     <div className="space-y-3">
                         <Label>General Examination</Label>
@@ -128,15 +145,19 @@ export function NursingExaminationForm({
                 </div>
 
                 <SheetFooter>
-                    <Button variant="outline" onClick={onClose}>
+                    <Button
+                        variant="outline"
+                        disabled={processing}
+                        onClick={onClose}
+                    >
                         Cancel
                     </Button>
                     <Button onClick={handleSubmit} disabled={processing}>
                         {processing
                             ? 'Saving...'
                             : record
-                                ? 'Update'
-                                : 'Create'}
+                              ? 'Update'
+                              : 'Create'}
                     </Button>
                 </SheetFooter>
             </SheetContent>

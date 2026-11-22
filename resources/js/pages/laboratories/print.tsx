@@ -1,8 +1,9 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect } from 'react';
 import LabResultPrintDiv from '@/components/lab-result-print-div';
 import type { LabResultForm, LaboratoryShow, Team } from '@/types';
 import { Button } from '@/components/ui/button';
+import { show as laboratoryShow } from '@/routes/laboratories';
 
 type LayoutProps = {
     currentTeam?: Team | null;
@@ -17,97 +18,79 @@ export default function LaboratoryPrint({
 }) {
     const { currentTeam } = usePage<LayoutProps>().props;
     const teamSlug = currentTeam?.slug ?? '';
+    const showUrl = laboratoryShow.url({
+        current_team: teamSlug,
+        laboratory: laboratory.id,
+    });
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                window.history.back();
+                router.visit(showUrl);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [showUrl]);
 
-    const handlePrint = () => {
-        // Add the printing class to body
-        document.body.classList.add('printing-lab-result');
-
-        // Clone the print div and append it directly to body so it prints at full width
-        const printDiv = document.getElementById('lab-result-print-div');
-        if (printDiv) {
-            const clone = printDiv.cloneNode(true);
-            clone.id = 'lab-result-print-div';
-            clone.style.position = 'absolute';
-            clone.style.top = '0';
-            clone.style.left = '0';
-            clone.style.width = '100%';
-            clone.style.maxWidth = 'none';
-            clone.style.boxSizing = 'border-box';
-            clone.style.backgroundColor = 'white';
-            document.body.appendChild(clone);
-        }
-
-        // Print after a short delay to let the DOM update
-        setTimeout(() => {
-            window.print();
-
-            // Cleanup after print
-            setTimeout(() => {
-                document.body.classList.remove('printing-lab-result');
-                const clones = document.body.querySelectorAll('#lab-result-print-div');
-                // Remove the cloned div (the last one, which is outside the wrapper)
-                if (clones.length > 1) {
-                    clones[clones.length - 1].remove();
-                }
-            }, 500);
-        }, 100);
-    };
+    function handlePrint() {
+        window.print();
+    }
 
     return (
         <>
             <Head title={`Lab #${laboratory.id} — Print`} />
+
+            <style>{`
+                @media print {
+                    @page {
+                        size: A4 portrait;
+                        margin: 12mm;
+                    }
+
+                    body {
+                        background: #fff !important;
+                    }
+
+                    .no-print {
+                        display: none !important;
+                    }
+
+                    .lab-result-print-wrapper {
+                        position: static !important;
+                        width: auto !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                        padding: 0 !important;
+                        background: #fff !important;
+                    }
+
+                    .lab-result-print-wrapper #lab-result-print-div {
+                        width: 100% !important;
+                        max-width: none !important;
+                    }
+                }
+            `}</style>
 
             {/* Print Content */}
             <LabResultPrintDiv
                 laboratory={laboratory}
                 resultForm={resultForm}
                 facilityName={laboratory.facilityName ?? 'Facility'}
-                facilityAddress={laboratory.facilityAddress}
+                facilityAddress={laboratory.facilityAddress ?? ''}
             />
 
-            {/* Toolbar - positioned above the print div */}
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100%',
-                zIndex: 100000,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 24px',
-                borderBottom: '1px solid #e5e7eb',
-                backgroundColor: 'white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            }} className="no-print">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                    >
-                        <Link href={`/${teamSlug}/laboratories/${laboratory.id}`}>
-                            ← Back to laboratory
-                        </Link>
+            <div className="no-print fixed top-0 right-0 left-0 z-[100000] flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-6 py-3 text-foreground shadow-sm">
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href={showUrl}>← Back to laboratory</Link>
                     </Button>
-                    <span style={{ fontSize: '13px', color: '#666' }}>
-                        Press <kbd style={{
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            backgroundColor: '#f3f4f6',
-                            fontSize: '11px',
-                        }}>Esc</kbd> to go back
+                    <span className="text-xs text-muted-foreground">
+                        Press{' '}
+                        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[11px]">
+                            Esc
+                        </kbd>{' '}
+                        to go back
                     </span>
                 </div>
                 <Button size="sm" onClick={handlePrint}>

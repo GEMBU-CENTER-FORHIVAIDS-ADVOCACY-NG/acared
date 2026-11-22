@@ -1,9 +1,12 @@
 <?php
 
+use App\Models\Billing;
 use App\Models\Category;
 use App\Models\Country;
 use App\Models\Lga;
+use App\Models\Line;
 use App\Models\Patient;
+use App\Models\PriceList;
 use App\Models\State;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -159,6 +162,41 @@ test('a patient can be registered', function () {
     expect($patient->slug)->toBe('PAT-00001')
         ->and($patient->team_id)->toBe($user->currentTeam->getKey())
         ->and($patient->firstName)->toBe('Ada');
+});
+
+test('a patient can be registered with billing lines', function () {
+    $user = User::factory()->create();
+    $priceList = PriceList::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+    ]);
+
+    $this->actingAs($user)
+        ->post(patientTeamUrl($user), patientPayload($user, [
+            'billings' => [
+                [
+                    'total' => 1500,
+                    'lines' => [
+                        [
+                            'price_list_id' => $priceList->getKey(),
+                            'unitPrice' => 1500,
+                        ],
+                    ],
+                ],
+            ],
+        ]))
+        ->assertRedirect();
+
+    $patient = Patient::withoutGlobalScope('team')->latest('id')->firstOrFail();
+    $billing = Billing::query()->where('patient_id', $patient->slug)->firstOrFail();
+
+    expect((float) $billing->total)->toBe(1500.0)
+        ->and($billing->billable_type)->toBe(Patient::class)
+        ->and($billing->billable_id)->toBe($patient->getKey());
+
+    $line = Line::query()->where('patient_id', $patient->slug)->firstOrFail();
+
+    expect($line->price_list_id)->toBe($priceList->getKey())
+        ->and((float) $line->unitPrice)->toBe(1500.0);
 });
 
 test('patient registration requires the required fields', function () {

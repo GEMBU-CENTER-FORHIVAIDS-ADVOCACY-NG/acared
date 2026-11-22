@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { dashboard, login } from '@/routes';
-import { register } from '@/routes';
+import { dashboard, login, register } from '@/routes';
+import { index as teamsIndex } from '@/routes/teams';
 import {
     Activity,
     Banknote,
@@ -28,7 +28,11 @@ import {
 
 export default function Welcome() {
     const { auth, currentTeam } = usePage().props;
-    const dashboardUrl = currentTeam ? dashboard(currentTeam.slug) : '/';
+    const authenticatedDestination = auth.user
+        ? currentTeam
+            ? dashboard(currentTeam.slug)
+            : teamsIndex()
+        : null;
 
     return (
         <>
@@ -44,9 +48,11 @@ export default function Welcome() {
                             </span>
                         </div>
                         <nav className="flex items-center gap-3">
-                            {auth.user ? (
+                            {auth.user && authenticatedDestination ? (
                                 <Button asChild variant="default" size="sm">
-                                    <Link href={dashboardUrl}>Dashboard</Link>
+                                    <Link href={authenticatedDestination}>
+                                        Dashboard
+                                    </Link>
                                 </Button>
                             ) : (
                                 <>
@@ -54,7 +60,9 @@ export default function Welcome() {
                                         <Link href={login()}>Log in</Link>
                                     </Button>
                                     <Button asChild variant="default" size="sm">
-                                        <Link href={register()}>Get Started</Link>
+                                        <Link href={register()}>
+                                            Get Started
+                                        </Link>
                                     </Button>
                                 </>
                             )}
@@ -78,37 +86,53 @@ export default function Welcome() {
                             <div className="mb-6 flex justify-center">
                                 <AppLogoIcon className="h-20 w-20 rounded-2xl object-cover shadow-2xl ring-4 ring-white/20" />
                             </div>
-                            <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                            <h1 className="mb-6 text-4xl leading-tight font-bold tracking-tight sm:text-5xl lg:text-6xl">
                                 Modern Healthcare
                                 <br />
                                 Management System
                             </h1>
                             <p className="mb-10 text-lg text-white/80 sm:text-xl">
-                                Streamline patient care, billing, pharmacy, laboratory, and nursing operations
-                                in one powerful platform. Built for clinics, hospitals, and healthcare teams.
+                                Streamline patient care, billing, pharmacy,
+                                laboratory, and nursing operations in one
+                                powerful platform. Built for clinics, hospitals,
+                                and healthcare teams.
                             </p>
                             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                                 {!auth.user && (
-                                    <Button asChild size="lg" className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                                    >
                                         <Link href={register()}>
                                             Start Free Trial
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </Button>
                                 )}
-                                {auth.user && (
-                                    <Button asChild size="lg" className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
-                                        <Link href={dashboardUrl}>
-                                            Go to Dashboard
+                                {auth.user && authenticatedDestination ? (
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                                    >
+                                        <Link href={authenticatedDestination}>
+                                            {currentTeam
+                                                ? 'Go to Dashboard'
+                                                : 'Set up your team'}
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </Button>
+                                ) : (
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        variant="outline"
+                                        className="gap-2 border-white/30 bg-white/10 text-white hover:bg-white/20"
+                                    >
+                                        <Link href={login()}>Log In</Link>
+                                    </Button>
                                 )}
-                                <Button asChild size="lg" variant="outline" className="gap-2 border-white/30 bg-white/10 text-white hover:bg-white/20">
-                                    <Link href={login()}>
-                                        Log In
-                                    </Link>
-                                </Button>
                             </div>
                         </div>
                     </div>
@@ -118,12 +142,13 @@ export default function Welcome() {
                 <section className="py-20 dark:bg-[#161615]">
                     <div className="container mx-auto px-4">
                         <div className="mx-auto max-w-2xl text-center">
-                            <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+                            <h2 className="mb-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
                                 Everything You Need to Run Your Practice
                             </h2>
                             <p className="text-lg text-gray-600 dark:text-gray-400">
-                                AldidsCared brings together all the tools your healthcare team needs
-                                into a single, intuitive platform.
+                                AldidsCared brings together all the tools your
+                                healthcare team needs into a single, intuitive
+                                platform.
                             </p>
                         </div>
                         <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -133,9 +158,12 @@ export default function Welcome() {
                                     <div className="mb-2 inline-flex size-12 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                                         <Users className="size-6 text-emerald-600 dark:text-emerald-400" />
                                     </div>
-                                    <CardTitle className="text-gray-900 dark:text-white">Patient Management</CardTitle>
+                                    <CardTitle className="text-gray-900 dark:text-white">
+                                        Patient Management
+                                    </CardTitle>
                                     <CardDescription>
-                                        Complete patient records, registration, and history tracking.
+                                        Complete patient records, registration,
+                                        and history tracking.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -162,9 +190,12 @@ export default function Welcome() {
                                     <div className="mb-2 inline-flex size-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                                         <Banknote className="size-6 text-blue-600 dark:text-blue-400" />
                                     </div>
-                                    <CardTitle className="text-gray-900 dark:text-white">Billing & Finance</CardTitle>
+                                    <CardTitle className="text-gray-900 dark:text-white">
+                                        Billing & Finance
+                                    </CardTitle>
                                     <CardDescription>
-                                        Streamlined invoicing, payments, and financial reporting.
+                                        Streamlined invoicing, payments, and
+                                        financial reporting.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -191,9 +222,12 @@ export default function Welcome() {
                                     <div className="mb-2 inline-flex size-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
                                         <Pill className="size-6 text-amber-600 dark:text-amber-400" />
                                     </div>
-                                    <CardTitle className="text-gray-900 dark:text-white">Pharmacy</CardTitle>
+                                    <CardTitle className="text-gray-900 dark:text-white">
+                                        Pharmacy
+                                    </CardTitle>
                                     <CardDescription>
-                                        Drug catalog, prescriptions, and inventory management.
+                                        Drug catalog, prescriptions, and
+                                        inventory management.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -220,9 +254,12 @@ export default function Welcome() {
                                     <div className="mb-2 inline-flex size-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
                                         <FlaskConical className="size-6 text-purple-600 dark:text-purple-400" />
                                     </div>
-                                    <CardTitle className="text-gray-900 dark:text-white">Laboratory</CardTitle>
+                                    <CardTitle className="text-gray-900 dark:text-white">
+                                        Laboratory
+                                    </CardTitle>
                                     <CardDescription>
-                                        Lab intake, test orders, and result management.
+                                        Lab intake, test orders, and result
+                                        management.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -249,9 +286,12 @@ export default function Welcome() {
                                     <div className="mb-2 inline-flex size-12 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30">
                                         <BedDouble className="size-6 text-rose-600 dark:text-rose-400" />
                                     </div>
-                                    <CardTitle className="text-gray-900 dark:text-white">Nursing & Wards</CardTitle>
+                                    <CardTitle className="text-gray-900 dark:text-white">
+                                        Nursing & Wards
+                                    </CardTitle>
                                     <CardDescription>
-                                        Admissions, ward rounds, and nursing care records.
+                                        Admissions, ward rounds, and nursing
+                                        care records.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -278,9 +318,12 @@ export default function Welcome() {
                                     <div className="mb-2 inline-flex size-12 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
                                         <Stethoscope className="size-6 text-cyan-600 dark:text-cyan-400" />
                                     </div>
-                                    <CardTitle className="text-gray-900 dark:text-white">Consultations</CardTitle>
+                                    <CardTitle className="text-gray-900 dark:text-white">
+                                        Consultations
+                                    </CardTitle>
                                     <CardDescription>
-                                        Clinical records, appointments, and doctor notes.
+                                        Clinical records, appointments, and
+                                        doctor notes.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -309,7 +352,7 @@ export default function Welcome() {
                     <div className="container mx-auto px-4">
                         <div className="grid items-center gap-12 lg:grid-cols-2">
                             <div>
-                                <h2 className="mb-6 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+                                <h2 className="mb-6 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
                                     Why Healthcare Teams Choose AldidsCared
                                 </h2>
                                 <div className="space-y-6">
@@ -322,7 +365,9 @@ export default function Welcome() {
                                                 Secure & Compliant
                                             </h3>
                                             <p className="text-gray-600 dark:text-gray-400">
-                                                Role-based access control, team isolation, and audit trails keep patient data safe and compliant.
+                                                Role-based access control, team
+                                                isolation, and audit trails keep
+                                                patient data safe and compliant.
                                             </p>
                                         </div>
                                     </div>
@@ -335,7 +380,9 @@ export default function Welcome() {
                                                 Real-Time Dashboard
                                             </h3>
                                             <p className="text-gray-600 dark:text-gray-400">
-                                                Monitor KPIs, revenue, appointments, and stock levels at a glance with live analytics.
+                                                Monitor KPIs, revenue,
+                                                appointments, and stock levels
+                                                at a glance with live analytics.
                                             </p>
                                         </div>
                                     </div>
@@ -348,7 +395,10 @@ export default function Welcome() {
                                                 Comprehensive Reports
                                             </h3>
                                             <p className="text-gray-600 dark:text-gray-400">
-                                                Generate detailed reports on sales, categories, discounts, and operations with a single click.
+                                                Generate detailed reports on
+                                                sales, categories, discounts,
+                                                and operations with a single
+                                                click.
                                             </p>
                                         </div>
                                     </div>
@@ -361,7 +411,9 @@ export default function Welcome() {
                                                 All-in-One Platform
                                             </h3>
                                             <p className="text-gray-600 dark:text-gray-400">
-                                                From reception to billing, pharmacy to lab — manage every department from a single system.
+                                                From reception to billing,
+                                                pharmacy to lab — manage every
+                                                department from a single system.
                                             </p>
                                         </div>
                                     </div>
@@ -397,20 +449,32 @@ export default function Welcome() {
                                     Ready to Transform Your Practice?
                                 </h2>
                                 <p className="mx-auto mb-8 max-w-xl text-lg text-white/80">
-                                    Join healthcare teams who trust AldidsCared to manage their daily operations efficiently.
+                                    Join healthcare teams who trust AldidsCared
+                                    to manage their daily operations
+                                    efficiently.
                                 </p>
                                 {!auth.user && (
-                                    <Button asChild size="lg" className="gap-2 bg-white text-emerald-800 hover:bg-gray-100">
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        className="gap-2 bg-white text-emerald-800 hover:bg-gray-100"
+                                    >
                                         <Link href={register()}>
                                             Get Started Free
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </Button>
                                 )}
-                                {auth.user && (
-                                    <Button asChild size="lg" className="gap-2 bg-white text-emerald-800 hover:bg-gray-100">
-                                        <Link href={dashboardUrl}>
-                                            Open Dashboard
+                                {auth.user && authenticatedDestination && (
+                                    <Button
+                                        asChild
+                                        size="lg"
+                                        className="gap-2 bg-white text-emerald-800 hover:bg-gray-100"
+                                    >
+                                        <Link href={authenticatedDestination}>
+                                            {currentTeam
+                                                ? 'Open Dashboard'
+                                                : 'Set up your team'}
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </Button>
@@ -439,8 +503,8 @@ export default function Welcome() {
                                     className="font-medium text-gray-700 underline underline-offset-4 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                                 >
                                     Aldids
-                                </a>
-                                {' '}with support from{' '}
+                                </a>{' '}
+                                with support from{' '}
                                 <a
                                     href="https://smb.ng"
                                     target="_blank"

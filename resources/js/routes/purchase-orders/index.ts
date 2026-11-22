@@ -110,7 +110,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
+ * @see app/Http/Controllers/PurchaseOrderController.php:97
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders'
  */
@@ -126,7 +126,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
+ * @see app/Http/Controllers/PurchaseOrderController.php:97
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders'
  */
@@ -159,7 +159,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
+ * @see app/Http/Controllers/PurchaseOrderController.php:97
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders'
  */
@@ -170,7 +170,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
+ * @see app/Http/Controllers/PurchaseOrderController.php:97
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders'
  */
@@ -181,7 +181,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\PurchaseOrderController::store
- * @see app/Http/Controllers/PurchaseOrderController.php:96
+ * @see app/Http/Controllers/PurchaseOrderController.php:97
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders'
  */
@@ -193,7 +193,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
+ * @see app/Http/Controllers/PurchaseOrderController.php:189
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
  */
@@ -209,7 +209,7 @@ approve.definition = {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
+ * @see app/Http/Controllers/PurchaseOrderController.php:189
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
  */
@@ -242,7 +242,7 @@ approve.url = (args: { current_team?: string | number, purchaseOrder: number | {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
+ * @see app/Http/Controllers/PurchaseOrderController.php:189
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
  */
@@ -253,7 +253,7 @@ approve.patch = (args: { current_team?: string | number, purchaseOrder: number |
 
     /**
 * @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
+ * @see app/Http/Controllers/PurchaseOrderController.php:189
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
  */
@@ -269,7 +269,7 @@ approve.patch = (args: { current_team?: string | number, purchaseOrder: number |
 
             /**
 * @see \App\Http\Controllers\PurchaseOrderController::approve
- * @see app/Http/Controllers/PurchaseOrderController.php:180
+ * @see app/Http/Controllers/PurchaseOrderController.php:189
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/approve'
  */
@@ -286,7 +286,7 @@ approve.patch = (args: { current_team?: string | number, purchaseOrder: number |
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
+ * @see app/Http/Controllers/PurchaseOrderController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
  */
@@ -302,7 +302,7 @@ postInventory.definition = {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
+ * @see app/Http/Controllers/PurchaseOrderController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
  */
@@ -335,7 +335,7 @@ postInventory.url = (args: { current_team?: string | number, purchaseOrder: numb
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
+ * @see app/Http/Controllers/PurchaseOrderController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
  */
@@ -346,7 +346,7 @@ postInventory.post = (args: { current_team?: string | number, purchaseOrder: num
 
     /**
 * @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
+ * @see app/Http/Controllers/PurchaseOrderController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
  */
@@ -357,7 +357,7 @@ postInventory.post = (args: { current_team?: string | number, purchaseOrder: num
 
             /**
 * @see \App\Http\Controllers\PurchaseOrderController::postInventory
- * @see app/Http/Controllers/PurchaseOrderController.php:189
+ * @see app/Http/Controllers/PurchaseOrderController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}/post-inventory'
  */
@@ -369,7 +369,7 @@ postInventory.post = (args: { current_team?: string | number, purchaseOrder: num
     postInventory.form = postInventoryForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
+ * @see app/Http/Controllers/PurchaseOrderController.php:135
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -385,7 +385,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
+ * @see app/Http/Controllers/PurchaseOrderController.php:135
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -418,7 +418,7 @@ update.url = (args: { current_team?: string | number, purchaseOrder: number | { 
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
+ * @see app/Http/Controllers/PurchaseOrderController.php:135
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -429,7 +429,7 @@ update.patch = (args: { current_team?: string | number, purchaseOrder: number | 
 
     /**
 * @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
+ * @see app/Http/Controllers/PurchaseOrderController.php:135
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -445,7 +445,7 @@ update.patch = (args: { current_team?: string | number, purchaseOrder: number | 
 
             /**
 * @see \App\Http\Controllers\PurchaseOrderController::update
- * @see app/Http/Controllers/PurchaseOrderController.php:130
+ * @see app/Http/Controllers/PurchaseOrderController.php:135
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -462,7 +462,7 @@ update.patch = (args: { current_team?: string | number, purchaseOrder: number | 
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
+ * @see app/Http/Controllers/PurchaseOrderController.php:170
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -478,7 +478,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
+ * @see app/Http/Controllers/PurchaseOrderController.php:170
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -511,7 +511,7 @@ destroy.url = (args: { current_team?: string | number, purchaseOrder: number | {
 
 /**
 * @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
+ * @see app/Http/Controllers/PurchaseOrderController.php:170
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -522,7 +522,7 @@ destroy.delete = (args: { current_team?: string | number, purchaseOrder: number 
 
     /**
 * @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
+ * @see app/Http/Controllers/PurchaseOrderController.php:170
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */
@@ -538,7 +538,7 @@ destroy.delete = (args: { current_team?: string | number, purchaseOrder: number 
 
             /**
 * @see \App\Http\Controllers\PurchaseOrderController::destroy
- * @see app/Http/Controllers/PurchaseOrderController.php:161
+ * @see app/Http/Controllers/PurchaseOrderController.php:170
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/purchase-orders/{purchaseOrder}'
  */

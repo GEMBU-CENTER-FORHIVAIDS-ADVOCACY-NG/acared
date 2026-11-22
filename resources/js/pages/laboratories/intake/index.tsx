@@ -1,9 +1,26 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, FolderPlus, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+    ArrowDown,
+    ArrowUp,
+    ArrowUpDown,
+    Eye,
+    FolderPlus,
+    MoreHorizontal,
+    Pencil,
+    Plus,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,7 +84,6 @@ export type LabIntakePageProps = {
     routeBuilder?: (teamSlug: string, suffix?: string) => string;
 };
 
-
 export default function LabIntakeIndex({
     currencySymbol,
     items,
@@ -83,14 +99,25 @@ export default function LabIntakeIndex({
     showSkuInsteadOfCategory = false,
     sortableSubcategory = false,
     hideParameters = false,
-}: LabIntakePageProps & { padded?: boolean; subcategoryStoreUrl?: (teamSlug: string) => string; showSkuInsteadOfCategory?: boolean; sortableSubcategory?: boolean; hideParameters?: boolean }) {
+}: LabIntakePageProps & {
+    padded?: boolean;
+    subcategoryStoreUrl?: (teamSlug: string) => string;
+    showSkuInsteadOfCategory?: boolean;
+    sortableSubcategory?: boolean;
+    hideParameters?: boolean;
+}) {
     const { currentTeam } = usePage<LayoutProps>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
-    const [filterCategoryId, setFilterCategoryId] = useState(filters.categoryId);
-    const [filterSubcategoryId, setFilterSubcategoryId] = useState(filters.subcategoryId);
+    const [filterCategoryId, setFilterCategoryId] = useState(
+        filters.categoryId,
+    );
+    const [filterSubcategoryId, setFilterSubcategoryId] = useState(
+        filters.subcategoryId,
+    );
     const [viewing, setViewing] = useState<LabIntakeListItem | null>(null);
     const [toDelete, setToDelete] = useState<LabIntakeListItem | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
     const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
     const [subcategoryForm, setSubcategoryForm] = useState({
@@ -98,8 +125,9 @@ export default function LabIntakeIndex({
         name: '',
     });
     const [subcategoryProcessing, setSubcategoryProcessing] = useState(false);
-    const [subcategoryError, setSubcategoryError] = useState<string | null>(null);
-
+    const [subcategoryError, setSubcategoryError] = useState<string | null>(
+        null,
+    );
 
     function baseUrl(path = '') {
         return routeBuilder
@@ -125,23 +153,30 @@ export default function LabIntakeIndex({
         );
     }
 
-
     function deleteItem() {
-        if (!toDelete) {
+        if (!toDelete || processing) {
             return;
         }
 
         setProcessing(true);
+        setDeleteError(null);
         router.delete(baseUrl(`/${toDelete.id}`), {
             preserveScroll: true,
-            onFinish: () => {
-                setProcessing(false);
-                setToDelete(null);
-            },
+            onSuccess: () => setToDelete(null),
+            onError: (errors) =>
+                setDeleteError(
+                    Object.values(errors)[0] ??
+                        'Unable to delete catalog item.',
+                ),
+            onFinish: () => setProcessing(false),
         });
     }
 
     function createSubcategory() {
+        if (subcategoryProcessing) {
+            return;
+        }
+
         setSubcategoryProcessing(true);
         setSubcategoryError(null);
         const url = subcategoryStoreUrl
@@ -177,12 +212,17 @@ export default function LabIntakeIndex({
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => setShowSubcategoryModal(true)}
+                            onClick={() => {
+                                setSubcategoryError(null);
+                                setShowSubcategoryModal(true);
+                            }}
                         >
                             <FolderPlus className="mr-2 h-4 w-4" />
                             New Subcategory
                         </Button>
-                        <Button onClick={() => router.visit(baseUrl('/create'))}>
+                        <Button
+                            onClick={() => router.visit(baseUrl('/create'))}
+                        >
                             <Plus className="mr-2 h-4 w-4" />
                             Add {itemLabel}
                         </Button>
@@ -227,12 +267,14 @@ export default function LabIntakeIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search catalog"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search catalog..."
                             className="max-w-sm"
                         />
                         <SelectNative
+                            aria-label="Filter by category"
                             value={filterCategoryId}
                             onChange={(event) => {
                                 const categoryId = event.target.value;
@@ -247,12 +289,16 @@ export default function LabIntakeIndex({
                         >
                             <option value="">All categories</option>
                             {formOptions.categories.map((category) => (
-                                <option key={category.id} value={String(category.id)}>
+                                <option
+                                    key={category.id}
+                                    value={String(category.id)}
+                                >
                                     {category.name}
                                 </option>
                             ))}
                         </SelectNative>
                         <SelectNative
+                            aria-label="Filter by subcategory"
                             value={filterSubcategoryId}
                             onChange={(event) => {
                                 const subcategoryId = event.target.value;
@@ -267,9 +313,10 @@ export default function LabIntakeIndex({
                             <option value="">All subcategories</option>
                             {(filterCategoryId
                                 ? formOptions.subcategories.filter(
-                                    (sc) =>
-                                        String(sc.categoryId) === filterCategoryId,
-                                )
+                                      (sc) =>
+                                          String(sc.categoryId) ===
+                                          filterCategoryId,
+                                  )
                                 : formOptions.subcategories
                             ).map((sub) => (
                                 <option key={sub.id} value={String(sub.id)}>
@@ -277,136 +324,185 @@ export default function LabIntakeIndex({
                                 </option>
                             ))}
                         </SelectNative>
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                 </div>
 
                 <Card>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{showSkuInsteadOfCategory ? 'SKU' : 'Category'}</TableHead>
-                                    <TableHead>
-                                        {sortableSubcategory ? (
-                                            <button
-                                                type="button"
-                                                className="group flex items-center gap-1 font-normal"
-                                                onClick={() => {
-                                                    const nextSort = filters.sort === 'subcategory_name'
-                                                        ? (filters.direction === 'asc' ? 'subcategory_name' : 'subcategory_name')
-                                                        : 'subcategory_name';
-                                                    const nextDirection =
-                                                        filters.sort === 'subcategory_name' && filters.direction === 'asc'
-                                                            ? 'desc'
-                                                            : 'asc';
-                                                    applyFilters({ sort: nextSort, direction: nextDirection });
-                                                }}
-                                            >
-                                                Subcategory
-                                                {filters.sort === 'subcategory_name'
-                                                    ? (filters.direction === 'asc'
-                                                        ? <ArrowUp className="h-4 w-4" />
-                                                        : <ArrowDown className="h-4 w-4" />)
-                                                    : <ArrowUpDown className="h-4 w-4 opacity-40 group-hover:opacity-70" />
-                                                }
-                                            </button>
-                                        ) : (
-                                            'Subcategory'
-                                        )}
-                                    </TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Price</TableHead>
-                                    <TableHead>Category?</TableHead>
-                                    <TableHead>Inventory?</TableHead>
-                                    <TableHead className="text-right">
-                                        Actions
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {items.data.length === 0 ? (
+                        <div className="w-full overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            className="py-8 text-center text-muted-foreground"
+                                        <TableHead>
+                                            {showSkuInsteadOfCategory
+                                                ? 'SKU'
+                                                : 'Category'}
+                                        </TableHead>
+                                        <TableHead
+                                            aria-sort={
+                                                filters.sort ===
+                                                'subcategory_name'
+                                                    ? filters.direction ===
+                                                      'asc'
+                                                        ? 'ascending'
+                                                        : 'descending'
+                                                    : 'none'
+                                            }
                                         >
-                                            No {itemLabel}s found.
-                                        </TableCell>
+                                            {sortableSubcategory ? (
+                                                <button
+                                                    type="button"
+                                                    className="group flex items-center gap-1 rounded-sm font-normal focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                    onClick={() => {
+                                                        const nextSort =
+                                                            filters.sort ===
+                                                            'subcategory_name'
+                                                                ? filters.direction ===
+                                                                  'asc'
+                                                                    ? 'subcategory_name'
+                                                                    : 'subcategory_name'
+                                                                : 'subcategory_name';
+                                                        const nextDirection =
+                                                            filters.sort ===
+                                                                'subcategory_name' &&
+                                                            filters.direction ===
+                                                                'asc'
+                                                                ? 'desc'
+                                                                : 'asc';
+                                                        applyFilters({
+                                                            sort: nextSort,
+                                                            direction:
+                                                                nextDirection,
+                                                        });
+                                                    }}
+                                                >
+                                                    Subcategory
+                                                    {filters.sort ===
+                                                    'subcategory_name' ? (
+                                                        filters.direction ===
+                                                        'asc' ? (
+                                                            <ArrowUp className="h-4 w-4" />
+                                                        ) : (
+                                                            <ArrowDown className="h-4 w-4" />
+                                                        )
+                                                    ) : (
+                                                        <ArrowUpDown className="h-4 w-4 opacity-40 group-hover:opacity-70" />
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                'Subcategory'
+                                            )}
+                                        </TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Price</TableHead>
+                                        <TableHead>Category?</TableHead>
+                                        <TableHead>Inventory?</TableHead>
+                                        <TableHead className="text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
-                                ) : (
-                                    items.data.map((item) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell>
-                                                {showSkuInsteadOfCategory
-                                                    ? (item.sku ?? '—')
-                                                    : (item.categoryName ?? '—')}
-                                            </TableCell>
-                                            <TableCell className="max-w-[200px] whitespace-normal break-words">
-                                                {item.subcategoryName ?? '—'}
-                                            </TableCell>
-                                            <TableCell>{item.name}</TableCell>
-                                            <TableCell>
-                                                {currencySymbol}{' '}
-                                                {item.price.toLocaleString()}
-                                            </TableCell>
-                                            <TableCell>
-                                                {item.isCategory ? 'Yes' : 'No'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {item.isInventory ? 'Yes' : 'No'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                        >
-                                                            <MoreHorizontal className="size-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                setViewing(item)
-                                                            }
-                                                        >
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            View
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    baseUrl(
-                                                                        '/' +
-                                                                            item.id +
-                                                                            '/edit',
-                                                                    ),
-                                                                )
-                                                            }
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                setToDelete(item)
-                                                            }
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                </TableHeader>
+                                <TableBody>
+                                    {items.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={7}
+                                                className="py-8 text-center text-muted-foreground"
+                                            >
+                                                No {itemLabel}s found.
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : (
+                                        items.data.map((item) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell>
+                                                    {showSkuInsteadOfCategory
+                                                        ? (item.sku ?? '—')
+                                                        : (item.categoryName ??
+                                                          '—')}
+                                                </TableCell>
+                                                <TableCell className="max-w-[200px] break-words whitespace-normal">
+                                                    {item.subcategoryName ??
+                                                        '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.name}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {currencySymbol}{' '}
+                                                    {item.price.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.isCategory
+                                                        ? 'Yes'
+                                                        : 'No'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.isInventory
+                                                        ? 'Yes'
+                                                        : 'No'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                aria-label={`Actions for ${item.name}`}
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    setViewing(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                View
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    router.visit(
+                                                                        baseUrl(
+                                                                            '/' +
+                                                                                item.id +
+                                                                                '/edit',
+                                                                        ),
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setDeleteError(
+                                                                        null,
+                                                                    );
+                                                                    setToDelete(
+                                                                        item,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -421,7 +517,6 @@ export default function LabIntakeIndex({
                     onPerPageChange={(perPage) => applyFilters({ perPage })}
                 />
             </div>
-
 
             <Dialog
                 open={viewing !== null}
@@ -531,7 +626,8 @@ export default function LabIntakeIndex({
                                     {viewing.ranges || 'Not provided'}
                                 </p>
                             </section>
-                            {!hideParameters && viewing.parameters.length > 0 ? (
+                            {!hideParameters &&
+                            viewing.parameters.length > 0 ? (
                                 <section className="space-y-2">
                                     <h3 className="text-sm font-semibold">
                                         Parameters
@@ -624,11 +720,9 @@ export default function LabIntakeIndex({
                                     }))
                                 }
                             />
-                            {subcategoryError && (
-                                <p className="text-sm text-red-600">
-                                    {subcategoryError}
-                                </p>
-                            )}
+                            <InputError
+                                message={subcategoryError ?? undefined}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
@@ -636,7 +730,10 @@ export default function LabIntakeIndex({
                             variant="outline"
                             onClick={() => {
                                 setShowSubcategoryModal(false);
-                                setSubcategoryForm({ category_id: '', name: '' });
+                                setSubcategoryForm({
+                                    category_id: '',
+                                    name: '',
+                                });
                             }}
                         >
                             Cancel
@@ -649,9 +746,7 @@ export default function LabIntakeIndex({
                                 subcategoryProcessing
                             }
                         >
-                            {subcategoryProcessing
-                                ? 'Creating...'
-                                : 'Create'}
+                            {subcategoryProcessing ? 'Creating...' : 'Create'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -660,13 +755,21 @@ export default function LabIntakeIndex({
             <ConfirmDialog
                 open={toDelete !== null}
                 onOpenChange={(open) => {
+                    if (processing) {
+                        return;
+                    }
                     if (!open) {
                         setToDelete(null);
+                        setDeleteError(null);
                     }
                 }}
                 title="Delete catalog item?"
-                description="This removes the laboratory catalog entry and its parameters."
-                confirmLabel="Delete"
+                description={
+                    deleteError ??
+                    'This removes the laboratory catalog entry and its parameters.'
+                }
+                confirmLabel={processing ? 'Deleting…' : 'Delete'}
+                destructive
                 processing={processing}
                 onConfirm={deleteItem}
             />

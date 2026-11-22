@@ -6,7 +6,7 @@ import previousPregnancy from './previous-pregnancy'
 import bulk from './bulk'
 /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -22,7 +22,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -55,7 +55,7 @@ index.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -65,7 +65,7 @@ index.get = (args?: { current_team?: string | number } | [current_team: string |
 })
 /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -76,7 +76,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -87,7 +87,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -97,7 +97,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
         })
             /**
 * @see \App\Http\Controllers\NursingController::index
- * @see app/Http/Controllers/NursingController.php:439
+ * @see app/Http/Controllers/NursingController.php:440
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -114,7 +114,7 @@ index.head = (args?: { current_team?: string | number } | [current_team: string 
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -130,7 +130,7 @@ history.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -163,7 +163,7 @@ history.url = (args?: { current_team?: string | number } | [current_team: string
 
 /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -173,7 +173,7 @@ history.get = (args?: { current_team?: string | number } | [current_team: string
 })
 /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -184,7 +184,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
     /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -195,7 +195,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
 
             /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -205,7 +205,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
         })
             /**
 * @see \App\Http\Controllers\NursingController::history
- * @see app/Http/Controllers/NursingController.php:397
+ * @see app/Http/Controllers/NursingController.php:398
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/history'
  */
@@ -222,7 +222,7 @@ history.head = (args?: { current_team?: string | number } | [current_team: strin
     history.form = historyForm
 /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -238,7 +238,7 @@ view.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -275,7 +275,7 @@ view.url = (args: { current_team?: string | number, nursing: number | { id: numb
 
 /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -285,7 +285,7 @@ view.get = (args: { current_team?: string | number, nursing: number | { id: numb
 })
 /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -296,7 +296,7 @@ view.head = (args: { current_team?: string | number, nursing: number | { id: num
 
     /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -307,7 +307,7 @@ view.head = (args: { current_team?: string | number, nursing: number | { id: num
 
             /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -317,7 +317,7 @@ view.head = (args: { current_team?: string | number, nursing: number | { id: num
         })
             /**
 * @see \App\Http\Controllers\NursingController::view
- * @see app/Http/Controllers/NursingController.php:54
+ * @see app/Http/Controllers/NursingController.php:55
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/{section?}'
  */
@@ -334,7 +334,7 @@ view.head = (args: { current_team?: string | number, nursing: number | { id: num
     view.form = viewForm
 /**
 * @see \App\Http\Controllers\NursingController::start
- * @see app/Http/Controllers/NursingController.php:291
+ * @see app/Http/Controllers/NursingController.php:292
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/start'
  */
@@ -350,7 +350,7 @@ start.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::start
- * @see app/Http/Controllers/NursingController.php:291
+ * @see app/Http/Controllers/NursingController.php:292
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/start'
  */
@@ -383,7 +383,7 @@ start.url = (args: { current_team?: string | number, nursing: number | { id: num
 
 /**
 * @see \App\Http\Controllers\NursingController::start
- * @see app/Http/Controllers/NursingController.php:291
+ * @see app/Http/Controllers/NursingController.php:292
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/start'
  */
@@ -394,7 +394,7 @@ start.patch = (args: { current_team?: string | number, nursing: number | { id: n
 
     /**
 * @see \App\Http\Controllers\NursingController::start
- * @see app/Http/Controllers/NursingController.php:291
+ * @see app/Http/Controllers/NursingController.php:292
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/start'
  */
@@ -410,7 +410,7 @@ start.patch = (args: { current_team?: string | number, nursing: number | { id: n
 
             /**
 * @see \App\Http\Controllers\NursingController::start
- * @see app/Http/Controllers/NursingController.php:291
+ * @see app/Http/Controllers/NursingController.php:292
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/start'
  */
@@ -427,7 +427,7 @@ start.patch = (args: { current_team?: string | number, nursing: number | { id: n
     start.form = startForm
 /**
 * @see \App\Http\Controllers\NursingController::end
- * @see app/Http/Controllers/NursingController.php:310
+ * @see app/Http/Controllers/NursingController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/end'
  */
@@ -443,7 +443,7 @@ end.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::end
- * @see app/Http/Controllers/NursingController.php:310
+ * @see app/Http/Controllers/NursingController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/end'
  */
@@ -476,7 +476,7 @@ end.url = (args: { current_team?: string | number, nursing: number | { id: numbe
 
 /**
 * @see \App\Http\Controllers\NursingController::end
- * @see app/Http/Controllers/NursingController.php:310
+ * @see app/Http/Controllers/NursingController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/end'
  */
@@ -487,7 +487,7 @@ end.patch = (args: { current_team?: string | number, nursing: number | { id: num
 
     /**
 * @see \App\Http\Controllers\NursingController::end
- * @see app/Http/Controllers/NursingController.php:310
+ * @see app/Http/Controllers/NursingController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/end'
  */
@@ -503,7 +503,7 @@ end.patch = (args: { current_team?: string | number, nursing: number | { id: num
 
             /**
 * @see \App\Http\Controllers\NursingController::end
- * @see app/Http/Controllers/NursingController.php:310
+ * @see app/Http/Controllers/NursingController.php:311
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/end'
  */
@@ -520,7 +520,7 @@ end.patch = (args: { current_team?: string | number, nursing: number | { id: num
     end.form = endForm
 /**
 * @see \App\Http\Controllers\NursingController::transfer
- * @see app/Http/Controllers/NursingController.php:324
+ * @see app/Http/Controllers/NursingController.php:325
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/transfer'
  */
@@ -536,7 +536,7 @@ transfer.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::transfer
- * @see app/Http/Controllers/NursingController.php:324
+ * @see app/Http/Controllers/NursingController.php:325
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/transfer'
  */
@@ -569,7 +569,7 @@ transfer.url = (args: { current_team?: string | number, nursing: number | { id: 
 
 /**
 * @see \App\Http\Controllers\NursingController::transfer
- * @see app/Http/Controllers/NursingController.php:324
+ * @see app/Http/Controllers/NursingController.php:325
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/transfer'
  */
@@ -580,7 +580,7 @@ transfer.patch = (args: { current_team?: string | number, nursing: number | { id
 
     /**
 * @see \App\Http\Controllers\NursingController::transfer
- * @see app/Http/Controllers/NursingController.php:324
+ * @see app/Http/Controllers/NursingController.php:325
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/transfer'
  */
@@ -596,7 +596,7 @@ transfer.patch = (args: { current_team?: string | number, nursing: number | { id
 
             /**
 * @see \App\Http\Controllers\NursingController::transfer
- * @see app/Http/Controllers/NursingController.php:324
+ * @see app/Http/Controllers/NursingController.php:325
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}/transfer'
  */
@@ -613,7 +613,7 @@ transfer.patch = (args: { current_team?: string | number, nursing: number | { id
     transfer.form = transferForm
 /**
 * @see \App\Http\Controllers\NursingController::store
- * @see app/Http/Controllers/NursingController.php:471
+ * @see app/Http/Controllers/NursingController.php:472
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -629,7 +629,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::store
- * @see app/Http/Controllers/NursingController.php:471
+ * @see app/Http/Controllers/NursingController.php:472
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -662,7 +662,7 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\NursingController::store
- * @see app/Http/Controllers/NursingController.php:471
+ * @see app/Http/Controllers/NursingController.php:472
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -673,7 +673,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
     /**
 * @see \App\Http\Controllers\NursingController::store
- * @see app/Http/Controllers/NursingController.php:471
+ * @see app/Http/Controllers/NursingController.php:472
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -684,7 +684,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
 
             /**
 * @see \App\Http\Controllers\NursingController::store
- * @see app/Http/Controllers/NursingController.php:471
+ * @see app/Http/Controllers/NursingController.php:472
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records'
  */
@@ -696,7 +696,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\NursingController::update
- * @see app/Http/Controllers/NursingController.php:479
+ * @see app/Http/Controllers/NursingController.php:480
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -712,7 +712,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::update
- * @see app/Http/Controllers/NursingController.php:479
+ * @see app/Http/Controllers/NursingController.php:480
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -745,7 +745,7 @@ update.url = (args: { current_team?: string | number, nursing: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\NursingController::update
- * @see app/Http/Controllers/NursingController.php:479
+ * @see app/Http/Controllers/NursingController.php:480
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -756,7 +756,7 @@ update.patch = (args: { current_team?: string | number, nursing: number | { id: 
 
     /**
 * @see \App\Http\Controllers\NursingController::update
- * @see app/Http/Controllers/NursingController.php:479
+ * @see app/Http/Controllers/NursingController.php:480
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -772,7 +772,7 @@ update.patch = (args: { current_team?: string | number, nursing: number | { id: 
 
             /**
 * @see \App\Http\Controllers\NursingController::update
- * @see app/Http/Controllers/NursingController.php:479
+ * @see app/Http/Controllers/NursingController.php:480
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -789,7 +789,7 @@ update.patch = (args: { current_team?: string | number, nursing: number | { id: 
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\NursingController::destroy
- * @see app/Http/Controllers/NursingController.php:486
+ * @see app/Http/Controllers/NursingController.php:487
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -805,7 +805,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\NursingController::destroy
- * @see app/Http/Controllers/NursingController.php:486
+ * @see app/Http/Controllers/NursingController.php:487
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -838,7 +838,7 @@ destroy.url = (args: { current_team?: string | number, nursing: number | { id: n
 
 /**
 * @see \App\Http\Controllers\NursingController::destroy
- * @see app/Http/Controllers/NursingController.php:486
+ * @see app/Http/Controllers/NursingController.php:487
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -849,7 +849,7 @@ destroy.delete = (args: { current_team?: string | number, nursing: number | { id
 
     /**
 * @see \App\Http\Controllers\NursingController::destroy
- * @see app/Http/Controllers/NursingController.php:486
+ * @see app/Http/Controllers/NursingController.php:487
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */
@@ -865,7 +865,7 @@ destroy.delete = (args: { current_team?: string | number, nursing: number | { id
 
             /**
 * @see \App\Http\Controllers\NursingController::destroy
- * @see app/Http/Controllers/NursingController.php:486
+ * @see app/Http/Controllers/NursingController.php:487
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/nursing/records/{nursing}'
  */

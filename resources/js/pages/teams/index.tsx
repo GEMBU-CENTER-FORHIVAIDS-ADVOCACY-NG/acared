@@ -9,13 +9,16 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import LeaveTeamModal from '@/components/leave-team-modal';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -33,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Table,
     TableBody,
@@ -110,6 +114,17 @@ export default function TeamsIndex({
     const [selected, setSelected] = useState<number[]>([]);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
+    const visibleTeamIds = paginator.data.map((team) => team.id);
+    const allVisibleTeamsSelected =
+        visibleTeamIds.length > 0 &&
+        visibleTeamIds.every((id) => selected.includes(id));
+    const someVisibleTeamsSelected = visibleTeamIds.some((id) =>
+        selected.includes(id),
+    );
 
     const visit = (patch: Partial<Filters>) =>
         router.get(
@@ -123,6 +138,7 @@ export default function TeamsIndex({
     const startCreate = () => {
         setEditing(null);
         setForm(blankForm);
+        setErrors({});
         setDialogOpen(true);
     };
 
@@ -136,6 +152,7 @@ export default function TeamsIndex({
             address: item.address ?? '',
             logo: null,
         });
+        setErrors({});
         setDialogOpen(true);
     };
 
@@ -149,8 +166,12 @@ export default function TeamsIndex({
             onSuccess: () => {
                 setDialogOpen(false);
                 setProcessing(false);
+                setErrors({});
             },
-            onError: () => setProcessing(false),
+            onError: (errs: Record<string, string>) => {
+                setErrors(errs);
+                setProcessing(false);
+            },
         };
 
         if (editing) {
@@ -165,15 +186,29 @@ export default function TeamsIndex({
     };
 
     const remove = () => {
-        if (!deleting) return;
+        if (!deleting) {
+            return;
+        }
+        setDeleteProcessing(true);
+        setDeleteError(null);
         router.delete(teamsDestroy.url(deleting.slug), {
             data: { name: deleting.name },
             preserveScroll: true,
-            onFinish: () => setDeleting(null),
+            onSuccess: () => {
+                setSelected((prev) => prev.filter((id) => id !== deleting.id));
+                setDeleting(null);
+            },
+            onError: (errs: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errs)[0] ?? 'Unable to delete team.',
+                ),
+            onFinish: () => setDeleteProcessing(false),
         });
     };
 
     const bulkRemove = () => {
+        setDeleteProcessing(true);
+        setDeleteError(null);
         router.delete(teamsBulkDestroy.url(), {
             data: { ids: selected },
             preserveScroll: true,
@@ -181,6 +216,11 @@ export default function TeamsIndex({
                 setSelected([]);
                 setBulkConfirmOpen(false);
             },
+            onError: (errs: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errs)[0] ?? 'Unable to delete teams.',
+                ),
+            onFinish: () => setDeleteProcessing(false),
         });
     };
 
@@ -206,7 +246,10 @@ export default function TeamsIndex({
                         title="Teams"
                         description="Manage your teams and team details."
                     />
-                    <Button onClick={startCreate} data-test="teams-new-team-button">
+                    <Button
+                        onClick={startCreate}
+                        data-test="teams-new-team-button"
+                    >
                         <Plus className="mr-2 h-4 w-4" /> New team
                     </Button>
                 </div>
@@ -220,14 +263,13 @@ export default function TeamsIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search teams"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search teams"
                             className="max-w-sm"
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                     {selected.length > 0 && (
                         <Button
@@ -238,199 +280,247 @@ export default function TeamsIndex({
                         </Button>
                     )}
                 </div>
+                {deleteError ? (
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete team."
+                    />
+                ) : null}
 
                 <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-12">
-                                    <input
-                                        aria-label="Select all"
-                                        type="checkbox"
-                                        checked={
-                                            paginator.data.length > 0 &&
-                                            paginator.data.every((t) =>
-                                                selected.includes(t.id),
-                                            )
-                                        }
-                                        onChange={(e) =>
-                                            setSelected(
-                                                e.target.checked
-                                                    ? paginator.data.map(
-                                                          (t) => t.id,
-                                                      )
-                                                    : [],
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Team</TableHead>
-                                <TableHead>Phone</TableHead>
-                                <TableHead>Mobile</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Address</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {paginator.data.length ? (
-                                paginator.data.map((team) => (
-                                    <TableRow key={team.id} data-test="team-row">
-                                        <TableCell>
-                                            <input
-                                                aria-label={`Select ${team.name}`}
-                                                type="checkbox"
-                                                checked={selected.includes(
-                                                    team.id,
-                                                )}
-                                                onChange={(e) =>
-                                                    setSelected(
-                                                        e.target.checked
-                                                            ? [
-                                                                  ...selected,
-                                                                  team.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      team.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                {team.logo ? (
-                                                    <img
-                                                        src={team.logo}
-                                                        alt=""
-                                                        className="size-8 rounded object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="flex size-8 items-center justify-center rounded bg-muted text-muted-foreground">
-                                                        <Users className="size-4" />
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <div className="flex items-center gap-2 font-medium">
-                                                        <span>{team.name}</span>
-                                                        {team.isPersonal && (
-                                                            <Badge variant="secondary">
-                                                                Personal
-                                                            </Badge>
-                                                        )}
-                                                        {team.isCurrent && (
-                                                            <Badge variant="outline">
-                                                                Current
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span>{team.slug}</span>
-                                                        {team.roleLabel && (
+                                <TableRow>
+                                    <TableHead className="w-12">
+                                        <Checkbox
+                                            aria-label="Select all teams"
+                                            checked={
+                                                allVisibleTeamsSelected
+                                                    ? true
+                                                    : someVisibleTeamsSelected
+                                                      ? 'indeterminate'
+                                                      : false
+                                            }
+                                            onCheckedChange={(checked) =>
+                                                setSelected((prev) =>
+                                                    checked === true
+                                                        ? [
+                                                              ...new Set([
+                                                                  ...prev,
+                                                                  ...visibleTeamIds,
+                                                              ]),
+                                                          ]
+                                                        : prev.filter(
+                                                              (id) =>
+                                                                  !visibleTeamIds.includes(
+                                                                      id,
+                                                                  ),
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                    </TableHead>
+                                    <TableHead>Team</TableHead>
+                                    <TableHead>Phone</TableHead>
+                                    <TableHead>Mobile</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Address</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {paginator.data.length ? (
+                                    paginator.data.map((team) => (
+                                        <TableRow
+                                            key={team.id}
+                                            data-test="team-row"
+                                            aria-current={
+                                                team.isCurrent
+                                                    ? 'true'
+                                                    : undefined
+                                            }
+                                        >
+                                            <TableCell>
+                                                <Checkbox
+                                                    aria-label={`Select ${team.name}`}
+                                                    checked={selected.includes(
+                                                        team.id,
+                                                    )}
+                                                    onCheckedChange={(
+                                                        checked,
+                                                    ) =>
+                                                        setSelected((prev) =>
+                                                            checked === true
+                                                                ? [
+                                                                      ...new Set(
+                                                                          [
+                                                                              ...prev,
+                                                                              team.id,
+                                                                          ],
+                                                                      ),
+                                                                  ]
+                                                                : prev.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          team.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    {team.logo ? (
+                                                        <img
+                                                            src={team.logo}
+                                                            alt=""
+                                                            className="size-8 rounded object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex size-8 items-center justify-center rounded bg-muted text-muted-foreground">
+                                                            <Users className="size-4" />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div className="flex items-center gap-2 font-medium">
                                                             <span>
-                                                                • {team.roleLabel}
+                                                                {team.name}
                                                             </span>
-                                                        )}
+                                                            {team.isPersonal && (
+                                                                <Badge variant="secondary">
+                                                                    Personal
+                                                                </Badge>
+                                                            )}
+                                                            {team.isCurrent && (
+                                                                <Badge variant="outline">
+                                                                    Current
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <span>
+                                                                {team.slug}
+                                                            </span>
+                                                            {team.roleLabel && (
+                                                                <span>
+                                                                    •{' '}
+                                                                    {
+                                                                        team.roleLabel
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{team.phone ?? '—'}</TableCell>
-                                        <TableCell>{team.mobile ?? '—'}</TableCell>
-                                        <TableCell>{team.email ?? '—'}</TableCell>
-                                        <TableCell className="max-w-56 truncate">
-                                            {team.address ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
+                                            </TableCell>
+                                            <TableCell>
+                                                {team.phone ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {team.mobile ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {team.email ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="max-w-56 truncate">
+                                                {team.address ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
+                                                        asChild
                                                     >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    {!team.isCurrent && (
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                switchTeam(team)
-                                                            }
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            aria-label={`Actions for ${team.name}`}
                                                         >
-                                                            Switch
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setViewing(team)
-                                                        }
-                                                    >
-                                                        <Eye className="mr-2 h-4 w-4" />
-                                                        View
-                                                    </DropdownMenuItem>
-                                                    {team.canUpdate !== false && (
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                startEdit(team)
-                                                            }
-                                                            data-test="team-edit-button"
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {team.canLeave && (
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                openLeaveTeamDialog(
-                                                                    team,
-                                                                )
-                                                            }
-                                                            data-test="team-leave-button"
-                                                        >
-                                                            <LogOut className="mr-2 h-4 w-4" />
-                                                            Leave
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {team.canDelete && (
-                                                        <>
-                                                            <DropdownMenuSeparator />
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        {!team.isCurrent && (
                                                             <DropdownMenuItem
                                                                 onClick={() =>
-                                                                    setDeleting(
+                                                                    switchTeam(
                                                                         team,
                                                                     )
                                                                 }
-                                                                data-test="team-delete-button"
                                                             >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
+                                                                Switch
                                                             </DropdownMenuItem>
-                                                        </>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                                        )}
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setViewing(team)
+                                                            }
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </DropdownMenuItem>
+                                                        {team.canUpdate !==
+                                                            false && (
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    startEdit(
+                                                                        team,
+                                                                    )
+                                                                }
+                                                                data-test="team-edit-button"
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {team.canLeave && (
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openLeaveTeamDialog(
+                                                                        team,
+                                                                    )
+                                                                }
+                                                                data-test="team-leave-button"
+                                                            >
+                                                                <LogOut className="mr-2 h-4 w-4" />
+                                                                Leave
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {team.canDelete && (
+                                                            <>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        setDeleting(
+                                                                            team,
+                                                                        )
+                                                                    }
+                                                                    data-test="team-delete-button"
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No teams found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={7}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No teams found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
 
@@ -475,6 +565,7 @@ export default function TeamsIndex({
                                         })
                                     }
                                 />
+                                <InputError message={errors.name} />
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="team-phone">Phone</Label>
@@ -488,6 +579,7 @@ export default function TeamsIndex({
                                         })
                                     }
                                 />
+                                <InputError message={errors.phone} />
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="team-mobile">Mobile</Label>
@@ -501,9 +593,12 @@ export default function TeamsIndex({
                                         })
                                     }
                                 />
+                                <InputError message={errors.mobile} />
                             </div>
                             <div className="space-y-1 sm:col-span-2">
-                                <Label htmlFor="team-email">Email address</Label>
+                                <Label htmlFor="team-email">
+                                    Email address
+                                </Label>
                                 <Input
                                     id="team-email"
                                     type="email"
@@ -515,6 +610,7 @@ export default function TeamsIndex({
                                         })
                                     }
                                 />
+                                <InputError message={errors.email} />
                             </div>
                             <div className="space-y-1 sm:col-span-2">
                                 <Label htmlFor="team-logo">
@@ -531,6 +627,7 @@ export default function TeamsIndex({
                                         })
                                     }
                                 />
+                                <InputError message={errors.logo} />
                             </div>
                             <div className="space-y-1 sm:col-span-2">
                                 <Label htmlFor="team-address">Address</Label>
@@ -545,6 +642,7 @@ export default function TeamsIndex({
                                         })
                                     }
                                 />
+                                <InputError message={errors.address} />
                             </div>
                         </div>
 
@@ -552,12 +650,18 @@ export default function TeamsIndex({
                             <Button
                                 type="button"
                                 variant="secondary"
+                                disabled={processing}
                                 onClick={() => setDialogOpen(false)}
                             >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={processing}>
-                                {editing ? 'Save changes' : 'Create team'}
+                                {processing && <Spinner />}
+                                {processing
+                                    ? 'Saving...'
+                                    : editing
+                                      ? 'Save changes'
+                                      : 'Create team'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -584,23 +688,35 @@ export default function TeamsIndex({
                                 />
                             )}
                             <div>
-                                <span className="text-muted-foreground">Slug: </span>
-                                <span className="font-mono">{viewing.slug}</span>
+                                <span className="text-muted-foreground">
+                                    Slug:{' '}
+                                </span>
+                                <span className="font-mono">
+                                    {viewing.slug}
+                                </span>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Phone: </span>
+                                <span className="text-muted-foreground">
+                                    Phone:{' '}
+                                </span>
                                 <span>{viewing.phone ?? '—'}</span>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Mobile: </span>
+                                <span className="text-muted-foreground">
+                                    Mobile:{' '}
+                                </span>
                                 <span>{viewing.mobile ?? '—'}</span>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Email: </span>
+                                <span className="text-muted-foreground">
+                                    Email:{' '}
+                                </span>
                                 <span>{viewing.email ?? '—'}</span>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Address: </span>
+                                <span className="text-muted-foreground">
+                                    Address:{' '}
+                                </span>
                                 <p className="mt-1 whitespace-pre-wrap">
                                     {viewing.address ?? '—'}
                                 </p>
@@ -614,9 +730,11 @@ export default function TeamsIndex({
             <ConfirmDialog
                 open={!!deleting}
                 onOpenChange={(open) => !open && setDeleting(null)}
+                processing={deleteProcessing}
                 title="Delete team"
                 description={`Are you sure you want to delete "${deleting?.name}"? This action cannot be undone.`}
-                confirmLabel="Delete"
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
                 onConfirm={remove}
             />
 
@@ -624,9 +742,11 @@ export default function TeamsIndex({
             <ConfirmDialog
                 open={bulkConfirmOpen}
                 onOpenChange={setBulkConfirmOpen}
+                processing={deleteProcessing}
                 title="Delete selected teams"
                 description={`Are you sure you want to delete ${selected.length} selected team(s)? This action cannot be undone.`}
-                confirmLabel="Delete"
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
                 onConfirm={bulkRemove}
             />
 

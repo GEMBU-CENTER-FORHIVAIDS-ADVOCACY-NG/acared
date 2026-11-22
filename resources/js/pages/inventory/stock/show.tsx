@@ -112,7 +112,17 @@ export default function InventoryStockShow({
                                 <p className="text-sm text-muted-foreground">
                                     {label}
                                 </p>
-                                <p className="font-medium">{value}</p>
+                                <p
+                                    className={
+                                        label === 'Profit'
+                                            ? inventory.profit < 0
+                                                ? 'font-medium text-destructive'
+                                                : 'font-medium text-emerald-700 dark:text-emerald-400'
+                                            : 'font-medium'
+                                    }
+                                >
+                                    {value}
+                                </p>
                             </div>
                         ))}
                     </CardContent>
@@ -160,7 +170,7 @@ export default function InventoryStockShow({
                                                     className={
                                                         movement.quantity < 0
                                                             ? 'text-destructive'
-                                                            : 'text-emerald-600'
+                                                            : 'text-emerald-700 dark:text-emerald-400'
                                                     }
                                                 >
                                                     {movement.quantity > 0

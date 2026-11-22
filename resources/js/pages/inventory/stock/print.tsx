@@ -1,6 +1,7 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect } from 'react';
 import { Printer } from 'lucide-react';
+import stockRoutes from '@/routes/inventory/stock';
 import type { Team } from '@/types';
 import { Button } from '@/components/ui/button';
 
@@ -36,12 +37,12 @@ export default function PrintStockTaking({
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                window.history.back();
+                router.visit(stockRoutes.index.url(teamSlug));
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [teamSlug]);
 
     const handlePrint = () => {
         window.print();
@@ -52,10 +53,10 @@ export default function PrintStockTaking({
             <Head title="Physical Stock Taking — Print" />
 
             {/* Toolbar */}
-            <div className="no-print fixed left-0 right-0 top-0 z-[100000] flex items-center justify-between border-b border-border bg-background px-6 py-3 shadow-sm">
+            <div className="no-print fixed top-0 right-0 left-0 z-[100000] flex items-center justify-between border-b border-border bg-background px-6 py-3 shadow-sm">
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" asChild>
-                        <Link href={`/${teamSlug}/inventory/stock`}>
+                        <Link href={stockRoutes.index.url(teamSlug)}>
                             ← Back to inventory
                         </Link>
                     </Button>
@@ -74,10 +75,15 @@ export default function PrintStockTaking({
             </div>
 
             {/* Print Content */}
-            <div className="mx-auto max-w-7xl p-8 pt-20" id="stock-taking-print-div">
+            <div
+                className="mx-auto max-w-7xl p-8 pt-20"
+                id="stock-taking-print-div"
+            >
                 {/* Header */}
                 <div className="mb-6 border-b border-foreground pb-4">
-                    <h1 className="text-2xl font-bold">Physical Stock Taking Sheet</h1>
+                    <h1 className="text-2xl font-bold">
+                        Physical Stock Taking Sheet
+                    </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {teamName}
                     </p>
@@ -88,49 +94,63 @@ export default function PrintStockTaking({
                 </div>
 
                 {/* Instructions */}
-                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 no-print">
+                <div className="no-print mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                     <p className="font-medium">Instructions</p>
-                    <ul className="mt-1 list-inside list-disc text-xs space-y-1">
-                        <li>Count the physical stock for each item and write the counted quantity in the "Counted" column.</li>
-                        <li>The "Difference" column will show the variance between system and counted quantities.</li>
-                        <li>Add any notes in the "Notes" column for discrepancies.</li>
-                        <li>Print this sheet before starting the physical count.</li>
+                    <ul className="mt-1 list-inside list-disc space-y-1 text-xs">
+                        <li>
+                            Count the physical stock for each item and write the
+                            counted quantity in the "Counted" column.
+                        </li>
+                        <li>
+                            The "Difference" column will show the variance
+                            between system and counted quantities.
+                        </li>
+                        <li>
+                            Add any notes in the "Notes" column for
+                            discrepancies.
+                        </li>
+                        <li>
+                            Print this sheet before starting the physical count.
+                        </li>
                     </ul>
                 </div>
 
                 {/* Table */}
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+                    <table
+                        className="w-full text-sm"
+                        style={{ borderCollapse: 'collapse' }}
+                    >
                         <thead>
                             <tr className="border-b-2 border-foreground">
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     #
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     SKU
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     Product
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     Form
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-right font-semibold">
+                                <th className="bg-muted px-3 py-2 text-right font-semibold whitespace-nowrap">
                                     System Qty
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-right font-semibold">
+                                <th className="bg-muted px-3 py-2 text-right font-semibold whitespace-nowrap">
                                     Counted Qty
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-right font-semibold">
+                                <th className="bg-muted px-3 py-2 text-right font-semibold whitespace-nowrap">
                                     Difference
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     Status
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     Expiry
                                 </th>
-                                <th className="whitespace-nowrap bg-muted px-3 py-2 text-left font-semibold">
+                                <th className="bg-muted px-3 py-2 text-left font-semibold whitespace-nowrap">
                                     Notes
                                 </th>
                             </tr>
@@ -141,57 +161,63 @@ export default function PrintStockTaking({
                                     key={item.id}
                                     className="border-b border-foreground/20"
                                 >
-                                        <td className="px-3 py-2">
-                                            {index + 1}
-                                        </td>
-                                        <td className="px-3 py-2 font-mono text-xs">
-                                            {item.sku}
-                                        </td>
-                                        <td className="px-3 py-2 font-medium">
-                                            {item.name}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {item.drugForm ?? '—'}
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums">
-                                            {item.quantity.toLocaleString()}
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums">
-                                            <span className="text-muted-foreground">
-                                                (count here)
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums">
-                                            <span className="text-muted-foreground">
-                                                —
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-2 capitalize">
-                                            {item.status}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            {item.expiresAt ?? '—'}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            <span className="text-muted-foreground">
-                                                —
-                                            </span>
-                                        </td>
-                                    </tr>
+                                    <td className="px-3 py-2">{index + 1}</td>
+                                    <td className="px-3 py-2 font-mono text-xs">
+                                        {item.sku}
+                                    </td>
+                                    <td className="px-3 py-2 font-medium">
+                                        {item.name}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        {item.drugForm ?? '—'}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                        {item.quantity.toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                        <span className="text-muted-foreground">
+                                            (count here)
+                                        </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                        <span className="text-muted-foreground">
+                                            —
+                                        </span>
+                                    </td>
+                                    <td className="px-3 py-2 capitalize">
+                                        {item.status}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        {item.expiresAt ?? '—'}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <span className="text-muted-foreground">
+                                            —
+                                        </span>
+                                    </td>
+                                </tr>
                             ))}
                         </tbody>
                         <tfoot>
                             <tr className="border-t-2 border-foreground bg-muted">
-                                <td colSpan={4} className="px-3 py-2 text-right font-semibold">
+                                <td
+                                    colSpan={4}
+                                    className="px-3 py-2 text-right font-semibold"
+                                >
                                     Totals
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums font-semibold">
-                                    {items.reduce((sum, item) => sum + item.quantity, 0).toLocaleString()}
+                                <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                                    {items
+                                        .reduce(
+                                            (sum, item) => sum + item.quantity,
+                                            0,
+                                        )
+                                        .toLocaleString()}
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                                <td className="px-3 py-2 text-right font-semibold tabular-nums">
                                     —
                                 </td>
-                                <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                                <td className="px-3 py-2 text-right font-semibold tabular-nums">
                                     —
                                 </td>
                                 <td colSpan={3}></td>
@@ -215,7 +241,6 @@ export default function PrintStockTaking({
                         </div>
                     </div>
                 </div>
-
             </div>
 
             {/* Print styles */}
@@ -231,6 +256,7 @@ export default function PrintStockTaking({
                         padding: 0 !important;
                         margin: 0 !important;
                         max-width: none !important;
+                        color: #000 !important;
                     }
                     table {
                         font-size: 10px !important;

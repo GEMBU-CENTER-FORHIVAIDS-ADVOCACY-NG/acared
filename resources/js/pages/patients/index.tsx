@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Eye, MoreHorizontal, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import PatientController from '@/actions/App/Http/Controllers/PatientController';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
@@ -36,7 +37,7 @@ import {
 } from '@/routes/patients';
 import {
     patientConfirmLabels,
-    usePatientActions,
+    type ConfirmAction,
 } from '@/hooks/use-patient-actions';
 import type {
     PatientFilters,
@@ -50,6 +51,8 @@ import type {
 type LayoutProps = {
     currentTeam?: Team | null;
 };
+
+type ConfirmState = ConfirmAction | 'bulk-delete' | 'bulk-force-delete';
 
 export default function PatientIndex({
     patients,
@@ -67,11 +70,14 @@ export default function PatientIndex({
 
     const [search, setSearch] = useState(filters.q);
     const [selected, setSelected] = useState<number[]>([]);
-    const [confirm, setConfirm] = useState<
-        null | 'delete-selected' | 'force-delete-selected'
-    >(null);
+    const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+    const [confirmTarget, setConfirmTarget] = useState<PatientListItem | null>(
+        null,
+    );
     const [processing, setProcessing] = useState(false);
+    const [importing, setImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const importInput = useRef<HTMLInputElement>(null);
 
     function applyFilters(patch: Partial<PatientFilters>) {
@@ -114,6 +120,7 @@ export default function PatientIndex({
         }
 
         setImportError(null);
+        setImporting(true);
         const payload = new FormData();
         payload.append('file', file);
 
@@ -123,6 +130,7 @@ export default function PatientIndex({
             onError: (errors) =>
                 setImportError(errors.file ?? 'Import failed.'),
             onFinish: () => {
+                setImporting(false);
                 if (importInput.current) {
                     importInput.current.value = '';
                 }
@@ -139,11 +147,26 @@ export default function PatientIndex({
     }
 
     function toggleAll() {
-        setSelected((current) =>
-            current.length === patients.data.length
-                ? []
-                : patients.data.map((patient) => patient.id),
-        );
+        const visibleIds = patients.data.map((patient) => patient.id);
+        const allVisibleSelected =
+            visibleIds.length > 0 &&
+            visibleIds.every((id) => selected.includes(id));
+
+        setSelected((current) => {
+            const next = new Set(current);
+            if (allVisibleSelected) {
+                visibleIds.forEach((id) => next.delete(id));
+            } else {
+                visibleIds.forEach((id) => next.add(id));
+            }
+            return [...next];
+        });
+    }
+
+    function openConfirm(action: ConfirmState, patient?: PatientListItem) {
+        setActionError(null);
+        setConfirm(action);
+        setConfirmTarget(patient ?? null);
     }
 
     function runConfirm() {
@@ -152,19 +175,83 @@ export default function PatientIndex({
         }
 
         setProcessing(true);
+        setActionError(null);
+
+        const clearConfirm = () => {
+            setConfirm(null);
+            setConfirmTarget(null);
+        };
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: clearConfirm,
+            onError: (errors: Record<string, string>) =>
+                setActionError(
+                    Object.values(errors)[0] ?? 'Unable to complete action.',
+                ),
+            onFinish: () => setProcessing(false),
+        };
+
+        if (confirm === 'bulk-delete' || confirm === 'bulk-force-delete') {
+            const url =
+                confirm === 'bulk-delete'
+                    ? PatientController.bulkDestroy.url(teamSlug)
+                    : PatientController.bulkForceDelete.url(teamSlug);
+
+            router.delete(url, {
+                ...options,
+                data: { ids: selected },
+                onSuccess: () => {
+                    clearConfirm();
+                    setSelected([]);
+                },
+            });
+            return;
+        }
+
+        if (!confirmTarget) {
+            setProcessing(false);
+            return;
+        }
+
+        if (confirm === 'restore') {
+            router.patch(
+                PatientController.restore.url([
+                    teamSlug ?? '',
+                    confirmTarget.id,
+                ]),
+                {},
+                {
+                    ...options,
+                    onSuccess: () => {
+                        clearConfirm();
+                        setSelected((current) =>
+                            current.filter((id) => id !== confirmTarget.id),
+                        );
+                    },
+                },
+            );
+            return;
+        }
 
         const url =
-            confirm === 'delete-selected'
-                ? PatientController.bulkDestroy.url(teamSlug)
-                : PatientController.bulkForceDelete.url(teamSlug);
+            confirm === 'delete'
+                ? PatientController.destroy.url([
+                      teamSlug ?? '',
+                      confirmTarget.id,
+                  ])
+                : PatientController.forceDelete.url([
+                      teamSlug ?? '',
+                      confirmTarget.id,
+                  ]);
 
         router.delete(url, {
-            data: { ids: selected },
-            preserveScroll: true,
-            onFinish: () => {
-                setProcessing(false);
-                setConfirm(null);
-                setSelected([]);
+            ...options,
+            onSuccess: () => {
+                clearConfirm();
+                setSelected((current) =>
+                    current.filter((id) => id !== confirmTarget.id),
+                );
             },
         });
     }
@@ -181,8 +268,9 @@ export default function PatientIndex({
         );
     }
 
-    const allSelected =
-        patients.data.length > 0 && selected.length === patients.data.length;
+    const allVisibleSelected =
+        patients.data.length > 0 &&
+        patients.data.every((patient) => selected.includes(patient.id));
 
     return (
         <>
@@ -263,28 +351,35 @@ export default function PatientIndex({
                     }
                 />
 
-                <div className="flex flex-nowrap items-center gap-2">
+                <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
                     <form
-                        className="flex shrink-0 items-center gap-2"
+                        className="flex w-full items-center gap-2 lg:w-auto"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
                         }}
                     >
                         <Input
+                            aria-label="Search patients"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search hospital no, name, email..."
-                            className="w-64"
+                            className="min-w-0 flex-1 lg:w-64 lg:flex-none"
                             data-test="patient-search"
                         />
-                        <Button type="submit">
-                            Search
+                        <Button
+                            type="submit"
+                            disabled={processing || importing}
+                        >
+                            {processing || importing
+                                ? 'Searching...'
+                                : 'Search'}
                         </Button>
                     </form>
 
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
                         <SelectNative
+                            aria-label="Filter by trashed status"
                             value={filters.trashed}
                             onChange={(event) =>
                                 applyFilters({ trashed: event.target.value })
@@ -303,17 +398,22 @@ export default function PatientIndex({
                             accept=".csv,.txt"
                             className="hidden"
                             aria-label="Import patient CSV"
-                            onChange={(event) => importCsv(event.target.files?.[0])}
+                            disabled={importing || processing}
+                            onChange={(event) =>
+                                importCsv(event.target.files?.[0])
+                            }
                         />
                         <Button
                             type="button"
                             variant="outline"
+                            disabled={importing || processing}
                             onClick={() => importInput.current?.click()}
                         >
-                            Import CSV
+                            {importing ? 'Importing...' : 'Import CSV'}
                         </Button>
                         <Button variant="outline" asChild>
                             <a
+                                aria-label="Export patients as CSV"
                                 href={exportPatients.url(teamSlug ?? '', {
                                     query: {
                                         ...filters,
@@ -327,14 +427,15 @@ export default function PatientIndex({
                     </div>
 
                     {selected.length > 0 ? (
-                        <div className="ml-auto flex shrink-0 items-center gap-2">
+                        <div className="flex w-full flex-wrap items-center gap-2 lg:ml-auto lg:w-auto">
                             <span className="text-sm text-muted-foreground">
                                 {selected.length} selected
                             </span>
                             <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => setConfirm('delete-selected')}
+                                disabled={processing || importing}
+                                onClick={() => openConfirm('bulk-delete')}
                             >
                                 Delete selected
                             </Button>
@@ -342,8 +443,9 @@ export default function PatientIndex({
                                 <Button
                                     variant="destructive"
                                     size="sm"
+                                    disabled={processing || importing}
                                     onClick={() =>
-                                        setConfirm('force-delete-selected')
+                                        openConfirm('bulk-force-delete')
                                     }
                                 >
                                     Force delete selected
@@ -358,75 +460,114 @@ export default function PatientIndex({
                         {importError}
                     </p>
                 ) : null}
+                {actionError ? (
+                    <AlertError errors={[actionError]} title="Action failed" />
+                ) : null}
 
                 <Card>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10">
-                                        <input
-                                            type="checkbox"
-                                            checked={allSelected}
-                                            onChange={toggleAll}
-                                            aria-label="Select all"
-                                        />
-                                    </TableHead>
-                                    <TableHead>Hospital No</TableHead>
-                                    <TableHead>ART No</TableHead>
-                                    <TableHead>NHIS/Other</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Full name</TableHead>
-                                    <TableHead>Gender</TableHead>
-                                    <TableHead>
-                                        <button
-                                            type="button"
-                                            className="inline-flex items-center"
-                                            onClick={() => toggleSort('birthDate')}
-                                        >
-                                            Birth date
-                                            {sortIndicator('birthDate')}
-                                        </button>
-                                    </TableHead>
-                                    <TableHead>Email address</TableHead>
-                                    <TableHead>Phone</TableHead>
-                                    <TableHead>
-                                        <button
-                                            type="button"
-                                            className="inline-flex items-center"
-                                            onClick={() => toggleSort('created_at')}
-                                        >
-                                            Registered
-                                            {sortIndicator('created_at')}
-                                        </button>
-                                    </TableHead>
-                                    <TableHead className="w-12 text-right">
-                                        Actions
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {patients.data.length === 0 ? (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell
-                                            colSpan={12}
-                                            className="py-10 text-center text-muted-foreground"
+                                        <TableHead className="w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={allVisibleSelected}
+                                                onChange={toggleAll}
+                                                aria-label="Select all patients on this page"
+                                            />
+                                        </TableHead>
+                                        <TableHead>Hospital No</TableHead>
+                                        <TableHead>ART No</TableHead>
+                                        <TableHead>NHIS/Other</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Full name</TableHead>
+                                        <TableHead>Gender</TableHead>
+                                        <TableHead
+                                            aria-sort={
+                                                filters.sort === 'birthDate'
+                                                    ? filters.direction ===
+                                                      'asc'
+                                                        ? 'ascending'
+                                                        : 'descending'
+                                                    : 'none'
+                                            }
                                         >
-                                            No patients found.
-                                        </TableCell>
+                                            <button
+                                                type="button"
+                                                aria-label="Sort by birth date"
+                                                className="inline-flex items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                onClick={() =>
+                                                    toggleSort('birthDate')
+                                                }
+                                            >
+                                                Birth date
+                                                {sortIndicator('birthDate')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead>Email address</TableHead>
+                                        <TableHead>Phone</TableHead>
+                                        <TableHead
+                                            aria-sort={
+                                                filters.sort === 'created_at'
+                                                    ? filters.direction ===
+                                                      'asc'
+                                                        ? 'ascending'
+                                                        : 'descending'
+                                                    : 'none'
+                                            }
+                                        >
+                                            <button
+                                                type="button"
+                                                aria-label="Sort by registration date"
+                                                className="inline-flex items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                onClick={() =>
+                                                    toggleSort('created_at')
+                                                }
+                                            >
+                                                Registered
+                                                {sortIndicator('created_at')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead className="w-12 text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
-                                ) : (
-                                    patients.data.map((patient) => (
-                                        <PatientRow
-                                            key={patient.id}
-                                            patient={patient}
-                                            selected={selected.includes(patient.id)}
-                                            onToggle={() => toggleRow(patient.id)}
-                                        />
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {patients.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={12}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No patients found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        patients.data.map((patient) => (
+                                            <PatientRow
+                                                key={patient.id}
+                                                patient={patient}
+                                                selected={selected.includes(
+                                                    patient.id,
+                                                )}
+                                                onToggle={() =>
+                                                    toggleRow(patient.id)
+                                                }
+                                                onAction={(action) =>
+                                                    openConfirm(action, patient)
+                                                }
+                                                disabled={
+                                                    processing || importing
+                                                }
+                                            />
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -445,23 +586,41 @@ export default function PatientIndex({
             <ConfirmDialog
                 open={confirm !== null}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !processing) {
                         setConfirm(null);
+                        setConfirmTarget(null);
                     }
                 }}
                 processing={processing}
+                destructive={confirm !== 'restore'}
                 title={
-                    confirm === 'delete-selected'
+                    confirm === 'bulk-delete'
                         ? `Delete ${selected.length} patients?`
-                        : `Permanently delete ${selected.length} patients?`
+                        : confirm === 'bulk-force-delete'
+                          ? `Permanently delete ${selected.length} patients?`
+                          : patientConfirmLabels(
+                                (confirm ?? 'delete') as ConfirmAction,
+                            ).title
                 }
                 description={
-                    confirm === 'delete-selected'
+                    confirm === 'bulk-delete'
                         ? 'Selected patients will be moved to the trash.'
-                        : 'Selected patients will be permanently removed. This cannot be undone.'
+                        : confirm === 'bulk-force-delete'
+                          ? 'Selected patients will be permanently removed. This cannot be undone.'
+                          : patientConfirmLabels(
+                                (confirm ?? 'delete') as ConfirmAction,
+                            ).description
                 }
                 confirmLabel={
-                    confirm === 'delete-selected' ? 'Delete' : 'Force delete'
+                    processing
+                        ? 'Working...'
+                        : confirm === 'bulk-delete'
+                          ? 'Delete'
+                          : confirm === 'bulk-force-delete'
+                            ? 'Force delete'
+                            : patientConfirmLabels(
+                                  (confirm ?? 'delete') as ConfirmAction,
+                              ).confirmLabel
                 }
                 onConfirm={runConfirm}
             />
@@ -473,13 +632,17 @@ function PatientRow({
     patient,
     selected,
     onToggle,
+    onAction,
+    disabled,
 }: {
     patient: PatientListItem;
     selected: boolean;
     onToggle: () => void;
+    onAction: (action: ConfirmAction) => void;
+    disabled: boolean;
 }) {
-    const { teamSlug, confirm, setConfirm, processing, runConfirm } =
-        usePatientActions(patient.id);
+    const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
+    const teamSlug = currentTeam?.slug ?? '';
 
     return (
         <TableRow data-state={selected ? 'selected' : undefined}>
@@ -488,6 +651,7 @@ function PatientRow({
                     type="checkbox"
                     checked={selected}
                     onChange={onToggle}
+                    disabled={disabled}
                     aria-label={`Select ${patient.fullName}`}
                 />
             </TableCell>
@@ -520,7 +684,12 @@ function PatientRow({
             <TableCell className="text-right">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Actions for ${patient.fullName}`}
+                            disabled={disabled}
+                        >
                             <MoreHorizontal className="size-4" />
                         </Button>
                     </DropdownMenuTrigger>
@@ -541,13 +710,13 @@ function PatientRow({
                             <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                    onClick={() => setConfirm('restore')}
+                                    onClick={() => onAction('restore')}
                                 >
                                     <RotateCcw className="mr-2 h-4 w-4" />
                                     Restore
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                    onClick={() => setConfirm('force-delete')}
+                                    onClick={() => onAction('force-delete')}
                                 >
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Force delete
@@ -557,7 +726,7 @@ function PatientRow({
                             <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                    onClick={() => setConfirm('delete')}
+                                    onClick={() => onAction('delete')}
                                 >
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete
@@ -567,19 +736,6 @@ function PatientRow({
                     </DropdownMenuContent>
                 </DropdownMenu>
             </TableCell>
-
-            <ConfirmDialog
-                open={confirm !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setConfirm(null);
-                    }
-                }}
-                processing={processing}
-                destructive={confirm !== 'restore'}
-                {...patientConfirmLabels(confirm ?? 'delete')}
-                onConfirm={runConfirm}
-            />
         </TableRow>
     );
 }

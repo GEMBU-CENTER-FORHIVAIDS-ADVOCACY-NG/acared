@@ -231,7 +231,7 @@ finance.head = (args?: { current_team?: string | number } | [current_team: strin
     finance.form = financeForm
 /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -247,7 +247,7 @@ wallet.definition = {
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -280,7 +280,7 @@ wallet.url = (args?: { current_team?: string | number } | [current_team: string 
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -290,7 +290,7 @@ wallet.get = (args?: { current_team?: string | number } | [current_team: string 
 })
 /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -301,7 +301,7 @@ wallet.head = (args?: { current_team?: string | number } | [current_team: string
 
     /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -312,7 +312,7 @@ wallet.head = (args?: { current_team?: string | number } | [current_team: string
 
             /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -322,7 +322,7 @@ wallet.head = (args?: { current_team?: string | number } | [current_team: string
         })
             /**
 * @see \App\Http\Controllers\OperationalReportController::wallet
- * @see app/Http/Controllers/OperationalReportController.php:75
+ * @see app/Http/Controllers/OperationalReportController.php:124
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/wallet'
  */
@@ -339,7 +339,7 @@ wallet.head = (args?: { current_team?: string | number } | [current_team: string
     wallet.form = walletForm
 /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -355,7 +355,7 @@ employeeDeduction.definition = {
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -388,7 +388,7 @@ employeeDeduction.url = (args?: { current_team?: string | number } | [current_te
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -398,7 +398,7 @@ employeeDeduction.get = (args?: { current_team?: string | number } | [current_te
 })
 /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -409,7 +409,7 @@ employeeDeduction.head = (args?: { current_team?: string | number } | [current_t
 
     /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -420,7 +420,7 @@ employeeDeduction.head = (args?: { current_team?: string | number } | [current_t
 
             /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -430,7 +430,7 @@ employeeDeduction.head = (args?: { current_team?: string | number } | [current_t
         })
             /**
 * @see \App\Http\Controllers\OperationalReportController::employeeDeduction
- * @see app/Http/Controllers/OperationalReportController.php:17
+ * @see app/Http/Controllers/OperationalReportController.php:21
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/employee-deduction'
  */
@@ -447,7 +447,7 @@ employeeDeduction.head = (args?: { current_team?: string | number } | [current_t
     employeeDeduction.form = employeeDeductionForm
 /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */
@@ -463,7 +463,7 @@ priceList.definition = {
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */
@@ -496,7 +496,7 @@ priceList.url = (args?: { current_team?: string | number } | [current_team: stri
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */
@@ -506,7 +506,7 @@ priceList.get = (args?: { current_team?: string | number } | [current_team: stri
 })
 /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */
@@ -517,7 +517,7 @@ priceList.head = (args?: { current_team?: string | number } | [current_team: str
 
     /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */
@@ -528,7 +528,7 @@ priceList.head = (args?: { current_team?: string | number } | [current_team: str
 
             /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */
@@ -538,7 +538,7 @@ priceList.head = (args?: { current_team?: string | number } | [current_team: str
         })
             /**
 * @see \App\Http\Controllers\OperationalReportController::priceList
- * @see app/Http/Controllers/OperationalReportController.php:126
+ * @see app/Http/Controllers/OperationalReportController.php:175
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list'
  */

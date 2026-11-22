@@ -107,9 +107,9 @@ function formatDaysRemaining(days: number): string {
     if (days === 0) {
         return 'Expiring today';
     }
-    
+
     const daysFormatted = days % 1 !== 0 ? days.toFixed(2) : days.toString();
-    
+
     if (days === 1) {
         return '1 day left';
     }
@@ -159,7 +159,7 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
     );
 }
 
-function SeriesChart({ series }: { series: Series }) {
+function SeriesChart({ series, label }: { series: Series; label: string }) {
     if (series.labels.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">
@@ -190,12 +190,20 @@ function SeriesChart({ series }: { series: Series }) {
 
     return (
         <div className="space-y-3">
+            <p className="sr-only">
+                {`${label}: ${series.datasets
+                    .map(
+                        (dataset) =>
+                            `${dataset.label} from ${series.labels[0]} to ${series.labels[series.labels.length - 1]}`,
+                    )
+                    .join('; ')}.`}
+            </p>
             <div className="overflow-x-auto">
                 <svg
                     viewBox={`0 0 ${width} ${height}`}
                     className="h-64 w-full min-w-160"
                     role="img"
-                    aria-label="Activity over time"
+                    aria-label={label}
                 >
                     <line
                         x1={padding.left}
@@ -390,6 +398,8 @@ export default function Dashboard({
     const [showInvitations, setShowInvitations] = useState(
         pendingInvitations.length > 0,
     );
+    const [isApplying, setIsApplying] = useState(false);
+    const hasInvalidRange = Boolean(from && to && from > to);
     const stats = [
         {
             label: 'Patients registered',
@@ -447,13 +457,19 @@ export default function Dashboard({
     };
 
     function applyDateRange() {
+        if (!from || !to || hasInvalidRange || isApplying) {
+            return;
+        }
+
+        setIsApplying(true);
         router.get(
-            dashboard(teamSlug),
+            dashboard.url(teamSlug),
             { from, to },
             {
                 preserveScroll: true,
                 preserveState: true,
                 replace: true,
+                onFinish: () => setIsApplying(false),
             },
         );
     }
@@ -501,11 +517,21 @@ export default function Dashboard({
                         </div>
                         <Button
                             onClick={applyDateRange}
-                            disabled={!from || !to || from > to}
+                            disabled={
+                                !from || !to || hasInvalidRange || isApplying
+                            }
                         >
-                            Apply range
+                            {isApplying ? 'Applying…' : 'Apply range'}
                         </Button>
                     </div>
+                    {hasInvalidRange && (
+                        <p
+                            role="alert"
+                            className="w-full text-xs text-destructive"
+                        >
+                            From date must be on or before to date.
+                        </p>
+                    )}
                 </div>
 
                 <section
@@ -679,7 +705,10 @@ export default function Dashboard({
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <SeriesChart series={revenue} />
+                            <SeriesChart
+                                series={revenue}
+                                label="Revenue collected over the selected period"
+                            />
                         </CardContent>
                     </Card>
                     <Card>
@@ -691,6 +720,7 @@ export default function Dashboard({
                         </CardHeader>
                         <CardContent>
                             <SeriesChart
+                                label="Net inventory movement over the selected period"
                                 series={{
                                     labels: stockMovements.labels,
                                     datasets: [
@@ -799,7 +829,8 @@ export default function Dashboard({
                     <CardHeader>
                         <CardTitle>Drugs expiring within 60 days</CardTitle>
                         <CardDescription>
-                            Items approaching their expiration date, sorted by urgency.
+                            Items approaching their expiration date, sorted by
+                            urgency.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -822,8 +853,8 @@ export default function Dashboard({
                                                 colSpan={6}
                                                 className="py-8 text-center text-muted-foreground"
                                             >
-                                                No drugs are expiring within
-                                                the next 60 days.
+                                                No drugs are expiring within the
+                                                next 60 days.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -857,10 +888,12 @@ export default function Dashboard({
                                                     </TableCell>
                                                     <TableCell
                                                         className={`font-semibold ${
-                                                            statusColor === 'destructive'
+                                                            statusColor ===
+                                                            'destructive'
                                                                 ? 'text-destructive'
-                                                                : statusColor === 'warning'
-                                                                  ? 'text-warning'
+                                                                : statusColor ===
+                                                                    'warning'
+                                                                  ? 'text-amber-600 dark:text-amber-400'
                                                                   : 'text-muted-foreground'
                                                         }`}
                                                     >
@@ -878,9 +911,9 @@ export default function Dashboard({
                                                                 'destructive'
                                                                     ? 'bg-destructive/10 text-destructive'
                                                                     : statusColor ===
-                                                                      'warning'
-                                                                      ? 'bg-yellow-500/10 text-yellow-600'
-                                                                      : 'bg-blue-500/10 text-blue-600'
+                                                                        'warning'
+                                                                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                                                                      : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                                                             }`}
                                                         >
                                                             {statusLabel}
@@ -904,7 +937,9 @@ Dashboard.layout = (props: { currentTeam?: Team | null }) => ({
     breadcrumbs: [
         {
             title: 'Dashboard',
-            href: props.currentTeam ? dashboard(props.currentTeam.slug) : '/',
+            href: props.currentTeam
+                ? dashboard.url(props.currentTeam.slug)
+                : '/',
         },
     ],
 });

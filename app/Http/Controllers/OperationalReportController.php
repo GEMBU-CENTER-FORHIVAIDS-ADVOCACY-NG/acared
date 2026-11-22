@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Patient;
 use App\Models\PriceList;
 use App\Service\DashboardCurrency;
+use App\Service\EmployeeDeductionImporter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OperationalReportController extends Controller
@@ -70,6 +74,51 @@ class OperationalReportController extends Controller
             }
             fclose($output);
         }, 'employee-deduction-report.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    public function importEmployeeDeduction(
+        Request $request,
+        EmployeeDeductionImporter $importer,
+        string $current_team,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'file' => [
+                'required',
+                'file',
+                'mimes:csv,txt,xlsx,xls',
+                'extensions:csv,txt,xlsx,xls',
+                'max:10240',
+            ],
+        ]);
+
+        $file = $validated['file'];
+        assert($file instanceof UploadedFile);
+
+        try {
+            $result = $importer->handle(
+                $file,
+                $request->user()->currentTeam,
+                $request->user(),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['file' => $exception->getMessage()]);
+        }
+
+        if ($result['errors'] !== []) {
+            Inertia::flash('toast', [
+                'type' => 'warning',
+                'message' => "{$result['imported']} deduction(s) imported; {$result['skipped']} row(s) skipped.",
+            ]);
+
+            return back()->withErrors(['file' => implode(' ', array_slice($result['errors'], 0, 5))]);
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$result['imported']} employee deduction(s) imported.",
+        ]);
+
+        return back();
     }
 
     public function wallet(Request $request, string $current_team): Response

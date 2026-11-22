@@ -1,14 +1,23 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { index as recordsIndex, view } from '@/routes/nursing/records';
+import { home } from '@/routes';
+import { history, index as recordsIndex, view } from '@/routes/nursing/records';
 import { destroy, store, update } from '@/routes/nursing/records/histories';
 import type { Team } from '@/types';
 
@@ -101,10 +110,17 @@ export default function NursingRecordsHistory({
     const [editId, setEditId] = useState<number | null>(null);
     const [form, setForm] = useState<Form>(emptyForm);
     const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [historyToDelete, setHistoryToDelete] = useState<HistoryItem | null>(
+        null,
+    );
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const startCreate = () => {
         setEditId(null);
         setForm(emptyForm);
+        setError(null);
         setFormOpen(true);
     };
 
@@ -115,12 +131,14 @@ export default function NursingRecordsHistory({
             socialHistory: item.socialHistory ?? '',
             surgicalHistory: JSON.parse(JSON.stringify(item.surgicalHistory)),
         });
+        setError(null);
         setFormOpen(true);
     };
 
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
         setProcessing(true);
+        setError(null);
 
         const payload = {
             family_history: form.familyHistory,
@@ -130,6 +148,8 @@ export default function NursingRecordsHistory({
 
         const opts = {
             preserveScroll: true,
+            onError: (errors: Record<string, string>) =>
+                setError(Object.values(errors)[0] ?? 'Something went wrong.'),
             onSuccess: () => {
                 setFormOpen(false);
                 setEditId(null);
@@ -159,14 +179,34 @@ export default function NursingRecordsHistory({
         }
     };
 
-    const deleteHistory = (id: number) => {
+    const deleteHistory = (item: HistoryItem) => {
+        setDeleteError(null);
+        setHistoryToDelete(item);
+    };
+
+    const confirmDeleteHistory = () => {
+        if (!historyToDelete) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+        setDeleteError(null);
+
         router.delete(
             destroy.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
-                history: id,
+                history: historyToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setHistoryToDelete(null),
+                onFinish: () => setDeleteProcessing(false),
+            },
         );
     };
 
@@ -200,9 +240,19 @@ export default function NursingRecordsHistory({
 
     const renderStatusBadge = (status: string | null) => {
         if (!status) return '—';
-        if (status === 'yes') return <Badge className="bg-emerald-100 text-emerald-800">Yes</Badge>;
-        if (status === 'no') return <Badge className="bg-muted text-muted-foreground">No</Badge>;
-        return <Badge className="bg-amber-100 text-amber-800">Others</Badge>;
+        if (status === 'yes')
+            return (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    Yes
+                </Badge>
+            );
+        if (status === 'no')
+            return <Badge className="bg-muted text-muted-foreground">No</Badge>;
+        return (
+            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                Others
+            </Badge>
+        );
     };
 
     return (
@@ -210,6 +260,8 @@ export default function NursingRecordsHistory({
             <Head title={`${nursing.patientId} — History`} />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                {deleteError ? <AlertError errors={[deleteError]} /> : null}
+
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <Heading
@@ -220,13 +272,16 @@ export default function NursingRecordsHistory({
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild>
-                            <Link href={view.url({ current_team: teamSlug, nursing: nursing.id })}>
+                            <Link
+                                href={view.url({
+                                    current_team: teamSlug,
+                                    nursing: nursing.id,
+                                })}
+                            >
                                 Back to visit
                             </Link>
                         </Button>
-                        <Button onClick={startCreate}>
-                            New history
-                        </Button>
+                        <Button onClick={startCreate}>New history</Button>
                     </div>
                 </div>
 
@@ -244,16 +299,19 @@ export default function NursingRecordsHistory({
                                 {histories.data.map((item) => (
                                     <div
                                         key={item.id}
-                                        className="rounded-lg border p-4 space-y-4"
+                                        className="space-y-4 rounded-lg border p-4"
                                     >
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <p className="text-sm font-medium">
-                                                    {item.nurseName ?? 'Unknown nurse'}
+                                                    {item.nurseName ??
+                                                        'Unknown nurse'}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
                                                     {item.createdAt
-                                                        ? new Date(item.createdAt).toLocaleString()
+                                                        ? new Date(
+                                                              item.createdAt,
+                                                          ).toLocaleString()
                                                         : ''}
                                                 </p>
                                             </div>
@@ -262,14 +320,21 @@ export default function NursingRecordsHistory({
                                                     <Button
                                                         size="sm"
                                                         variant="secondary"
-                                                        onClick={() => startEdit(item)}
+                                                        onClick={() =>
+                                                            startEdit(item)
+                                                        }
                                                     >
                                                         Edit
                                                     </Button>
                                                     <Button
                                                         size="sm"
-                                                        variant="outline"
-                                                        onClick={() => deleteHistory(item.id)}
+                                                        variant="destructive"
+                                                        disabled={
+                                                            deleteProcessing
+                                                        }
+                                                        onClick={() =>
+                                                            deleteHistory(item)
+                                                        }
                                                     >
                                                         Delete
                                                     </Button>
@@ -283,27 +348,46 @@ export default function NursingRecordsHistory({
                                                     Family History
                                                 </h4>
                                                 <div className="space-y-1">
-                                                    {FAMILY_HISTORY_FIELDS.map((field) => {
-                                                        const value = item.familyHistory[field.key];
-                                                        return (
-                                                            <div
-                                                                key={field.key}
-                                                                className="flex items-center justify-between text-sm"
-                                                            >
-                                                                <span className="text-muted-foreground">
-                                                                    {field.label}
-                                                                </span>
-                                                                <div className="flex items-center gap-2">
-                                                                    {renderStatusBadge(value?.status ?? null)}
-                                                                    {value?.status === 'others' && value.others && (
-                                                                        <span className="text-xs text-muted-foreground">
-                                                                            ({value.others})
-                                                                        </span>
-                                                                    )}
+                                                    {FAMILY_HISTORY_FIELDS.map(
+                                                        (field) => {
+                                                            const value =
+                                                                item
+                                                                    .familyHistory[
+                                                                    field.key
+                                                                ];
+                                                            return (
+                                                                <div
+                                                                    key={
+                                                                        field.key
+                                                                    }
+                                                                    className="flex items-center justify-between text-sm"
+                                                                >
+                                                                    <span className="text-muted-foreground">
+                                                                        {
+                                                                            field.label
+                                                                        }
+                                                                    </span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {renderStatusBadge(
+                                                                            value?.status ??
+                                                                                null,
+                                                                        )}
+                                                                        {value?.status ===
+                                                                            'others' &&
+                                                                            value.others && (
+                                                                                <span className="text-xs text-muted-foreground">
+                                                                                    (
+                                                                                    {
+                                                                                        value.others
+                                                                                    }
+                                                                                    )
+                                                                                </span>
+                                                                            )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                            );
+                                                        },
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -312,20 +396,33 @@ export default function NursingRecordsHistory({
                                                     Surgical History
                                                 </h4>
                                                 <div className="space-y-1">
-                                                    {SURGICAL_HISTORY_FIELDS.map((field) => {
-                                                        const value = item.surgicalHistory[field.key];
-                                                        return (
-                                                            <div
-                                                                key={field.key}
-                                                                className="flex items-center justify-between text-sm"
-                                                            >
-                                                                <span className="text-muted-foreground">
-                                                                    {field.label}
-                                                                </span>
-                                                                {renderStatusBadge(value?.status ?? null)}
-                                                            </div>
-                                                        );
-                                                    })}
+                                                    {SURGICAL_HISTORY_FIELDS.map(
+                                                        (field) => {
+                                                            const value =
+                                                                item
+                                                                    .surgicalHistory[
+                                                                    field.key
+                                                                ];
+                                                            return (
+                                                                <div
+                                                                    key={
+                                                                        field.key
+                                                                    }
+                                                                    className="flex items-center justify-between text-sm"
+                                                                >
+                                                                    <span className="text-muted-foreground">
+                                                                        {
+                                                                            field.label
+                                                                        }
+                                                                    </span>
+                                                                    {renderStatusBadge(
+                                                                        value?.status ??
+                                                                            null,
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        },
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -358,14 +455,22 @@ export default function NursingRecordsHistory({
                         router.get(
                             '',
                             { page },
-                            { preserveState: true, preserveScroll: true, replace: true },
+                            {
+                                preserveState: true,
+                                preserveScroll: true,
+                                replace: true,
+                            },
                         );
                     }}
                     onPerPageChange={(perPage) => {
                         router.get(
                             '',
                             { page: 1, perPage },
-                            { preserveState: true, preserveScroll: true, replace: true },
+                            {
+                                preserveState: true,
+                                preserveScroll: true,
+                                replace: true,
+                            },
                         );
                     }}
                 />
@@ -376,6 +481,15 @@ export default function NursingRecordsHistory({
                     className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
                     role="dialog"
                     aria-modal="true"
+                    onClick={(event) => {
+                        if (
+                            event.target === event.currentTarget &&
+                            !processing
+                        ) {
+                            setFormOpen(false);
+                            setEditId(null);
+                        }
+                    }}
                 >
                     <form
                         onSubmit={submit}
@@ -386,51 +500,82 @@ export default function NursingRecordsHistory({
                                 {editId ? 'Edit' : 'New'} history record
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Record family, social, and surgical history for this patient.
+                                Record family, social, and surgical history for
+                                this patient.
                             </p>
                         </div>
 
+                        {error ? <AlertError errors={[error]} /> : null}
+
                         <Card>
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base">Family History</CardTitle>
+                                <CardTitle className="text-base">
+                                    Family History
+                                </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {FAMILY_HISTORY_FIELDS.map((field) => (
-                                    <div key={field.key} className="flex flex-col gap-2 rounded-md border p-3">
+                                    <div
+                                        key={field.key}
+                                        className="flex flex-col gap-2 rounded-md border p-3"
+                                    >
                                         <Label className="text-sm font-medium">
                                             {field.label}
                                         </Label>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Select
-                                                value={form.familyHistory[field.key]?.status ?? ''}
+                                                value={
+                                                    form.familyHistory[
+                                                        field.key
+                                                    ]?.status ?? ''
+                                                }
                                                 onValueChange={(value) =>
                                                     updateFamilyHistory(
                                                         field.key,
                                                         'status',
-                                                        value as 'yes' | 'no' | 'others',
+                                                        value as
+                                                            | 'yes'
+                                                            | 'no'
+                                                            | 'others',
                                                     )
                                                 }
                                             >
-                                                <SelectTrigger className="w-32">
+                                                <SelectTrigger
+                                                    aria-label={`${field.label} status`}
+                                                    className="w-32"
+                                                >
                                                     <SelectValue placeholder="Select" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="yes">Yes</SelectItem>
-                                                    <SelectItem value="no">No</SelectItem>
-                                                    <SelectItem value="others">Others</SelectItem>
+                                                    <SelectItem value="yes">
+                                                        Yes
+                                                    </SelectItem>
+                                                    <SelectItem value="no">
+                                                        No
+                                                    </SelectItem>
+                                                    <SelectItem value="others">
+                                                        Others
+                                                    </SelectItem>
                                                 </SelectContent>
                                             </Select>
-                                            {form.familyHistory[field.key]?.status === 'others' && (
+                                            {form.familyHistory[field.key]
+                                                ?.status === 'others' && (
                                                 <input
                                                     type="text"
+                                                    aria-label={`Specify ${field.label}`}
                                                     className="flex h-9 w-48 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                                                     placeholder="Specify"
-                                                    value={form.familyHistory[field.key]?.others ?? ''}
+                                                    value={
+                                                        form.familyHistory[
+                                                            field.key
+                                                        ]?.others ?? ''
+                                                    }
                                                     onChange={(e) =>
                                                         updateFamilyHistory(
                                                             field.key,
                                                             'others',
-                                                            e.target.value || null,
+                                                            e.target.value ||
+                                                                null,
                                                         )
                                                     }
                                                 />
@@ -443,31 +588,51 @@ export default function NursingRecordsHistory({
 
                         <Card>
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base">Surgical History</CardTitle>
+                                <CardTitle className="text-base">
+                                    Surgical History
+                                </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {SURGICAL_HISTORY_FIELDS.map((field) => (
-                                    <div key={field.key} className="flex flex-col gap-2 rounded-md border p-3">
+                                    <div
+                                        key={field.key}
+                                        className="flex flex-col gap-2 rounded-md border p-3"
+                                    >
                                         <Label className="text-sm font-medium">
                                             {field.label}
                                         </Label>
                                         <Select
-                                            value={form.surgicalHistory[field.key]?.status ?? ''}
+                                            value={
+                                                form.surgicalHistory[field.key]
+                                                    ?.status ?? ''
+                                            }
                                             onValueChange={(value) =>
                                                 updateSurgicalHistory(
                                                     field.key,
                                                     'status',
-                                                    value as 'yes' | 'no' | 'others',
+                                                    value as
+                                                        | 'yes'
+                                                        | 'no'
+                                                        | 'others',
                                                 )
                                             }
                                         >
-                                            <SelectTrigger className="w-32">
+                                            <SelectTrigger
+                                                aria-label={`${field.label} status`}
+                                                className="w-32"
+                                            >
                                                 <SelectValue placeholder="Select" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="yes">Yes</SelectItem>
-                                                <SelectItem value="no">No</SelectItem>
-                                                <SelectItem value="others">Others</SelectItem>
+                                                <SelectItem value="yes">
+                                                    Yes
+                                                </SelectItem>
+                                                <SelectItem value="no">
+                                                    No
+                                                </SelectItem>
+                                                <SelectItem value="others">
+                                                    Others
+                                                </SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -477,13 +642,19 @@ export default function NursingRecordsHistory({
 
                         <Card>
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base">Social History</CardTitle>
+                                <CardTitle className="text-base">
+                                    Social History
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <Textarea
+                                    aria-label="Social history notes"
                                     value={form.socialHistory}
                                     onChange={(e) =>
-                                        setForm((prev) => ({ ...prev, socialHistory: e.target.value }))
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            socialHistory: e.target.value,
+                                        }))
                                     }
                                     placeholder="Enter social history notes..."
                                     rows={4}
@@ -510,25 +681,38 @@ export default function NursingRecordsHistory({
                     </form>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={historyToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setHistoryToDelete(null);
+                    }
+                }}
+                title="Delete history record"
+                description={`Delete the history record created by ${historyToDelete?.nurseName ?? 'this nurse'}? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={confirmDeleteHistory}
+            />
         </>
     );
 }
 
-NursingRecordsHistory.layout = (props: {
-    currentTeam?: Team | null;
-}) => ({
+NursingRecordsHistory.layout = (props: { currentTeam?: Team | null }) => ({
     breadcrumbs: [
         {
             title: 'Maternity',
             href: props.currentTeam
                 ? recordsIndex.url(props.currentTeam.slug)
-                : '/',
+                : home.url(),
         },
         {
             title: 'History',
             href: props.currentTeam
-                ? `${props.currentTeam.slug}/nursing/records/history`
-                : '/nursing/records/history',
+                ? history.url(props.currentTeam.slug)
+                : history.url(''),
         },
     ],
 });

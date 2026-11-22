@@ -1,13 +1,30 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    type KeyboardEvent,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 import LaboratoryController from '@/actions/App/Http/Controllers/LaboratoryController';
+import {
+    history as laboratoryHistory,
+    index as laboratoriesIndex,
+    store as laboratoryStore,
+} from '@/routes/laboratories';
+import {
+    store as storeLabResult,
+    update as updateLabResult,
+} from '@/routes/laboratories/results';
 import LabResultEntryLayout from '@/components/lab-result-entry-layout';
 import {
     buildResultPayload,
     emptyResultValues,
     flattenTests,
 } from '@/components/lab-result-fields';
+import AlertError from '@/components/alert-error';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +52,6 @@ import type {
     LabResultForm,
     LabSelected,
     LaboratoryStats,
-    LaboratoryTopTest,
     Team,
 } from '@/types';
 
@@ -49,7 +65,6 @@ type CreateLine = {
     unitCost: string;
     quantity: string;
 };
-
 
 export default function LaboratoryIndex({
     currencySymbol,
@@ -77,7 +92,9 @@ export default function LaboratoryIndex({
     const { currentTeam } = usePage<LayoutProps>().props;
     const teamSlug = currentTeam?.slug ?? '';
 
-    const [processing, setProcessing] = useState(false);
+    const [resultProcessing, setResultProcessing] = useState(false);
+    const [stepProcessing, setStepProcessing] = useState(false);
+    const [createProcessing, setCreateProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [resultValues, setResultValues] = useState(emptyResultValues());
     const [createOpen, setCreateOpen] = useState(
@@ -98,39 +115,130 @@ export default function LaboratoryIndex({
     >([]);
     const [patientSearchOpen, setPatientSearchOpen] = useState(false);
     const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const [patientSearchError, setPatientSearchError] = useState<string | null>(
+        null,
+    );
+    const [highlightedPatientIndex, setHighlightedPatientIndex] = useState(-1);
     const patientSearchInputRef = useRef<HTMLInputElement>(null);
     const patientSearchContainerRef = useRef<HTMLDivElement>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const requestIdRef = useRef(0);
 
     // Debounced search for patients using fetch to avoid Inertia JSON response error
-    const searchPatients = useCallback((query: string) => {
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-        }
+    const searchPatients = useCallback(
+        (query: string) => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+            abortControllerRef.current?.abort();
+            requestIdRef.current += 1;
+            const requestId = requestIdRef.current;
 
-        if (!query.trim()) {
-            setPatientSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setPatientSearchResults([]);
+                setPatientSearchLoading(false);
+                setPatientSearchError(null);
+                setHighlightedPatientIndex(-1);
+                return;
+            }
 
-        setPatientSearchLoading(true);
-        debounceTimerRef.current = setTimeout(() => {
-            const url = LaboratoryController.searchPatients.url(teamSlug, { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setPatientSearchResults(results);
-                    setPatientSearchLoading(false);
-                })
-                .catch(() => {
-                    setPatientSearchLoading(false);
+            setPatientSearchLoading(true);
+            setPatientSearchError(null);
+            debounceTimerRef.current = setTimeout(() => {
+                const controller = new AbortController();
+                abortControllerRef.current = controller;
+                const url = LaboratoryController.searchPatients.url(teamSlug, {
+                    query: { q: query },
                 });
-        }, 300);
-    }, [teamSlug]);
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    signal: controller.signal,
+                })
+                    .then((res) => {
+                        if (!res.ok) {
+                            throw new Error('Patient search failed.');
+                        }
+                        return res.json();
+                    })
+                    .then((results) => {
+                        if (requestId !== requestIdRef.current) {
+                            return;
+                        }
+                        setPatientSearchResults(results);
+                        setHighlightedPatientIndex(-1);
+                        setPatientSearchLoading(false);
+                    })
+                    .catch(() => {
+                        if (
+                            controller.signal.aborted ||
+                            requestId !== requestIdRef.current
+                        ) {
+                            return;
+                        }
+                        setPatientSearchResults([]);
+                        setPatientSearchError(
+                            'Unable to search patients. Please try again.',
+                        );
+                        setPatientSearchLoading(false);
+                    });
+            }, 300);
+        },
+        [teamSlug],
+    );
+
+    function selectPatient(option: { slug: string; label: string }) {
+        setPatientId(option.slug);
+        setSelectedPatientLabel(option.label);
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
+        setPatientSearchError(null);
+        setPatientSearchOpen(false);
+        setHighlightedPatientIndex(-1);
+        patientSearchInputRef.current?.focus();
+    }
+
+    function handlePatientSearchKeyDown(
+        event: KeyboardEvent<HTMLInputElement>,
+    ) {
+        if (
+            patientSearchOpen &&
+            !patientId &&
+            patientSearchResults.length > 0
+        ) {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setHighlightedPatientIndex((current) =>
+                    current < 0
+                        ? 0
+                        : (current + 1) % patientSearchResults.length,
+                );
+                return;
+            }
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setHighlightedPatientIndex((current) =>
+                    current <= 0
+                        ? patientSearchResults.length - 1
+                        : current - 1,
+                );
+                return;
+            }
+            if (event.key === 'Enter' && highlightedPatientIndex >= 0) {
+                event.preventDefault();
+                selectPatient(patientSearchResults[highlightedPatientIndex]);
+                return;
+            }
+        }
+
+        if (event.key === 'Escape') {
+            setPatientSearchOpen(false);
+            setHighlightedPatientIndex(-1);
+        }
+    }
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -141,7 +249,9 @@ export default function LaboratoryIndex({
         const handleClick = (event: MouseEvent) => {
             if (
                 patientSearchContainerRef.current &&
-                !patientSearchContainerRef.current.contains(event.target as Node)
+                !patientSearchContainerRef.current.contains(
+                    event.target as Node,
+                )
             ) {
                 setPatientSearchOpen(false);
             }
@@ -151,12 +261,13 @@ export default function LaboratoryIndex({
         return () => document.removeEventListener('mousedown', handleClick);
     }, [patientSearchOpen]);
 
-    // Cleanup debounce timer
+    // Cleanup debounce timer and in-flight requests
     useEffect(() => {
         return () => {
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
+            abortControllerRef.current?.abort();
         };
     }, []);
 
@@ -173,13 +284,9 @@ export default function LaboratoryIndex({
         }
     }, [createOptions.selectedPatientId]);
 
-    function baseUrl(path = '') {
-        return `/${teamSlug}/laboratories${path}`;
-    }
-
     function applyDateFilter(dateFilter: string) {
         router.get(
-            baseUrl(),
+            laboratoriesIndex.url(teamSlug),
             {
                 date_filter: dateFilter,
                 laboratory_id: filters.laboratory_id || undefined,
@@ -190,7 +297,7 @@ export default function LaboratoryIndex({
 
     function selectLaboratory(id: string) {
         router.get(
-            baseUrl(),
+            laboratoriesIndex.url(teamSlug),
             {
                 date_filter: filters.date_filter,
                 laboratory_id: id || undefined,
@@ -200,15 +307,18 @@ export default function LaboratoryIndex({
     }
 
     function submitResults() {
-        if (!selected) {
+        if (!selected || resultProcessing || stepProcessing) {
             return;
         }
 
-        setProcessing(true);
+        setResultProcessing(true);
         setFormError(null);
 
         router.post(
-            baseUrl(`/${selected.id}/results`),
+            storeLabResult.url({
+                current_team: teamSlug,
+                laboratory: selected.id,
+            }),
             buildResultPayload(resultValues),
             {
                 preserveScroll: true,
@@ -216,30 +326,36 @@ export default function LaboratoryIndex({
                     setFormError(
                         Object.values(errors)[0] ?? 'Unable to submit results.',
                     ),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setResultProcessing(false),
             },
         );
     }
 
     function saveStepResults(testIndex: number, _testName: string) {
-        if (!selected || !resultForm) {
+        if (!selected || !resultForm || resultProcessing || stepProcessing) {
             return;
         }
 
-        setProcessing(true);
+        setStepProcessing(true);
         setFormError(null);
 
         const flatTests = flattenTests(resultForm);
         const test = flatTests[testIndex];
         if (!test) {
-            setProcessing(false);
+            setStepProcessing(false);
             return;
         }
 
         // Build payload for the current test only
         const stepLines: Record<string, string> = {};
-        const stepTestResults: Record<string, { price_list_id: number; result: string }[]> = {};
-        const stepInventoryConsumption: Record<string, { lab_inventory_id: number; quantity: number }[]> = {};
+        const stepTestResults: Record<
+            string,
+            { price_list_id: number; result: string }[]
+        > = {};
+        const stepInventoryConsumption: Record<
+            string,
+            { lab_inventory_id: number; quantity: number }[]
+        > = {};
 
         if (test.kind === 'simple') {
             const value = resultValues.lines[String(test.id)];
@@ -247,7 +363,8 @@ export default function LaboratoryIndex({
                 stepLines[String(test.id)] = value;
             }
         } else if (test.kind === 'parameters') {
-            const testResultMap = resultValues.testResults[String(test.id)] ?? {};
+            const testResultMap =
+                resultValues.testResults[String(test.id)] ?? {};
             const rows = Object.entries(testResultMap)
                 .filter(([, result]) => result)
                 .map(([priceListId, result]) => ({
@@ -260,15 +377,25 @@ export default function LaboratoryIndex({
         }
 
         // Collect inventory consumption for this test
-        const consumptionRows = resultValues.inventoryConsumption[String(test.id)] ?? [];
-        const filtered = consumptionRows.filter((row) => row.lab_inventory_id > 0 && row.quantity > 0);
+        const consumptionRows =
+            resultValues.inventoryConsumption[String(test.id)] ?? [];
+        const filtered = consumptionRows.filter(
+            (row) => row.lab_inventory_id > 0 && row.quantity > 0,
+        );
         if (filtered.length > 0) {
             stepInventoryConsumption[String(test.id)] = filtered;
         }
 
         router.patch(
-            baseUrl(`/${selected.id}/results`),
-            { lines: stepLines, testResults: stepTestResults, inventoryConsumption: stepInventoryConsumption },
+            updateLabResult.url({
+                current_team: teamSlug,
+                laboratory: selected.id,
+            }),
+            {
+                lines: stepLines,
+                testResults: stepTestResults,
+                inventoryConsumption: stepInventoryConsumption,
+            },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -277,9 +404,10 @@ export default function LaboratoryIndex({
                 },
                 onError: (errors) =>
                     setFormError(
-                        Object.values(errors)[0] ?? 'Unable to save step results.',
+                        Object.values(errors)[0] ??
+                            'Unable to save step results.',
                     ),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setStepProcessing(false),
             },
         );
     }
@@ -292,12 +420,21 @@ export default function LaboratoryIndex({
         );
     }
 
+    const canCreate =
+        Boolean(patientId) &&
+        lines.length > 0 &&
+        lines.every((line) => Boolean(line.price_list_id));
+
     function submitCreate() {
-        setProcessing(true);
+        if (createProcessing || !canCreate) {
+            return;
+        }
+
+        setCreateProcessing(true);
         setFormError(null);
 
         router.post(
-            baseUrl(),
+            laboratoryStore.url(teamSlug),
             {
                 patient_id: patientId,
                 lines: lines.map((line) => ({
@@ -326,7 +463,7 @@ export default function LaboratoryIndex({
                     setFormError(
                         Object.values(errors)[0] ?? 'Unable to create request.',
                     ),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setCreateProcessing(false),
             },
         );
     }
@@ -336,25 +473,25 @@ export default function LaboratoryIndex({
             title: 'Awaiting payment',
             value: stats.pending,
             description: `Request yet to be paid — ${filters.date_filter_label}`,
-            tone: 'text-red-600',
+            tone: 'text-red-600 dark:text-red-400',
         },
         {
             title: 'Pending request',
             value: stats.paid,
             description: `Paid, yet to be attended — ${filters.date_filter_label}`,
-            tone: 'text-amber-600',
+            tone: 'text-amber-600 dark:text-amber-400',
         },
         {
             title: 'Completed request',
             value: stats.submitted,
             description: `Completed request — ${filters.date_filter_label}`,
-            tone: 'text-emerald-600',
+            tone: 'text-emerald-600 dark:text-emerald-400',
         },
         {
             title: 'Total request',
             value: stats.total,
             description: `Total request — ${filters.date_filter_label}`,
-            tone: 'text-indigo-600',
+            tone: 'text-indigo-600 dark:text-indigo-400',
         },
     ];
 
@@ -370,7 +507,9 @@ export default function LaboratoryIndex({
                     />
                     <div className="flex flex-wrap gap-2">
                         <Button asChild variant="secondary">
-                            <Link href={baseUrl('/history')}>History</Link>
+                            <Link href={laboratoryHistory.url(teamSlug)}>
+                                History
+                            </Link>
                         </Button>
                         <Button onClick={() => setCreateOpen(true)}>
                             New laboratory request
@@ -415,22 +554,27 @@ export default function LaboratoryIndex({
                     ))}
                 </div>
 
-
-
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <div>
                             <CardTitle>Laboratory result form</CardTitle>
                             <CardDescription>
-                                Select a paid request to enter pending test results.
+                                Select a paid request to enter pending test
+                                results.
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                             {selected ? (
                                 <Badge
-                                    variant={selected.isAdmitted ? 'default' : 'secondary'}
+                                    variant={
+                                        selected.isAdmitted
+                                            ? 'default'
+                                            : 'secondary'
+                                    }
                                 >
-                                    {selected.isAdmitted ? 'On Admission' : 'OPD'}
+                                    {selected.isAdmitted
+                                        ? 'On Admission'
+                                        : 'OPD'}
                                 </Badge>
                             ) : null}
                         </div>
@@ -466,24 +610,32 @@ export default function LaboratoryIndex({
                             {selected ? (
                                 <>
                                     <div className="space-y-2">
-                                        <Label>Gender</Label>
+                                        <Label htmlFor="selected-gender">
+                                            Gender
+                                        </Label>
                                         <Input
+                                            id="selected-gender"
                                             value={selected.gender ?? ''}
                                             disabled
+                                            readOnly
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Age</Label>
+                                        <Label htmlFor="selected-age">
+                                            Age
+                                        </Label>
                                         <Input
+                                            id="selected-age"
                                             value={selected.age ?? ''}
                                             disabled
+                                            readOnly
                                         />
                                     </div>
                                 </>
                             ) : null}
                         </div>
 
-                        {resultForm ? (
+                        {resultForm && selected ? (
                             <LabResultEntryLayout
                                 form={resultForm}
                                 values={resultValues}
@@ -512,19 +664,47 @@ export default function LaboratoryIndex({
                     </SheetHeader>
 
                     <div className="mt-6 space-y-4 px-4 pb-4">
-                        <div className="space-y-2" ref={patientSearchContainerRef}>
-                            <Label htmlFor="create-patient">
-                                Patient
-                            </Label>
+                        <div
+                            className="space-y-2"
+                            ref={patientSearchContainerRef}
+                        >
+                            <Label htmlFor="create-patient">Patient</Label>
                             <div className="relative">
                                 <Input
                                     id="create-patient"
                                     ref={patientSearchInputRef}
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-expanded={
+                                        patientSearchOpen && !patientId
+                                    }
+                                    aria-controls="create-patient-listbox"
+                                    aria-activedescendant={
+                                        highlightedPatientIndex >= 0
+                                            ? `create-patient-option-${highlightedPatientIndex}`
+                                            : undefined
+                                    }
+                                    aria-invalid={Boolean(patientSearchError)}
+                                    aria-describedby={
+                                        patientSearchError
+                                            ? 'create-patient-error'
+                                            : undefined
+                                    }
+                                    autoComplete="off"
                                     placeholder="Search patient by name, code, or phone…"
-                                    value={displayPatientLabel || patientSearchQuery}
-                                    readOnly={!!patientId && Boolean(createOptions.selectedPatientId)}
+                                    value={
+                                        displayPatientLabel ||
+                                        patientSearchQuery
+                                    }
+                                    readOnly={
+                                        !!patientId &&
+                                        Boolean(createOptions.selectedPatientId)
+                                    }
                                     onClick={() => {
-                                        if (!patientId || !createOptions.selectedPatientId) {
+                                        if (
+                                            !patientId ||
+                                            !createOptions.selectedPatientId
+                                        ) {
                                             setPatientSearchOpen(true);
                                         }
                                     }}
@@ -536,37 +716,63 @@ export default function LaboratoryIndex({
                                         searchPatients(value);
                                         setPatientSearchOpen(true);
                                     }}
+                                    onKeyDown={handlePatientSearchKeyDown}
                                 />
                                 {patientSearchOpen && !patientId && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                    <div
+                                        id="create-patient-listbox"
+                                        role="listbox"
+                                        aria-label="Patients"
+                                        className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
+                                    >
                                         {patientSearchLoading && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                            <div
+                                                role="status"
+                                                className="px-3 py-2 text-xs text-muted-foreground"
+                                            >
                                                 Searching…
                                             </div>
                                         )}
-                                        {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                No patients found
-                                            </div>
+                                        {!patientSearchLoading &&
+                                            patientSearchResults.length === 0 &&
+                                            patientSearchQuery.trim() &&
+                                            !patientSearchError && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    No patients found
+                                                </div>
+                                            )}
+                                        {patientSearchResults.map(
+                                            (option, index) => (
+                                                <button
+                                                    key={option.slug}
+                                                    id={`create-patient-option-${index}`}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={
+                                                        index ===
+                                                        highlightedPatientIndex
+                                                    }
+                                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${index === highlightedPatientIndex ? 'bg-accent' : ''}`}
+                                                    onMouseEnter={() =>
+                                                        setHighlightedPatientIndex(
+                                                            index,
+                                                        )
+                                                    }
+                                                    onClick={() =>
+                                                        selectPatient(option)
+                                                    }
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ),
                                         )}
-                                        {patientSearchResults.map((option) => (
-                                            <button
-                                                key={option.slug}
-                                                type="button"
-                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                onClick={() => {
-                                                    setPatientId(option.slug);
-                                                    setSelectedPatientLabel(option.label);
-                                                    setPatientSearchQuery('');
-                                                    setPatientSearchResults([]);
-                                                    setPatientSearchOpen(false);
-                                                }}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
                                     </div>
                                 )}
+                            </div>
+                            <div id="create-patient-error">
+                                <InputError
+                                    message={patientSearchError ?? undefined}
+                                />
                             </div>
                         </div>
 
@@ -575,13 +781,22 @@ export default function LaboratoryIndex({
                                 <table className="w-full text-sm">
                                     <thead className="bg-muted/50">
                                         <tr>
-                                            <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                            <th
+                                                className="px-4 py-2 text-left font-medium"
+                                                style={{ width: '70%' }}
+                                            >
                                                 Test
                                             </th>
-                                            <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
+                                            <th
+                                                className="px-4 py-2 text-left font-medium"
+                                                style={{ width: '25%' }}
+                                            >
                                                 Price ({currencySymbol})
                                             </th>
-                                            <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                            <th
+                                                className="px-4 py-2 text-center font-medium"
+                                                style={{ width: '5%' }}
+                                            ></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -589,7 +804,10 @@ export default function LaboratoryIndex({
                                             <tr key={index}>
                                                 <td className="px-4 py-2">
                                                     <SelectNative
-                                                        value={line.price_list_id}
+                                                        aria-label={`Test ${index + 1}`}
+                                                        value={
+                                                            line.price_list_id
+                                                        }
                                                         onChange={(event) => {
                                                             const test =
                                                                 createOptions.tests.find(
@@ -597,34 +815,40 @@ export default function LaboratoryIndex({
                                                                         String(
                                                                             item.id,
                                                                         ) ===
-                                                                        event.target
+                                                                        event
+                                                                            .target
                                                                             .value,
                                                                 );
-                                                            setLines((current) =>
-                                                                current.map(
-                                                                    (row, rowIndex) =>
-                                                                        rowIndex === index
-                                                                            ? {
-                                                                                  ...row,
-                                                                                  price_list_id:
-                                                                                      event
-                                                                                          .target
-                                                                                          .value,
-                                                                                  unitPrice:
-                                                                                      test
-                                                                                          ? String(
-                                                                                                  test.price,
-                                                                                              )
-                                                                                          : '',
-                                                                                  unitCost:
-                                                                                      test
-                                                                                          ? String(
-                                                                                                  test.cost,
-                                                                                              )
-                                                                                          : '',
-                                                                              }
-                                                                            : row,
-                                                                ),
+                                                            setLines(
+                                                                (current) =>
+                                                                    current.map(
+                                                                        (
+                                                                            row,
+                                                                            rowIndex,
+                                                                        ) =>
+                                                                            rowIndex ===
+                                                                            index
+                                                                                ? {
+                                                                                      ...row,
+                                                                                      price_list_id:
+                                                                                          event
+                                                                                              .target
+                                                                                              .value,
+                                                                                      unitPrice:
+                                                                                          test
+                                                                                              ? String(
+                                                                                                    test.price,
+                                                                                                )
+                                                                                              : '',
+                                                                                      unitCost:
+                                                                                          test
+                                                                                              ? String(
+                                                                                                    test.cost,
+                                                                                                )
+                                                                                              : '',
+                                                                                  }
+                                                                                : row,
+                                                                    ),
                                                             );
                                                         }}
                                                     >
@@ -634,8 +858,12 @@ export default function LaboratoryIndex({
                                                         {createOptions.tests.map(
                                                             (test) => (
                                                                 <option
-                                                                    key={test.id}
-                                                                    value={test.id}
+                                                                    key={
+                                                                        test.id
+                                                                    }
+                                                                    value={
+                                                                        test.id
+                                                                    }
                                                                 >
                                                                     {test.name}
                                                                 </option>
@@ -645,6 +873,7 @@ export default function LaboratoryIndex({
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <Input
+                                                        aria-label={`Price for test ${index + 1}`}
                                                         value={line.unitPrice}
                                                         readOnly
                                                     />
@@ -652,12 +881,19 @@ export default function LaboratoryIndex({
                                                 <td className="px-4 py-2 text-center">
                                                     <button
                                                         type="button"
-                                                        className="text-muted-foreground hover:text-red-600"
+                                                        aria-label={`Remove test ${index + 1}`}
+                                                        className="rounded-sm text-muted-foreground hover:text-red-600 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:text-red-400"
                                                         onClick={() =>
-                                                            setLines((current) =>
-                                                                current.filter(
-                                                                    (_, i) => i !== index,
-                                                                ),
+                                                            setLines(
+                                                                (current) =>
+                                                                    current.filter(
+                                                                        (
+                                                                            _,
+                                                                            i,
+                                                                        ) =>
+                                                                            i !==
+                                                                            index,
+                                                                    ),
                                                             )
                                                         }
                                                     >
@@ -697,9 +933,7 @@ export default function LaboratoryIndex({
                             </div>
                         ) : null}
 
-                        {formError ? (
-                            <p className="text-sm text-red-600">{formError}</p>
-                        ) : null}
+                        <AlertError errors={formError ? [formError] : []} />
                     </div>
 
                     <SheetFooter className="mt-6">
@@ -710,10 +944,10 @@ export default function LaboratoryIndex({
                             Cancel
                         </Button>
                         <Button
-                            disabled={processing || !patientId}
+                            disabled={createProcessing || !canCreate}
                             onClick={submitCreate}
                         >
-                            {processing ? 'Saving…' : 'Create request'}
+                            {createProcessing ? 'Saving…' : 'Create request'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>

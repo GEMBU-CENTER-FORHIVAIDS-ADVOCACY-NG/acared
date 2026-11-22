@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Pill, PillBottle, RotateCcw, Trash2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/table';
 import type { Team } from '@/types';
 import {
+    destroy as destroyRoute,
     dispense as dispenseRoute,
     dispenseNewLines as dispenseNewLinesRoute,
     edit as editRoute,
@@ -89,101 +91,53 @@ export default function PrescriptionShow({
     const teamSlug = currentTeam?.slug ?? '';
     const [deleting, setDeleting] = useState(false);
     const [refundOpen, setRefundOpen] = useState(false);
+    const [showRefundConfirm, setShowRefundConfirm] = useState(false);
     const [refundSelection, setRefundSelection] = useState<
         Record<number, boolean>
     >(Object.fromEntries(prescription.lines.map((line) => [line.id, true])));
     const [refundQuantities, setRefundQuantities] = useState<
         Record<number, number>
-    >(Object.fromEntries(prescription.lines.map((line) => [line.id, line.quantity])));
-    const [processing, setProcessing] = useState(false);
+    >(
+        Object.fromEntries(
+            prescription.lines.map((line) => [line.id, line.quantity]),
+        ),
+    );
+    const [refundProcessing, setRefundProcessing] = useState(false);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [dispenseProcessing, setDispenseProcessing] = useState(false);
+    const [dispenseNewLinesProcessing, setDispenseNewLinesProcessing] =
+        useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const printPrescription = useCallback(() => {
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        if (!printWindow) return;
+    const anyProcessing =
+        refundProcessing ||
+        deleteProcessing ||
+        dispenseProcessing ||
+        dispenseNewLinesProcessing;
 
-        const date = prescription.createdAt
-            ? new Date(prescription.createdAt).toLocaleDateString()
-            : '—';
+    function printPrescription() {
+        window.print();
+    }
 
-        const rows = prescription.lines
-            .map(
-                (line) => `
-                <tr>
-                    <td style="padding:6px 8px;border:1px solid #000;">${line.name ?? 'Drug'}</td>
-                    <td style="padding:6px 8px;border:1px solid #000;">${line.frequency ?? '—'}</td>
-                    <td style="padding:6px 8px;border:1px solid #000;">${line.duration ?? '—'}</td>
-                    <td style="padding:6px 8px;border:1px solid #000;">${line.dosage ?? '—'}</td>
-                    <td style="padding:6px 8px;border:1px solid #000;">${line.quantity.toLocaleString()}</td>
-                </tr>`,
-            )
-            .join('');
-
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Prescription</title>
-                <style>
-                    @page { size: A5 landscape; margin: 10mm; }
-                    body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5; margin: 0; padding: 10mm; }
-                    h2 { margin: 0; font-size: 18px; text-align: center; }
-                    h3 { margin: 0 0 10px; font-size: 14px; }
-                    p { margin: 4px 0 0; font-size: 14px; text-align: center; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    th { background: #f0f0f0; font-weight: bold; padding: 6px 8px; border: 1px solid #000; text-align: left; }
-                    td { padding: 6px 8px; border: 1px solid #000; }
-                    tr { page-break-inside: avoid; }
-                    .info-table { width: 100%; margin-bottom: 20px; }
-                    .info-table td { border: none; padding: 4px 0; }
-                    .label { width: 150px; font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                <h2>${hospitalName}</h2>
-                <p>Prescription</p>
-                <table class="info-table">
-                    <tr><td class="label">Hospital No:</td><td>${prescription.patientSlug}</td></tr>
-                    <tr><td class="label">Patient Name:</td><td>${prescription.patientName ?? '—'}</td></tr>
-                    <tr><td class="label">Date:</td><td>${date}</td></tr>
-                    <tr><td class="label">Doctor:</td><td>${prescription.doctorName ?? '—'}</td></tr>
-                </table>
-                <h3>Prescribed Drugs</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Drug</th>
-                            <th>Frequency</th>
-                            <th>Duration</th>
-                            <th>Dosage</th>
-                            <th>Qty</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-
-        printWindow.print();
-
-        setTimeout(() => {
-            printWindow.close();
-        }, 1000);
-    }, [prescription, hospitalName]);
+    const prescriptionDate = prescription.createdAt
+        ? new Date(prescription.createdAt).toLocaleDateString()
+        : '—';
 
     const refundTotal = prescription.lines
         .filter((line) => refundSelection[line.id])
         .reduce(
             (sum, line) =>
-                sum + (refundQuantities[line.id] ?? line.quantity) * line.unitPrice,
+                sum +
+                (refundQuantities[line.id] ?? line.quantity) * line.unitPrice,
             0,
         );
 
     function submitRefund() {
-        setProcessing(true);
+        if (refundProcessing || refundTotal <= 0) {
+            return;
+        }
+
+        setRefundProcessing(true);
         setError(null);
         router.post(
             refundRoute.url({
@@ -194,24 +148,31 @@ export default function PrescriptionShow({
                 lines: prescription.lines.map((line) => ({
                     line_id: line.id,
                     refund: Boolean(refundSelection[line.id]),
-                    quantity:
-                        refundSelection[line.id]
-                            ? refundQuantities[line.id]
-                            : undefined,
+                    quantity: refundSelection[line.id]
+                        ? refundQuantities[line.id]
+                        : undefined,
                 })),
             },
             {
                 preserveScroll: true,
-                onSuccess: () => setRefundOpen(false),
+                onSuccess: () => {
+                    setShowRefundConfirm(false);
+                    setRefundOpen(false);
+                },
                 onError: (errors) =>
                     setError(Object.values(errors)[0] ?? 'Refund failed.'),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setRefundProcessing(false),
             },
         );
     }
 
     function deletePrescription() {
-        setProcessing(true);
+        if (deleteProcessing) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+        setError(null);
         router.delete(
             destroyRoute.url({
                 current_team: teamSlug,
@@ -222,7 +183,54 @@ export default function PrescriptionShow({
                 onSuccess: () => setDeleting(false),
                 onError: (errors) =>
                     setError(Object.values(errors)[0] ?? 'Delete failed.'),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setDeleteProcessing(false),
+            },
+        );
+    }
+
+    function dispense() {
+        if (dispenseProcessing || anyProcessing) {
+            return;
+        }
+
+        setDispenseProcessing(true);
+        setError(null);
+        router.post(
+            dispenseRoute.url({
+                current_team: teamSlug,
+                prescription: prescription.id,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors) =>
+                    setError(Object.values(errors)[0] ?? 'Dispense failed.'),
+                onFinish: () => setDispenseProcessing(false),
+            },
+        );
+    }
+
+    function dispenseNewLines() {
+        if (dispenseNewLinesProcessing || anyProcessing) {
+            return;
+        }
+
+        setDispenseNewLinesProcessing(true);
+        setError(null);
+        router.post(
+            dispenseNewLinesRoute.url({
+                current_team: teamSlug,
+                prescription: prescription.id,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors) =>
+                    setError(
+                        Object.values(errors)[0] ??
+                            'Dispense new lines failed.',
+                    ),
+                onFinish: () => setDispenseNewLinesProcessing(false),
             },
         );
     }
@@ -230,7 +238,55 @@ export default function PrescriptionShow({
     return (
         <>
             <Head title={`Prescription ${prescription.patientSlug}`} />
-            <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+
+            <style>{`
+                @media print {
+                    @page {
+                        size: A5 landscape;
+                        margin: 10mm;
+                    }
+
+                    body {
+                        background: #fff !important;
+                    }
+
+                    .no-print {
+                        display: none !important;
+                    }
+
+                    .prescription-print-root {
+                        display: block !important;
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        line-height: 1.5;
+                        color: #000;
+                    }
+
+                    .prescription-print-root table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 10px;
+                    }
+
+                    .prescription-print-root th,
+                    .prescription-print-root td {
+                        padding: 6px 8px;
+                        border: 1px solid #000;
+                        text-align: left;
+                    }
+
+                    .prescription-print-root .info-table {
+                        margin-bottom: 20px;
+                    }
+
+                    .prescription-print-root .info-table td {
+                        border: none;
+                        padding: 4px 0;
+                    }
+                }
+            `}</style>
+
+            <div className="no-print flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
                 <div className="space-y-3">
                     <div className="no-print">
                         <Breadcrumbs
@@ -285,58 +341,31 @@ export default function PrescriptionShow({
                             ) : null}
                             {prescription.canDispense ? (
                                 <Button
-                                    onClick={() => {
-                                        setProcessing(true);
-                                        setError(null);
-                                        router.post(
-                                            dispenseRoute.url({
-                                                current_team: teamSlug,
-                                                prescription: prescription.id,
-                                            }),
-                                            {},
-                                            {
-                                                preserveScroll: true,
-                                                onError: (errors) =>
-                                                    setError(Object.values(errors)[0] ?? 'Dispense failed.'),
-                                                onFinish: () => setProcessing(false),
-                                            },
-                                        );
-                                    }}
-                                    disabled={processing}
+                                    onClick={dispense}
+                                    disabled={anyProcessing}
                                 >
                                     <Pill className="mr-2 size-4" />
-                                    {processing ? 'Processing…' : 'Dispense'}
+                                    {dispenseProcessing
+                                        ? 'Dispensing…'
+                                        : 'Dispense'}
                                 </Button>
                             ) : null}
                             {prescription.canDispenseNewLines ? (
                                 <Button
                                     variant="outline"
-                                    onClick={() => {
-                                        setProcessing(true);
-                                        setError(null);
-                                        router.post(
-                                            dispenseNewLinesRoute.url({
-                                                current_team: teamSlug,
-                                                prescription: prescription.id,
-                                            }),
-                                            {},
-                                            {
-                                                preserveScroll: true,
-                                                onError: (errors) =>
-                                                    setError(Object.values(errors)[0] ?? 'Dispense new lines failed.'),
-                                                onFinish: () => setProcessing(false),
-                                            },
-                                        );
-                                    }}
-                                    disabled={processing}
+                                    onClick={dispenseNewLines}
+                                    disabled={anyProcessing}
                                 >
                                     <PillBottle className="mr-2 size-4" />
-                                    {processing ? 'Processing…' : 'Dispense new lines'}
+                                    {dispenseNewLinesProcessing
+                                        ? 'Dispensing…'
+                                        : 'Dispense new lines'}
                                 </Button>
                             ) : null}
                             {prescription.canRefund ? (
                                 <Button
                                     variant="secondary"
+                                    disabled={anyProcessing}
                                     onClick={() => {
                                         setError(null);
                                         setRefundOpen(true);
@@ -349,6 +378,7 @@ export default function PrescriptionShow({
                             {prescription.canDelete ? (
                                 <Button
                                     variant="destructive"
+                                    disabled={anyProcessing}
                                     onClick={() => {
                                         setError(null);
                                         setDeleting(true);
@@ -453,13 +483,19 @@ export default function PrescriptionShow({
                                                     {line.frequency ?? '—'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {line.duration != null && line.duration !== ''
-                                                        ? Number(line.duration).toLocaleString()
+                                                    {line.duration != null &&
+                                                    String(line.duration) !== ''
+                                                        ? Number(
+                                                              line.duration,
+                                                          ).toLocaleString()
                                                         : '—'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {line.dosage != null && line.dosage !== ''
-                                                        ? Number(line.dosage).toLocaleString()
+                                                    {line.dosage != null &&
+                                                    String(line.dosage) !== ''
+                                                        ? Number(
+                                                              line.dosage,
+                                                          ).toLocaleString()
                                                         : '—'}
                                                 </TableCell>
                                                 <TableCell>
@@ -477,13 +513,31 @@ export default function PrescriptionShow({
                                                     {line.totalPrice.toLocaleString()}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={line.paid ? 'default' : 'secondary'}>
-                                                        {line.paid ? 'Paid' : 'Unpaid'}
+                                                    <Badge
+                                                        variant={
+                                                            line.paid
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                        }
+                                                    >
+                                                        {line.paid
+                                                            ? 'Paid'
+                                                            : 'Unpaid'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={line.dispenseStatus === 'dispensed' ? 'default' : 'destructive'}>
-                                                        {line.dispenseStatus === 'dispensed' ? 'Dispensed' : 'Pending'}
+                                                    <Badge
+                                                        variant={
+                                                            line.dispenseStatus ===
+                                                            'dispensed'
+                                                                ? 'default'
+                                                                : 'destructive'
+                                                        }
+                                                    >
+                                                        {line.dispenseStatus ===
+                                                        'dispensed'
+                                                            ? 'Dispensed'
+                                                            : 'Pending'}
                                                     </Badge>
                                                 </TableCell>
                                             </TableRow>
@@ -525,7 +579,10 @@ export default function PrescriptionShow({
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="secondary" className="capitalize">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="capitalize"
+                                                >
                                                     {billing.status}
                                                 </Badge>
                                             </TableCell>
@@ -540,7 +597,11 @@ export default function PrescriptionShow({
                                         <TableCell className="text-right">
                                             {currencySymbol}{' '}
                                             {prescription.billings
-                                                .reduce((sum, billing) => sum + billing.total, 0)
+                                                .reduce(
+                                                    (sum, billing) =>
+                                                        sum + billing.total,
+                                                    0,
+                                                )
                                                 .toLocaleString()}
                                         </TableCell>
                                     </TableRow>
@@ -550,10 +611,84 @@ export default function PrescriptionShow({
                     </Card>
                 ) : null}
 
-                {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                <AlertError errors={error ? [error] : []} />
             </div>
 
-            <Sheet open={refundOpen} onOpenChange={setRefundOpen}>
+            <div
+                className="prescription-print-root"
+                style={{ display: 'none' }}
+            >
+                <h2
+                    style={{ margin: 0, fontSize: '18px', textAlign: 'center' }}
+                >
+                    {hospitalName}
+                </h2>
+                <p style={{ margin: '4px 0 0', textAlign: 'center' }}>
+                    Prescription
+                </p>
+                <table className="info-table">
+                    <tbody>
+                        <tr>
+                            <td style={{ width: '150px', fontWeight: 'bold' }}>
+                                Hospital No:
+                            </td>
+                            <td>{prescription.patientSlug}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: 'bold' }}>
+                                Patient Name:
+                            </td>
+                            <td>{prescription.patientName ?? '—'}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: 'bold' }}>Date:</td>
+                            <td>{prescriptionDate}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: 'bold' }}>Doctor:</td>
+                            <td>{prescription.doctorName ?? '—'}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <h3 style={{ margin: '0 0 10px', fontSize: '14px' }}>
+                    Prescribed Drugs
+                </h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Drug</th>
+                            <th>Frequency</th>
+                            <th>Duration</th>
+                            <th>Dosage</th>
+                            <th>Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {prescription.lines.map((line) => (
+                            <tr key={line.id}>
+                                <td>{line.name ?? 'Drug'}</td>
+                                <td>{line.frequency ?? '—'}</td>
+                                <td>{line.duration ?? '—'}</td>
+                                <td>{line.dosage ?? '—'}</td>
+                                <td>{line.quantity.toLocaleString()}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <Sheet
+                open={refundOpen}
+                onOpenChange={(open) => {
+                    if (refundProcessing) {
+                        return;
+                    }
+                    setRefundOpen(open);
+                    if (!open) {
+                        setError(null);
+                    }
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
                     <SheetHeader>
                         <SheetTitle>Refund prescription</SheetTitle>
@@ -564,8 +699,11 @@ export default function PrescriptionShow({
                     </SheetHeader>
                     <div className="mt-6 space-y-4 px-4 pb-4">
                         {prescription.lines.map((line) => {
-                            const isSelected = Boolean(refundSelection[line.id]);
-                            const refundQty = refundQuantities[line.id] ?? line.quantity;
+                            const isSelected = Boolean(
+                                refundSelection[line.id],
+                            );
+                            const refundQty =
+                                refundQuantities[line.id] ?? line.quantity;
                             const lineTotal = refundQty * line.unitPrice;
 
                             return (
@@ -573,14 +711,15 @@ export default function PrescriptionShow({
                                     key={line.id}
                                     className="flex items-center justify-between gap-3 rounded-lg border p-3"
                                 >
-                                    <label className="flex items-center gap-3 flex-1 min-w-0">
+                                    <label className="flex min-w-0 flex-1 items-center gap-3">
                                         <input
                                             type="checkbox"
                                             checked={isSelected}
                                             onChange={(event) =>
                                                 setRefundSelection({
                                                     ...refundSelection,
-                                                    [line.id]: event.target.checked,
+                                                    [line.id]:
+                                                        event.target.checked,
                                                 })
                                             }
                                         />
@@ -592,20 +731,25 @@ export default function PrescriptionShow({
                                     </label>
                                     <div className="flex items-center gap-2">
                                         <input
+                                            id={`refund-qty-${line.id}`}
+                                            aria-label={`Refund quantity for ${line.name ?? `line ${line.id}`}`}
                                             type="number"
                                             min="0.001"
                                             step="any"
-                                            className="w-20 rounded-md border bg-background px-2 py-1 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="w-20 rounded-md border bg-background px-2 py-1 text-sm shadow-sm focus:border-ring focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                             value={refundQty}
                                             disabled={!isSelected}
                                             onChange={(event) =>
                                                 setRefundQuantities({
                                                     ...refundQuantities,
-                                                    [line.id]: parseFloat(event.target.value) || 0,
+                                                    [line.id]:
+                                                        parseFloat(
+                                                            event.target.value,
+                                                        ) || 0,
                                                 })
                                             }
                                         />
-                                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                        <span className="text-sm whitespace-nowrap text-muted-foreground">
                                             {currencySymbol}{' '}
                                             {lineTotal.toLocaleString()}
                                         </span>
@@ -621,9 +765,6 @@ export default function PrescriptionShow({
                                 {currencySymbol} {refundTotal.toLocaleString()}
                             </p>
                         </div>
-                        {error ? (
-                            <p className="text-sm text-red-600">{error}</p>
-                        ) : null}
                     </div>
                     <SheetFooter className="mt-6">
                         <Button
@@ -634,25 +775,62 @@ export default function PrescriptionShow({
                         </Button>
                         <Button
                             variant="destructive"
-                            disabled={processing || refundTotal <= 0}
-                            onClick={submitRefund}
+                            disabled={refundTotal <= 0}
+                            onClick={() => {
+                                setError(null);
+                                setRefundOpen(false);
+                                setShowRefundConfirm(true);
+                            }}
                         >
-                            {processing ? 'Processing…' : 'Refund'}
+                            Review refund
                         </Button>
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
 
             <ConfirmDialog
-                open={deleting}
-                onOpenChange={setDeleting}
-                title="Delete prescription?"
-                description="Lines and billing attached to this prescription will also be removed."
-                confirmLabel="Delete"
-                processing={processing}
-                onConfirm={deletePrescription}
+                open={showRefundConfirm}
+                onOpenChange={(open) => {
+                    if (refundProcessing) {
+                        return;
+                    }
+                    setShowRefundConfirm(open);
+                    if (!open) {
+                        setError(null);
+                    }
+                }}
+                title="Refund prescription?"
+                description={
+                    error ??
+                    `This will refund ${currencySymbol} ${refundTotal.toLocaleString()} and return the selected drugs to stock.`
+                }
+                confirmLabel={refundProcessing ? 'Refunding…' : 'Refund'}
+                destructive
+                processing={refundProcessing}
+                onConfirm={submitRefund}
             />
 
+            <ConfirmDialog
+                open={deleting}
+                onOpenChange={(open) => {
+                    if (deleteProcessing) {
+                        return;
+                    }
+                    setDeleting(open);
+                    if (!open) {
+                        setError(null);
+                    }
+                }}
+                title="Delete prescription?"
+                description={
+                    error ??
+                    'Lines and billing attached to this prescription will also be removed.'
+                }
+                confirmLabel={deleteProcessing ? 'Deleting…' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={deletePrescription}
+            />
         </>
     );
 }

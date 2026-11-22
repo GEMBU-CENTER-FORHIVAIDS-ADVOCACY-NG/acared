@@ -55,6 +55,7 @@ class PurchaseOrderController extends Controller
                 'items' => $po->items->map(fn ($item) => [
                     'id' => $item->id,
                     'inventory_id' => $item->inventory_id,
+                    'markup_id' => $item->markup_id,
                     'inventory_name' => trim(($item->inventory?->priceList?->name ?? '').' '.($item->inventory?->drugForm?->name ?? '')) ?: 'Unknown',
                     'quantity' => $item->quantity,
                     'unitPrice' => $item->unitPrice,
@@ -101,6 +102,10 @@ class PurchaseOrderController extends Controller
         $items = $validated['items'] ?? [];
         unset($validated['items']);
 
+        $validated['user_id'] = $request->user()->getKey();
+        $totals = $this->calculateTotals($items, (float) $validated['discount']);
+        $validated = [...$validated, ...$totals];
+
         DB::transaction(function () use ($validated, $teamId, $items) {
             $purchaseOrder = PurchaseOrder::create([
                 ...$validated,
@@ -116,8 +121,8 @@ class PurchaseOrderController extends Controller
                     'quantity' => $itemData['quantity'],
                     'unitPrice' => $itemData['unitPrice'],
                     'unitCost' => $itemData['unitCost'],
-                    'totalPrice' => $itemData['totalPrice'] ?? $itemData['quantity'] * $itemData['unitPrice'],
-                    'totalCost' => $itemData['totalCost'] ?? $itemData['quantity'] * $itemData['unitCost'],
+                    'totalPrice' => (float) $itemData['quantity'] * (float) $itemData['unitPrice'],
+                    'totalCost' => (float) $itemData['quantity'] * (float) $itemData['unitCost'],
                 ]);
             }
         });
@@ -135,6 +140,10 @@ class PurchaseOrderController extends Controller
         $items = $validated['items'] ?? [];
         unset($validated['items']);
 
+        $validated['user_id'] = $request->user()->getKey();
+        $totals = $this->calculateTotals($items, (float) $validated['discount']);
+        $validated = [...$validated, ...$totals];
+
         DB::transaction(function () use ($validated, $teamId, $purchaseOrder, $items) {
             $purchaseOrder->update($validated);
 
@@ -149,8 +158,8 @@ class PurchaseOrderController extends Controller
                     'quantity' => $itemData['quantity'],
                     'unitPrice' => $itemData['unitPrice'],
                     'unitCost' => $itemData['unitCost'],
-                    'totalPrice' => $itemData['totalPrice'] ?? $itemData['quantity'] * $itemData['unitPrice'],
-                    'totalCost' => $itemData['totalCost'] ?? $itemData['quantity'] * $itemData['unitCost'],
+                    'totalPrice' => (float) $itemData['quantity'] * (float) $itemData['unitPrice'],
+                    'totalCost' => (float) $itemData['quantity'] * (float) $itemData['unitCost'],
                 ]);
             }
         });
@@ -267,6 +276,28 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array{subPrice: float, subCost: float, total: float}
+     */
+    private function calculateTotals(array $items, float $discount): array
+    {
+        $subPrice = 0.0;
+        $subCost = 0.0;
+
+        foreach ($items as $itemData) {
+            $quantity = (float) $itemData['quantity'];
+            $subPrice += $quantity * (float) $itemData['unitPrice'];
+            $subCost += $quantity * (float) $itemData['unitCost'];
+        }
+
+        return [
+            'subPrice' => $subPrice,
+            'subCost' => $subCost,
+            'total' => max(0, $subCost - $discount),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validated(Request $request, ?PurchaseOrder $purchaseOrder = null): array
@@ -274,11 +305,7 @@ class PurchaseOrderController extends Controller
         return $request->validate([
             'slug' => ['required', 'string', 'max:255', Rule::unique('purchase_orders', 'slug')->ignore($purchaseOrder?->id)],
             'vendor_id' => ['required', 'integer', 'exists:vendors,id'],
-            'user_id' => ['required', 'integer', 'exists:users,id'],
-            'subPrice' => ['required', 'numeric', 'min:0'],
-            'subCost' => ['required', 'numeric', 'min:0'],
             'discount' => ['required', 'numeric', 'min:0'],
-            'total' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'string', 'max:50'],
             'items' => ['nullable', 'array'],
             'items.*.inventory_id' => ['required_with:items', 'integer', 'exists:inventories,id'],
@@ -286,8 +313,6 @@ class PurchaseOrderController extends Controller
             'items.*.quantity' => ['required_with:items', 'numeric', 'min:1'],
             'items.*.unitPrice' => ['required_with:items', 'numeric', 'min:0'],
             'items.*.unitCost' => ['required_with:items', 'numeric', 'min:0'],
-            'items.*.totalPrice' => ['nullable', 'numeric', 'min:0'],
-            'items.*.totalCost' => ['nullable', 'numeric', 'min:0'],
         ], [
             'items.*.markup_id.required_with' => 'Each order item must have a markup selected.',
         ]);

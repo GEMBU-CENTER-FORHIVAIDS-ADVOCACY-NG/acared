@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { ChevronDown, Mail, UserPlus, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import CancelInvitationModal from '@/components/cancel-invitation-modal';
 import DeleteTeamModal from '@/components/delete-team-modal';
 import Heading from '@/components/heading';
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
@@ -63,6 +65,8 @@ export default function TeamEdit({
         useState(false);
     const [invitationToCancel, setInvitationToCancel] =
         useState<TeamInvitation | null>(null);
+    const [updatingRoleFor, setUpdatingRoleFor] = useState<number | null>(null);
+    const [roleUpdateError, setRoleUpdateError] = useState<string | null>(null);
 
     const pageTitle = useMemo(
         () =>
@@ -73,9 +77,17 @@ export default function TeamEdit({
     );
 
     const updateMemberRole = (member: TeamMember, newRole: string) => {
+        setUpdatingRoleFor(member.id);
+        setRoleUpdateError(null);
         router.visit(updateMember([team.slug, member.id]), {
             data: { role: newRole },
             preserveScroll: true,
+            onSuccess: () => setUpdatingRoleFor(null),
+            onError: (errors: Record<string, string>) =>
+                setRoleUpdateError(
+                    Object.values(errors)[0] ?? 'Unable to update member role.',
+                ),
+            onFinish: () => setUpdatingRoleFor(null),
         });
     };
 
@@ -124,43 +136,64 @@ export default function TeamEdit({
                                                     defaultValue={team.name}
                                                     required
                                                 />
-                                                <InputError message={errors.name} />
+                                                <InputError
+                                                    message={errors.name}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="phone">Phone</Label>
+                                                <Label htmlFor="phone">
+                                                    Phone
+                                                </Label>
                                                 <Input
                                                     id="phone"
                                                     name="phone"
-                                                    defaultValue={team.phone ?? ''}
+                                                    defaultValue={
+                                                        team.phone ?? ''
+                                                    }
                                                 />
-                                                <InputError message={errors.phone} />
+                                                <InputError
+                                                    message={errors.phone}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="mobile">Mobile</Label>
+                                                <Label htmlFor="mobile">
+                                                    Mobile
+                                                </Label>
                                                 <Input
                                                     id="mobile"
                                                     name="mobile"
-                                                    defaultValue={team.mobile ?? ''}
+                                                    defaultValue={
+                                                        team.mobile ?? ''
+                                                    }
                                                 />
-                                                <InputError message={errors.mobile} />
+                                                <InputError
+                                                    message={errors.mobile}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2 sm:col-span-2">
-                                                <Label htmlFor="email">Email address</Label>
+                                                <Label htmlFor="email">
+                                                    Email address
+                                                </Label>
                                                 <Input
                                                     id="email"
                                                     name="email"
                                                     type="email"
-                                                    defaultValue={team.email ?? ''}
+                                                    defaultValue={
+                                                        team.email ?? ''
+                                                    }
                                                 />
-                                                <InputError message={errors.email} />
+                                                <InputError
+                                                    message={errors.email}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2 sm:col-span-2">
                                                 <Label htmlFor="logo">
-                                                    Logo (JPEG, PNG, or WebP; max 2 MB)
+                                                    Logo (JPEG, PNG, or WebP;
+                                                    max 2 MB)
                                                 </Label>
                                                 {team.logo && (
                                                     <div className="flex items-center gap-3">
@@ -180,18 +213,26 @@ export default function TeamEdit({
                                                     type="file"
                                                     accept="image/jpeg,image/png,image/webp"
                                                 />
-                                                <InputError message={errors.logo} />
+                                                <InputError
+                                                    message={errors.logo}
+                                                />
                                             </div>
 
                                             <div className="grid gap-2 sm:col-span-2">
-                                                <Label htmlFor="address">Address</Label>
+                                                <Label htmlFor="address">
+                                                    Address
+                                                </Label>
                                                 <Textarea
                                                     id="address"
                                                     name="address"
                                                     rows={3}
-                                                    defaultValue={team.address ?? ''}
+                                                    defaultValue={
+                                                        team.address ?? ''
+                                                    }
                                                 />
-                                                <InputError message={errors.address} />
+                                                <InputError
+                                                    message={errors.address}
+                                                />
                                             </div>
                                         </div>
 
@@ -201,7 +242,10 @@ export default function TeamEdit({
                                                 data-test="team-save-button"
                                                 disabled={processing}
                                             >
-                                                Save
+                                                {processing && <Spinner />}
+                                                {processing
+                                                    ? 'Saving...'
+                                                    : 'Save'}
                                             </Button>
                                         </div>
                                     </>
@@ -236,6 +280,12 @@ export default function TeamEdit({
                             </Button>
                         ) : null}
                     </div>
+                    {roleUpdateError ? (
+                        <AlertError
+                            errors={[roleUpdateError]}
+                            title="Unable to update role."
+                        />
+                    ) : null}
 
                     <div className="space-y-3">
                         {members.map((member) => (
@@ -283,8 +333,21 @@ export default function TeamEdit({
                                                     variant="outline"
                                                     size="sm"
                                                     data-test="member-role-trigger"
+                                                    aria-label={`Change role for ${member.name}`}
+                                                    disabled={
+                                                        updatingRoleFor ===
+                                                        member.id
+                                                    }
                                                 >
-                                                    {member.role_label}
+                                                    {updatingRoleFor ===
+                                                    member.id ? (
+                                                        <Spinner />
+                                                    ) : (
+                                                        member.role_label
+                                                    )}
+                                                    {updatingRoleFor ===
+                                                        member.id &&
+                                                        'Updating...'}
                                                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -293,6 +356,10 @@ export default function TeamEdit({
                                                     <DropdownMenuItem
                                                         key={role.value}
                                                         data-test="member-role-option"
+                                                        disabled={
+                                                            updatingRoleFor !==
+                                                            null
+                                                        }
                                                         onSelect={() =>
                                                             updateMemberRole(
                                                                 member,
@@ -320,6 +387,7 @@ export default function TeamEdit({
                                                         variant="outline"
                                                         size="sm"
                                                         data-test="member-remove-button"
+                                                        aria-label={`Remove ${member.name}`}
                                                         onClick={() =>
                                                             confirmRemoveMember(
                                                                 member,
@@ -378,6 +446,7 @@ export default function TeamEdit({
                                                         variant="outline"
                                                         size="sm"
                                                         data-test="invitation-cancel-button"
+                                                        aria-label={`Cancel invitation for ${invitation.email}`}
                                                         onClick={() =>
                                                             confirmCancelInvitation(
                                                                 invitation,

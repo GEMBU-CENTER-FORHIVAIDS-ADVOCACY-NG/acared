@@ -1,7 +1,8 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { Check, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import CouponController from '@/actions/App/Http/Controllers/CouponController';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
@@ -105,10 +106,17 @@ export default function CouponsIndex({
 }: {
     coupons: Paginator;
     filters: Filters;
-    summary: { pending: number; approved: number; rejected: number; totalUsed: number; totalDiscounts: number };
+    summary: {
+        pending: number;
+        approved: number;
+        rejected: number;
+        totalUsed: number;
+        totalDiscounts: number;
+    };
 }) {
     const { currentTeam } = usePage().props;
     const team = currentTeam?.slug;
+    const formDialogLabelId = useId();
     const [search, setSearch] = useState(filters.q);
     const [statusFilter, setStatusFilter] = useState(filters.status);
     const [form, setForm] = useState<Form>(emptyForm);
@@ -118,45 +126,85 @@ export default function CouponsIndex({
     const [deleting, setDeleting] = useState<Coupon | null>(null);
     const [approving, setApproving] = useState<Coupon | null>(null);
     const [rejecting, setRejecting] = useState<Coupon | null>(null);
+    const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Server-side patient search state
     const [patientSearchQuery, setPatientSearchQuery] = useState('');
-    const [patientSearchResults, setPatientSearchResults] = useState<PatientOption[]>([]);
+    const [patientSearchResults, setPatientSearchResults] = useState<
+        PatientOption[]
+    >([]);
     const [patientSearchOpen, setPatientSearchOpen] = useState(false);
     const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const [patientSearchError, setPatientSearchError] = useState<string | null>(
+        null,
+    );
     const patientSearchInputRef = useRef<HTMLInputElement>(null);
     const patientSearchContainerRef = useRef<HTMLDivElement>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const patientSearchAbortRef = useRef<AbortController | null>(null);
 
     // Debounced search for patients using fetch to avoid Inertia JSON response error
-    const searchPatients = useCallback((query: string) => {
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-        }
+    const searchPatients = useCallback(
+        (query: string) => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
 
-        if (!query.trim()) {
-            setPatientSearchResults([]);
-            return;
-        }
+            patientSearchAbortRef.current?.abort();
 
-        setPatientSearchLoading(true);
-        debounceTimerRef.current = setTimeout(() => {
-            const url = CouponController.searchPatients.url(team ?? '', { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setPatientSearchResults(results);
-                    setPatientSearchLoading(false);
-                })
-                .catch(() => {
-                    setPatientSearchLoading(false);
-                });
-        }, 300);
-    }, [team]);
+            if (!query.trim()) {
+                setPatientSearchResults([]);
+                setPatientSearchError(null);
+                setPatientSearchLoading(false);
+                return;
+            }
+
+            setPatientSearchError(null);
+            setPatientSearchLoading(true);
+            debounceTimerRef.current = setTimeout(async () => {
+                const controller = new AbortController();
+                patientSearchAbortRef.current = controller;
+
+                try {
+                    const url = CouponController.searchPatients.url(
+                        team ?? '',
+                        { query: { q: query } },
+                    );
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: controller.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Patient search failed.');
+                    }
+
+                    setPatientSearchResults(
+                        (await response.json()) as PatientOption[],
+                    );
+                } catch (searchError) {
+                    if (
+                        searchError instanceof DOMException &&
+                        searchError.name === 'AbortError'
+                    ) {
+                        return;
+                    }
+
+                    setPatientSearchResults([]);
+                    setPatientSearchError('Unable to search patients.');
+                } finally {
+                    if (patientSearchAbortRef.current === controller) {
+                        setPatientSearchLoading(false);
+                    }
+                }
+            }, 300);
+        },
+        [team],
+    );
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -167,7 +215,9 @@ export default function CouponsIndex({
         const handleClick = (event: MouseEvent) => {
             if (
                 patientSearchContainerRef.current &&
-                !patientSearchContainerRef.current.contains(event.target as Node)
+                !patientSearchContainerRef.current.contains(
+                    event.target as Node,
+                )
             ) {
                 setPatientSearchOpen(false);
             }
@@ -177,12 +227,13 @@ export default function CouponsIndex({
         return () => document.removeEventListener('mousedown', handleClick);
     }, [patientSearchOpen]);
 
-    // Cleanup debounce timer
+    // Cleanup debounce timer and in-flight patient searches
     useEffect(() => {
         return () => {
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
+            patientSearchAbortRef.current?.abort();
         };
     }, []);
     const visit = (patch: Partial<Filters>) =>
@@ -192,20 +243,12 @@ export default function CouponsIndex({
             { preserveState: true, preserveScroll: true, replace: true },
         );
     const handleApprove = (coupon: Coupon) => {
+        setError(null);
         setApproving(coupon);
-        router.patch(
-            couponsApprove.url({ current_team: team ?? '', coupon: coupon.id }),
-            {},
-            { preserveScroll: true, onFinish: () => setApproving(null) },
-        );
     };
     const handleReject = (coupon: Coupon) => {
+        setError(null);
         setRejecting(coupon);
-        router.patch(
-            couponsReject.url({ current_team: team ?? '', coupon: coupon.id }),
-            {},
-            { preserveScroll: true, onFinish: () => setRejecting(null) },
-        );
     };
     const openCreate = () => {
         setEditing(null);
@@ -213,12 +256,15 @@ export default function CouponsIndex({
             ...emptyForm,
             code: Math.random().toString(36).slice(2, 10).toUpperCase(),
         });
+        setError(null);
         setPatientSearchQuery('');
         setPatientSearchResults([]);
+        setPatientSearchError(null);
         setOpen(true);
     };
     const openEdit = (coupon: Coupon) => {
         setEditing(coupon);
+        setError(null);
         setForm({
             patient_id: coupon.patientId,
             code: coupon.code,
@@ -236,11 +282,20 @@ export default function CouponsIndex({
             fund_type: coupon.fundType ?? '',
         });
         setPatientSearchQuery('');
-        setPatientSearchResults([]);
+        setPatientSearchResults([
+            {
+                slug: coupon.patientId,
+                label: coupon.patientName ?? coupon.patientId,
+            },
+        ]);
+        setPatientSearchError(null);
         setOpen(true);
     };
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
+        setProcessing(true);
+        setError(null);
+
         const payload = {
             ...form,
             max_uses: form.max_uses || null,
@@ -251,54 +306,156 @@ export default function CouponsIndex({
         const options = {
             preserveScroll: true,
             onSuccess: () => setOpen(false),
+            onError: (errors: Record<string, string>) =>
+                setError(Object.values(errors)[0] ?? 'Unable to save coupon.'),
+            onFinish: () => setProcessing(false),
         };
-        editing
-            ? router.patch(
-                  couponsUpdate.url({
-                      current_team: team ?? '',
-                      coupon: editing.id,
-                  }),
-                  payload,
-                  options,
-              )
-            : router.post(couponsStore.url(team ?? ''), payload, options);
+
+        if (editing) {
+            router.patch(
+                couponsUpdate.url({
+                    current_team: team ?? '',
+                    coupon: editing.id,
+                }),
+                payload,
+                options,
+            );
+        } else {
+            router.post(couponsStore.url(team ?? ''), payload, options);
+        }
+    };
+    const approveCoupon = () => {
+        if (!approving) {
+            return;
+        }
+
+        setProcessing(true);
+        setError(null);
+        router.patch(
+            couponsApprove.url({
+                current_team: team ?? '',
+                coupon: approving.id,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setApproving(null),
+                onError: (errors: Record<string, string>) =>
+                    setError(
+                        Object.values(errors)[0] ?? 'Unable to approve coupon.',
+                    ),
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
+    const rejectCoupon = () => {
+        if (!rejecting) {
+            return;
+        }
+
+        setProcessing(true);
+        setError(null);
+        router.patch(
+            couponsReject.url({
+                current_team: team ?? '',
+                coupon: rejecting.id,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setRejecting(null),
+                onError: (errors: Record<string, string>) =>
+                    setError(
+                        Object.values(errors)[0] ?? 'Unable to reject coupon.',
+                    ),
+                onFinish: () => setProcessing(false),
+            },
+        );
     };
     const remove = () => {
-        if (deleting)
-            router.delete(
-                couponsDestroy.url({
-                    current_team: team ?? '',
-                    coupon: deleting.id,
-                }),
-                {
-                    preserveScroll: true,
-                    onFinish: () => setDeleting(null),
-                },
-            );
+        if (!deleting) {
+            return;
+        }
+
+        setProcessing(true);
+        setError(null);
+        router.delete(
+            couponsDestroy.url({
+                current_team: team ?? '',
+                coupon: deleting.id,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => setDeleting(null),
+                onError: (errors: Record<string, string>) =>
+                    setError(
+                        Object.values(errors)[0] ?? 'Unable to delete coupon.',
+                    ),
+                onFinish: () => setProcessing(false),
+            },
+        );
     };
-    const bulkRemove = () =>
+    const bulkRemove = () => {
+        setProcessing(true);
+        setError(null);
         router.delete(couponsBulkDestroy.url(team ?? ''), {
             data: { ids: selected },
             preserveScroll: true,
-            onSuccess: () => setSelected([]),
+            onSuccess: () => {
+                setSelected([]);
+                setBulkDeleteOpen(false);
+            },
+            onError: (errors: Record<string, string>) =>
+                setError(
+                    Object.values(errors)[0] ?? 'Unable to delete coupons.',
+                ),
+            onFinish: () => setProcessing(false),
         });
+    };
+    const selectPatient = (option: PatientOption) => {
+        setForm((current) => ({ ...current, patient_id: option.slug }));
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
+        setPatientSearchOpen(false);
+    };
     return (
         <>
             <Head title="Coupons" />
             <div className="flex w-full flex-col space-y-6">
+                {error ? (
+                    <AlertError errors={[error]} title="Request failed" />
+                ) : null}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <Heading
                         variant="small"
                         title="Coupons"
                         description="Manage patient discounts and usage limits."
                     />
-                    <Button onClick={openCreate}>New coupon</Button>
+                    <Button onClick={openCreate} disabled={processing}>
+                        New coupon
+                    </Button>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-5">
-                    <SummaryCard label="Pending" value={summary.pending} variant="yellow" />
-                    <SummaryCard label="Approved" value={summary.approved} variant="green" />
-                    <SummaryCard label="Rejected" value={summary.rejected} variant="red" />
-                    <SummaryCard label="Total Used" value={summary.totalUsed} variant="blue" />
+                    <SummaryCard
+                        label="Pending"
+                        value={summary.pending}
+                        variant="yellow"
+                    />
+                    <SummaryCard
+                        label="Approved"
+                        value={summary.approved}
+                        variant="green"
+                    />
+                    <SummaryCard
+                        label="Rejected"
+                        value={summary.rejected}
+                        variant="red"
+                    />
+                    <SummaryCard
+                        label="Total Used"
+                        value={summary.totalUsed}
+                        variant="blue"
+                    />
                     <SummaryCard
                         label="Total Discounts"
                         value={summary.totalDiscounts}
@@ -315,234 +472,295 @@ export default function CouponsIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search coupons"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search code or patient"
-                            className="max-w-sm"
+                            className="min-w-0 flex-1 sm:max-w-sm"
+                            disabled={processing}
                         />
                         <Select
                             value={statusFilter}
                             onValueChange={(v) => setStatusFilter(v)}
                         >
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger
+                                aria-label="Filter by status"
+                                className="w-40"
+                            >
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All statuses</SelectItem>
+                                <SelectItem value="all">
+                                    All statuses
+                                </SelectItem>
                                 <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="approved">Approved</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="approved">
+                                    Approved
+                                </SelectItem>
+                                <SelectItem value="rejected">
+                                    Rejected
+                                </SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button type="submit">
-                            Search
+                        <Button type="submit" disabled={processing}>
+                            Apply
                         </Button>
                     </form>
                     {selected.length > 0 && (
-                        <Button variant="destructive" onClick={bulkRemove}>
+                        <Button
+                            variant="destructive"
+                            disabled={processing}
+                            onClick={() => {
+                                setError(null);
+                                setBulkDeleteOpen(true);
+                            }}
+                        >
                             Delete selected ({selected.length})
                         </Button>
                     )}
                 </div>
                 <Card>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>
-                                        <input
-                                            aria-label="Select all"
-                                            type="checkbox"
-                                        checked={
-                                            coupons.data.length > 0 &&
-                                            coupons.data.every((c) =>
-                                                selected.includes(c.id),
-                                            )
-                                        }
-                                        onChange={(e) =>
-                                            setSelected(
-                                                e.target.checked
-                                                    ? coupons.data.map(
-                                                          (c) => c.id,
-                                                      )
-                                                    : [],
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Code</TableHead>
-                                <TableHead>Fund</TableHead>
-                                <TableHead>Discount</TableHead>
-                                <TableHead>Uses</TableHead>
-                                <TableHead>Used</TableHead>
-                                <TableHead>Balance</TableHead>
-                                <TableHead>Expires</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {coupons.data.length ? (
-                                coupons.data.map((c) => (
-                                    <TableRow key={c.id}>
-                                        <TableCell>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>
                                             <input
-                                                aria-label={`Select ${c.code}`}
+                                                aria-label="Select all coupons on this page"
                                                 type="checkbox"
-                                                checked={selected.includes(
-                                                    c.id,
-                                                )}
+                                                disabled={processing}
+                                                checked={
+                                                    coupons.data.length > 0 &&
+                                                    coupons.data.every((c) =>
+                                                        selected.includes(c.id),
+                                                    )
+                                                }
                                                 onChange={(e) =>
                                                     setSelected(
                                                         e.target.checked
-                                                            ? [
-                                                                  ...selected,
-                                                                  c.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      c.id,
-                                                              ),
+                                                            ? coupons.data.map(
+                                                                  (c) => c.id,
+                                                              )
+                                                            : [],
                                                     )
                                                 }
                                             />
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.patientName ?? c.patientId}
+                                        </TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Code</TableHead>
+                                        <TableHead>Fund</TableHead>
+                                        <TableHead>Discount</TableHead>
+                                        <TableHead>Uses</TableHead>
+                                        <TableHead>Used</TableHead>
+                                        <TableHead>Balance</TableHead>
+                                        <TableHead>Expires</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">
+                                            Actions
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {coupons.data.length ? (
+                                        coupons.data.map((c) => (
+                                            <TableRow key={c.id}>
+                                                <TableCell>
+                                                    <input
+                                                        aria-label={`Select ${c.code}`}
+                                                        type="checkbox"
+                                                        disabled={processing}
+                                                        checked={selected.includes(
+                                                            c.id,
+                                                        )}
+                                                        onChange={(e) =>
+                                                            setSelected(
+                                                                e.target.checked
+                                                                    ? [
+                                                                          ...selected,
+                                                                          c.id,
+                                                                      ]
+                                                                    : selected.filter(
+                                                                          (
+                                                                              id,
+                                                                          ) =>
+                                                                              id !==
+                                                                              c.id,
+                                                                      ),
+                                                            )
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.patientName ??
+                                                        c.patientId}
+                                                </TableCell>
+                                                <TableCell className="font-medium">
+                                                    {c.code}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.fundType === 'mercy_fund'
+                                                        ? 'Mercy Fund'
+                                                        : c.fundType ===
+                                                            'infant_formula'
+                                                          ? 'Infant Formula'
+                                                          : '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.type === 'percentage'
+                                                        ? `${c.value}%`
+                                                        : `₦${c.value.toLocaleString()}`}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.usedCount} /{' '}
+                                                    {c.maxUses ?? '∞'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.type === 'fixed'
+                                                        ? `₦${c.usedAmount.toLocaleString()}`
+                                                        : '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.type === 'fixed'
+                                                        ? `₦${c.balance.toLocaleString()}`
+                                                        : '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {c.expiresAt
+                                                        ? new Date(
+                                                              c.expiresAt,
+                                                          ).toLocaleDateString()
+                                                        : 'Never'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                                            c.status ===
+                                                            'approved'
+                                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                                                                : c.status ===
+                                                                    'rejected'
+                                                                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+                                                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+                                                        }`}
+                                                    >
+                                                        {c.status === 'approved'
+                                                            ? 'Approved'
+                                                            : c.status ===
+                                                                'rejected'
+                                                              ? 'Rejected'
+                                                              : 'Pending'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                aria-label={`Actions for coupon ${c.code}`}
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            {c.status ===
+                                                                'pending' && (
+                                                                <>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() =>
+                                                                            handleApprove(
+                                                                                c,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Check className="mr-2 h-4 w-4" />
+                                                                        Approve
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() =>
+                                                                            handleReject(
+                                                                                c,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <X className="mr-2 h-4 w-4" />
+                                                                        Reject
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                </>
+                                                            )}
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openEdit(c)
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    setDeleting(
+                                                                        c,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={11}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No coupons found.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="font-medium"
+                                        >
+                                            Total
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            {c.code}
+                                            ₦
+                                            {coupons.data
+                                                .reduce(
+                                                    (sum, c) =>
+                                                        sum + c.usedAmount,
+                                                    0,
+                                                )
+                                                .toLocaleString()}
                                         </TableCell>
-                                        <TableCell>
-                                            {c.fundType === 'mercy_fund'
-                                                ? 'Mercy Fund'
-                                                : c.fundType === 'infant_formula'
-                                                    ? 'Infant Formula'
-                                                    : '-'}
+                                        <TableCell className="font-medium">
+                                            ₦
+                                            {coupons.data
+                                                .reduce(
+                                                    (sum, c) => sum + c.balance,
+                                                    0,
+                                                )
+                                                .toLocaleString()}
                                         </TableCell>
-                                        <TableCell>
-                                            {c.type === 'percentage'
-                                                ? `${c.value}%`
-                                                : `₦${c.value.toLocaleString()}`}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.usedCount} / {c.maxUses ?? '∞'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.type === 'fixed'
-                                                ? `₦${c.usedAmount.toLocaleString()}`
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.type === 'fixed'
-                                                ? `₦${c.balance.toLocaleString()}`
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {c.expiresAt
-                                                ? new Date(
-                                                      c.expiresAt,
-                                                  ).toLocaleDateString()
-                                                : 'Never'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                                c.status === 'approved'
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : c.status === 'rejected'
-                                                        ? 'bg-red-100 text-red-700'
-                                                        : 'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                                {c.status === 'approved' ? 'Approved' : c.status === 'rejected' ? 'Rejected' : 'Pending'}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    {c.status === 'pending' && (
-                                                        <>
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    handleApprove(
-                                                                        c,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Check className="mr-2 h-4 w-4" />
-                                                                Approve
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    handleReject(
-                                                                        c,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <X className="mr-2 h-4 w-4" />
-                                                                Reject
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                        </>
-                                                    )}
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openEdit(c)
-                                                        }
-                                                    >
-                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setDeleting(c)
-                                                        }
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                                        <TableCell colSpan={4}></TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={12}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No coupons found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={5} className="font-medium">
-                                    Total
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                    ₦{coupons.data.reduce((sum, c) => sum + c.usedAmount, 0).toLocaleString()}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                    ₦{coupons.data.reduce((sum, c) => sum + c.balance, 0).toLocaleString()}
-                                </TableCell>
-                                <TableCell colSpan={4}></TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
+                                </TableFooter>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
                 <Pagination
@@ -561,13 +779,17 @@ export default function CouponsIndex({
                     className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
                     role="dialog"
                     aria-modal="true"
+                    aria-labelledby={formDialogLabelId}
                 >
                     <form
                         onSubmit={submit}
                         className="max-h-[90vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-lg bg-background p-6 shadow-xl"
                     >
                         <div>
-                            <h2 className="text-lg font-semibold">
+                            <h2
+                                id={formDialogLabelId}
+                                className="text-lg font-semibold"
+                            >
                                 {editing ? 'Edit coupon' : 'New coupon'}
                             </h2>
                             <p className="text-sm text-muted-foreground">
@@ -575,63 +797,134 @@ export default function CouponsIndex({
                             </p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-1" ref={patientSearchContainerRef}>
-                                <Label htmlFor="coupon-patient-search">Patient</Label>
+                            <div
+                                className="space-y-1"
+                                ref={patientSearchContainerRef}
+                            >
+                                <Label htmlFor="coupon-patient-search">
+                                    Patient
+                                </Label>
                                 <div className="relative">
                                     <Input
                                         id="coupon-patient-search"
                                         ref={patientSearchInputRef}
+                                        role="combobox"
+                                        aria-expanded={patientSearchOpen}
+                                        aria-controls="coupon-patient-options"
+                                        aria-autocomplete="list"
+                                        autoComplete="off"
                                         placeholder="Search patient by name, code, or phone…"
-                                        value={form.patient_id ? (patientSearchResults.find((p) => p.slug === form.patient_id)?.label ?? form.patient_id) : patientSearchQuery}
+                                        value={
+                                            form.patient_id
+                                                ? (patientSearchResults.find(
+                                                      (p) =>
+                                                          p.slug ===
+                                                          form.patient_id,
+                                                  )?.label ?? form.patient_id)
+                                                : patientSearchQuery
+                                        }
                                         readOnly={!!form.patient_id}
+                                        disabled={processing}
                                         onClick={() => {
                                             if (!form.patient_id) {
                                                 setPatientSearchOpen(true);
                                             }
                                         }}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Escape') {
+                                                setPatientSearchOpen(false);
+                                            } else if (
+                                                event.key === 'ArrowDown' &&
+                                                patientSearchResults.length > 0
+                                            ) {
+                                                event.preventDefault();
+                                                document
+                                                    .getElementById(
+                                                        'coupon-patient-option-0',
+                                                    )
+                                                    ?.focus();
+                                            } else if (
+                                                event.key === 'Enter' &&
+                                                patientSearchResults.length ===
+                                                    1
+                                            ) {
+                                                event.preventDefault();
+                                                selectPatient(
+                                                    patientSearchResults[0],
+                                                );
+                                            }
+                                        }}
                                         onChange={(event) => {
                                             const value = event.target.value;
-                                            setForm({ ...form, patient_id: '' });
+                                            setForm({
+                                                ...form,
+                                                patient_id: '',
+                                            });
                                             setPatientSearchQuery(value);
                                             searchPatients(value);
                                             setPatientSearchOpen(true);
                                         }}
                                     />
                                     {patientSearchOpen && !form.patient_id && (
-                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                        <div
+                                            id="coupon-patient-options"
+                                            role="listbox"
+                                            className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
+                                        >
                                             {patientSearchLoading && (
                                                 <div className="px-3 py-2 text-xs text-muted-foreground">
                                                     Searching…
                                                 </div>
                                             )}
-                                            {!patientSearchLoading && patientSearchResults.length === 0 && patientSearchQuery.trim() && (
-                                                <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                    No patients found
-                                                </div>
-                                            )}
-                                            {patientSearchResults.map((option) => (
-                                                <button
-                                                    key={option.slug}
-                                                    type="button"
-                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                    onClick={() => {
-                                                        setForm({ ...form, patient_id: option.slug });
-                                                        setPatientSearchQuery('');
-                                                        setPatientSearchResults([]);
-                                                        setPatientSearchOpen(false);
-                                                    }}
+                                            {patientSearchError ? (
+                                                <p
+                                                    className="px-3 py-2 text-xs text-destructive"
+                                                    role="alert"
                                                 >
-                                                    {option.label}
-                                                </button>
-                                            ))}
+                                                    {patientSearchError}
+                                                </p>
+                                            ) : null}
+                                            {!patientSearchLoading &&
+                                                !patientSearchError &&
+                                                patientSearchResults.length ===
+                                                    0 &&
+                                                patientSearchQuery.trim() && (
+                                                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                        No patients found
+                                                    </div>
+                                                )}
+                                            {patientSearchResults.map(
+                                                (option, optionIndex) => (
+                                                    <button
+                                                        id={`coupon-patient-option-${optionIndex}`}
+                                                        key={option.slug}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={
+                                                            form.patient_id ===
+                                                            option.slug
+                                                        }
+                                                        className="w-full px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
+                                                        onClick={() =>
+                                                            selectPatient(
+                                                                option,
+                                                            )
+                                                        }
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                ),
+                                            )}
                                         </div>
                                     )}
                                 </div>
                             </div>
                             <div className="space-y-1">
-                                <Label>Code</Label>
+                                <Label htmlFor="coupon-code">Code</Label>
                                 <Input
+                                    id="coupon-code"
                                     required
+                                    disabled={processing}
                                     value={form.code}
                                     onChange={(e) =>
                                         setForm({
@@ -642,7 +935,9 @@ export default function CouponsIndex({
                                 />
                             </div>
                             <div className="space-y-1">
-                                <Label>Discount type</Label>
+                                <Label htmlFor="coupon-discount-type">
+                                    Discount type
+                                </Label>
                                 <Select
                                     value={form.type}
                                     onValueChange={(v) =>
@@ -652,7 +947,11 @@ export default function CouponsIndex({
                                         })
                                     }
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger
+                                        id="coupon-discount-type"
+                                        aria-label="Discount type"
+                                        disabled={processing}
+                                    >
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -667,6 +966,7 @@ export default function CouponsIndex({
                             </div>
                             <Field
                                 label="Value"
+                                disabled={processing}
                                 value={form.value}
                                 onChange={(value) =>
                                     setForm({ ...form, value })
@@ -678,6 +978,7 @@ export default function CouponsIndex({
                             />
                             <Field
                                 label="Maximum uses (blank = unlimited)"
+                                disabled={processing}
                                 value={form.max_uses}
                                 onChange={(max_uses) =>
                                     setForm({ ...form, max_uses })
@@ -687,6 +988,7 @@ export default function CouponsIndex({
                             />
                             <Field
                                 label="Minimum bill amount"
+                                disabled={processing}
                                 value={form.min_billing_amount}
                                 onChange={(min_billing_amount) =>
                                     setForm({ ...form, min_billing_amount })
@@ -699,6 +1001,7 @@ export default function CouponsIndex({
                             {form.type === 'percentage' && (
                                 <Field
                                     label="Maximum discount cap"
+                                    disabled={processing}
                                     value={form.max_discount_amount}
                                     onChange={(max_discount_amount) =>
                                         setForm({
@@ -713,6 +1016,7 @@ export default function CouponsIndex({
                             )}
                             <Field
                                 label="Expires at"
+                                disabled={processing}
                                 value={form.expires_at}
                                 onChange={(expires_at) =>
                                     setForm({ ...form, expires_at })
@@ -720,7 +1024,9 @@ export default function CouponsIndex({
                                 type="datetime-local"
                             />
                             <div className="space-y-1">
-                                <Label>Fund type</Label>
+                                <Label htmlFor="coupon-fund-type">
+                                    Fund type
+                                </Label>
                                 <Select
                                     value={form.fund_type}
                                     onValueChange={(v) =>
@@ -730,7 +1036,11 @@ export default function CouponsIndex({
                                         })
                                     }
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger
+                                        id="coupon-fund-type"
+                                        aria-label="Fund type"
+                                        disabled={processing}
+                                    >
                                         <SelectValue placeholder="Select fund type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -743,9 +1053,14 @@ export default function CouponsIndex({
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <label className="flex items-center gap-2 text-sm">
+                            <label
+                                htmlFor="coupon-is-active"
+                                className="flex items-center gap-2 text-sm"
+                            >
                                 <input
+                                    id="coupon-is-active"
                                     type="checkbox"
+                                    disabled={processing}
                                     checked={form.is_active}
                                     onChange={(e) =>
                                         setForm({
@@ -761,11 +1076,14 @@ export default function CouponsIndex({
                             <Button
                                 type="button"
                                 variant="secondary"
+                                disabled={processing}
                                 onClick={() => setOpen(false)}
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit">Save coupon</Button>
+                            <Button type="submit" disabled={processing}>
+                                {processing ? 'Saving...' : 'Save coupon'}
+                            </Button>
                         </div>
                     </form>
                 </div>
@@ -773,12 +1091,56 @@ export default function CouponsIndex({
             <ConfirmDialog
                 open={deleting !== null}
                 onOpenChange={(open) => {
-                    if (!open) setDeleting(null);
+                    if (!open && !processing) setDeleting(null);
                 }}
                 title={`Delete ${deleting?.code ?? 'coupon'}?`}
-                description="The coupon will no longer be available."
+                description={error ?? 'The coupon will no longer be available.'}
                 confirmLabel="Delete"
+                destructive
+                processing={processing}
                 onConfirm={remove}
+            />
+            <ConfirmDialog
+                open={approving !== null}
+                onOpenChange={(open) => {
+                    if (!open && !processing) setApproving(null);
+                }}
+                title={`Approve ${approving?.code ?? 'coupon'}?`}
+                description={
+                    error ?? 'This coupon will become available to patients.'
+                }
+                confirmLabel="Approve"
+                processing={processing}
+                onConfirm={approveCoupon}
+            />
+            <ConfirmDialog
+                open={rejecting !== null}
+                onOpenChange={(open) => {
+                    if (!open && !processing) setRejecting(null);
+                }}
+                title={`Reject ${rejecting?.code ?? 'coupon'}?`}
+                description={
+                    error ??
+                    'This coupon will no longer be available for approval.'
+                }
+                confirmLabel="Reject"
+                destructive
+                processing={processing}
+                onConfirm={rejectCoupon}
+            />
+            <ConfirmDialog
+                open={bulkDeleteOpen}
+                onOpenChange={(open) => {
+                    if (!open && !processing) setBulkDeleteOpen(false);
+                }}
+                title={`Delete ${selected.length} coupon${selected.length === 1 ? '' : 's'}?`}
+                description={
+                    error ?? 'The selected coupons will no longer be available.'
+                }
+                confirmLabel="Delete"
+                destructive
+                processing={processing}
+                onConfirm={bulkRemove}
             />
         </>
     );
@@ -793,10 +1155,13 @@ function Field({
     React.InputHTMLAttributes<HTMLInputElement>,
     'value' | 'onChange'
 >) {
+    const id = useId();
+
     return (
         <div className="space-y-1">
-            <Label>{label}</Label>
+            <Label htmlFor={id}>{label}</Label>
             <Input
+                id={id}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 {...props}
@@ -817,18 +1182,19 @@ function SummaryCard({
     prefix?: string;
 }) {
     const colors = {
-        yellow: 'border-yellow-200 bg-yellow-50',
-        green: 'border-green-200 bg-green-50',
-        red: 'border-red-200 bg-red-50',
-        blue: 'border-blue-200 bg-blue-50',
-        purple: 'border-purple-200 bg-purple-50',
+        yellow: 'border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10',
+        green: 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10',
+        red: 'border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10',
+        blue: 'border-sky-200 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/10',
+        purple: 'border-violet-200 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-500/10',
     };
 
     return (
         <div className={`rounded-lg border p-4 ${colors[variant]}`}>
             <p className="text-sm text-muted-foreground">{label}</p>
             <p className="mt-1 text-2xl font-semibold">
-                {prefix ?? ''}{value.toLocaleString()}
+                {prefix ?? ''}
+                {value.toLocaleString()}
             </p>
         </div>
     );

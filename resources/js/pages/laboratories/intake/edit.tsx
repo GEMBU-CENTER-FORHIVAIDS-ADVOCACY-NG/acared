@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -18,9 +19,17 @@ import { Textarea } from '@/components/ui/textarea';
 import {
     index as labIntakeIndex,
     create as labIntakeCreate,
+    edit as labIntakeEdit,
     store as labIntakeStore,
     update as labIntakeUpdate,
 } from '@/routes/lab-intake';
+import {
+    create as priceListCreate,
+    edit as priceListEdit,
+    index as priceListIndex,
+    store as priceListStore,
+    update as priceListUpdate,
+} from '@/routes/price-lists';
 import type { LabIntakeListItem, Team } from '@/types';
 
 type LayoutProps = {
@@ -133,7 +142,9 @@ export default function LabIntakeEdit({
             result_type: item.resultType ?? 'text',
             options: optionsToText(item.options),
             category_id: item.categoryId ? String(item.categoryId) : '',
-            subcategory_id: item.subcategoryId ? String(item.subcategoryId) : '',
+            subcategory_id: item.subcategoryId
+                ? String(item.subcategoryId)
+                : '',
             parameter_id: item.parameterId ? String(item.parameterId) : '',
             uom: item.uom ?? '',
             description: item.description ?? '',
@@ -171,11 +182,33 @@ export default function LabIntakeEdit({
 
     function indexUrl() {
         return isPriceList
-            ? `/` + teamSlug + '/price-lists'
+            ? priceListIndex.url(teamSlug)
             : labIntakeIndex.url(teamSlug);
     }
 
+    function formUrl() {
+        if (isEditing && item) {
+            return isPriceList
+                ? priceListEdit.url({
+                      current_team: teamSlug,
+                      price_list: item.id,
+                  })
+                : labIntakeEdit.url({
+                      current_team: teamSlug,
+                      price_list: item.id,
+                  });
+        }
+
+        return isPriceList
+            ? priceListCreate.url(teamSlug)
+            : labIntakeCreate.url(teamSlug);
+    }
+
     function submit() {
+        if (processing) {
+            return;
+        }
+
         setProcessing(true);
         setError(null);
 
@@ -189,10 +222,10 @@ export default function LabIntakeEdit({
             options:
                 form.result_type === 'select'
                     ? form.options
-                        .split('\n')
-                        .map((label) => label.trim())
-                        .filter(Boolean)
-                        .map((label) => ({ label }))
+                          .split('\n')
+                          .map((label) => label.trim())
+                          .filter(Boolean)
+                          .map((label) => ({ label }))
                     : [],
             category_id: form.category_id ? Number(form.category_id) : null,
             subcategory_id: form.subcategory_id
@@ -209,10 +242,10 @@ export default function LabIntakeEdit({
                 options:
                     parameter.result_type === 'select'
                         ? parameter.options
-                            .split('\n')
-                            .map((label) => label.trim())
-                            .filter(Boolean)
-                            .map((label) => ({ label }))
+                              .split('\n')
+                              .map((label) => label.trim())
+                              .filter(Boolean)
+                              .map((label) => ({ label }))
                         : [],
             })),
             inventory: form.is_inventory
@@ -229,14 +262,17 @@ export default function LabIntakeEdit({
 
         const url = isEditing
             ? isPriceList
-                ? `/` + teamSlug + '/price-lists/' + item.id
+                ? priceListUpdate.url({
+                      current_team: teamSlug,
+                      price_list: item.id,
+                  })
                 : labIntakeUpdate.url({
                       current_team: teamSlug,
                       price_list: item.id,
                   })
             : isPriceList
-                ? '/' + teamSlug + '/price-lists'
-                : labIntakeStore.url(teamSlug);
+              ? priceListStore.url(teamSlug)
+              : labIntakeStore.url(teamSlug);
 
         const method = isEditing ? 'patch' : 'post';
 
@@ -244,9 +280,7 @@ export default function LabIntakeEdit({
             preserveScroll: true,
             onSuccess: () => router.visit(indexUrl()),
             onError: (errors) =>
-                setError(
-                    Object.values(errors)[0] ?? 'Something went wrong.',
-                ),
+                setError(Object.values(errors)[0] ?? 'Something went wrong.'),
             onFinish: () => setProcessing(false),
         });
     }
@@ -256,8 +290,8 @@ export default function LabIntakeEdit({
             ? 'Edit price list item'
             : 'Edit catalog item'
         : isPriceList
-            ? 'Add price list item'
-            : 'Add catalog item';
+          ? 'Add price list item'
+          : 'Add catalog item';
 
     const description = isEditing
         ? 'Update the details of this catalog item.'
@@ -271,11 +305,14 @@ export default function LabIntakeEdit({
                     <Breadcrumbs
                         breadcrumbs={[
                             {
-                                title: isPriceList ? 'Price lists' : 'Lab intake',
+                                title: isPriceList
+                                    ? 'Price lists'
+                                    : 'Lab intake',
                                 href: indexUrl(),
                             },
                             {
                                 title: isEditing ? 'Edit' : 'Add',
+                                href: formUrl(),
                             },
                         ]}
                     />
@@ -335,8 +372,11 @@ export default function LabIntakeEdit({
                             <>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label>Ranges</Label>
+                                        <Label htmlFor="lab-intake-ranges">
+                                            Ranges
+                                        </Label>
                                         <Input
+                                            id="lab-intake-ranges"
                                             value={form.ranges}
                                             onChange={(event) =>
                                                 setForm((current) => ({
@@ -347,9 +387,14 @@ export default function LabIntakeEdit({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Price</Label>
+                                        <Label htmlFor="lab-intake-price">
+                                            Price
+                                        </Label>
                                         <Input
+                                            id="lab-intake-price"
                                             type="number"
+                                            min="0"
+                                            step="0.01"
                                             value={form.price}
                                             onChange={(event) =>
                                                 setForm((current) => ({
@@ -362,8 +407,11 @@ export default function LabIntakeEdit({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Result input type</Label>
+                                    <Label htmlFor="lab-intake-result-type">
+                                        Result input type
+                                    </Label>
                                     <SelectNative
+                                        id="lab-intake-result-type"
                                         value={form.result_type}
                                         onChange={(event) =>
                                             setForm((current) => ({
@@ -385,10 +433,11 @@ export default function LabIntakeEdit({
 
                                 {form.result_type === 'select' ? (
                                     <div className="space-y-2">
-                                        <Label>
+                                        <Label htmlFor="lab-intake-options">
                                             Dropdown options (one per line)
                                         </Label>
                                         <Textarea
+                                            id="lab-intake-options"
                                             value={form.options}
                                             onChange={(event) =>
                                                 setForm((current) => ({
@@ -402,8 +451,11 @@ export default function LabIntakeEdit({
 
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label>Category</Label>
+                                        <Label htmlFor="lab-intake-category">
+                                            Category
+                                        </Label>
                                         <SelectNative
+                                            id="lab-intake-category"
                                             value={form.category_id}
                                             onChange={(event) =>
                                                 setForm((current) => ({
@@ -428,8 +480,11 @@ export default function LabIntakeEdit({
                                         </SelectNative>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Subcategory</Label>
+                                        <Label htmlFor="lab-intake-subcategory">
+                                            Subcategory
+                                        </Label>
                                         <SelectNative
+                                            id="lab-intake-subcategory"
                                             value={form.subcategory_id}
                                             onChange={(event) =>
                                                 setForm((current) => ({
@@ -440,23 +495,24 @@ export default function LabIntakeEdit({
                                             }
                                         >
                                             <option value="">Select…</option>
-                                            {filteredSubcategories.map(
-                                                (sc) => (
-                                                    <option
-                                                        key={sc.id}
-                                                        value={sc.id}
-                                                    >
-                                                        {sc.name}
-                                                    </option>
-                                                ),
-                                            )}
+                                            {filteredSubcategories.map((sc) => (
+                                                <option
+                                                    key={sc.id}
+                                                    value={sc.id}
+                                                >
+                                                    {sc.name}
+                                                </option>
+                                            ))}
                                         </SelectNative>
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Parent test (parameter of)</Label>
+                                    <Label htmlFor="lab-intake-parent-test">
+                                        Parent test (parameter of)
+                                    </Label>
                                     <SelectNative
+                                        id="lab-intake-parent-test"
                                         value={form.parameter_id}
                                         onChange={(event) =>
                                             setForm((current) => ({
@@ -469,16 +525,14 @@ export default function LabIntakeEdit({
                                         <option value="">
                                             Not a parameter of any test
                                         </option>
-                                        {formOptions.parentTests.map(
-                                            (test) => (
-                                                <option
-                                                    key={test.id}
-                                                    value={test.id}
-                                                >
-                                                    {test.name}
-                                                </option>
-                                            ),
-                                        )}
+                                        {formOptions.parentTests.map((test) => (
+                                            <option
+                                                key={test.id}
+                                                value={test.id}
+                                            >
+                                                {test.name}
+                                            </option>
+                                        ))}
                                     </SelectNative>
                                 </div>
 
@@ -500,8 +554,11 @@ export default function LabIntakeEdit({
                                 {form.is_inventory ? (
                                     <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label>Reference</Label>
+                                            <Label htmlFor="lab-intake-sku">
+                                                Reference
+                                            </Label>
                                             <Input
+                                                id="lab-intake-sku"
                                                 value={form.inventory_sku}
                                                 onChange={(event) =>
                                                     setForm((current) => ({
@@ -513,9 +570,14 @@ export default function LabIntakeEdit({
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Min qty</Label>
+                                            <Label htmlFor="lab-intake-min-qty">
+                                                Min qty
+                                            </Label>
                                             <Input
+                                                id="lab-intake-min-qty"
                                                 type="number"
+                                                min="0"
+                                                step="1"
                                                 value={form.inventory_min_qty}
                                                 onChange={(event) =>
                                                     setForm((current) => ({
@@ -527,8 +589,11 @@ export default function LabIntakeEdit({
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Product form</Label>
+                                            <Label htmlFor="lab-intake-drug-form">
+                                                Product form
+                                            </Label>
                                             <SelectNative
+                                                id="lab-intake-drug-form"
                                                 value={
                                                     form.inventory_drug_form_id
                                                 }
@@ -556,10 +621,15 @@ export default function LabIntakeEdit({
                                             </SelectNative>
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Expires at</Label>
+                                            <Label htmlFor="lab-intake-expires-at">
+                                                Expires at
+                                            </Label>
                                             <Input
+                                                id="lab-intake-expires-at"
                                                 type="datetime-local"
-                                                value={form.inventory_expires_at}
+                                                value={
+                                                    form.inventory_expires_at
+                                                }
                                                 onChange={(event) =>
                                                     setForm((current) => ({
                                                         ...current,
@@ -573,8 +643,9 @@ export default function LabIntakeEdit({
                                 ) : null}
 
                                 <div className="space-y-2">
-                                    <Label>UOM</Label>
+                                    <Label htmlFor="lab-intake-uom">UOM</Label>
                                     <Input
+                                        id="lab-intake-uom"
                                         value={form.uom}
                                         onChange={(event) =>
                                             setForm((current) => ({
@@ -585,8 +656,11 @@ export default function LabIntakeEdit({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Description</Label>
+                                    <Label htmlFor="lab-intake-description">
+                                        Description
+                                    </Label>
                                     <Textarea
+                                        id="lab-intake-description"
                                         value={form.description}
                                         onChange={(event) =>
                                             setForm((current) => ({
@@ -619,7 +693,7 @@ export default function LabIntakeEdit({
                                                         <th className="px-3 py-2 text-left font-medium">
                                                             Result Type
                                                         </th>
-                                                        <th className="px-3 py-2 text-left font-medium w-20">
+                                                        <th className="w-20 px-3 py-2 text-left font-medium">
                                                             Actions
                                                         </th>
                                                     </tr>
@@ -627,153 +701,151 @@ export default function LabIntakeEdit({
                                                 <tbody className="divide-y">
                                                     {form.parameters.map(
                                                         (parameter, index) => (
-                                                            <tr
-                                                                key={index}
-                                                            >
+                                                            <tr key={index}>
                                                                 <td className="px-3 py-2">
                                                                     {index + 1}
                                                                 </td>
                                                                 <td className="px-3 py-2">
                                                                     <Input
+                                                                        aria-label={`Parameter ${index + 1} name`}
                                                                         placeholder="Parameter name"
                                                                         value={
                                                                             parameter.name
                                                                         }
-                                                                        onChange={
-                                                                            (
-                                                                                event,
-                                                                            ) =>
-                                                                                setForm(
-                                                                                    (
-                                                                                        current,
-                                                                                    ) => ({
-                                                                                        ...current,
-                                                                                        parameters:
-                                                                                            current.parameters.map(
-                                                                                                (
-                                                                                                    row,
-                                                                                                    rowIndex,
-                                                                                                ) =>
-                                                                                                    rowIndex ===
-                                                                                                    index
-                                                                                                        ? {
-                                                                                                              ...row,
-                                                                                                              name: event
-                                                                                                                  .target
-                                                                                                                  .value,
-                                                                                                          }
-                                                                                                        : row,
-                                                                                            ),
-                                                                                    }),
-                                                                                )
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setForm(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    parameters:
+                                                                                        current.parameters.map(
+                                                                                            (
+                                                                                                row,
+                                                                                                rowIndex,
+                                                                                            ) =>
+                                                                                                rowIndex ===
+                                                                                                index
+                                                                                                    ? {
+                                                                                                          ...row,
+                                                                                                          name: event
+                                                                                                              .target
+                                                                                                              .value,
+                                                                                                      }
+                                                                                                    : row,
+                                                                                        ),
+                                                                                }),
+                                                                            )
                                                                         }
                                                                     />
                                                                 </td>
                                                                 <td className="px-3 py-2">
                                                                     <Input
+                                                                        aria-label={`Parameter ${index + 1} ranges`}
                                                                         placeholder="Ranges"
                                                                         value={
                                                                             parameter.ranges
                                                                         }
-                                                                        onChange={
-                                                                            (
-                                                                                event,
-                                                                            ) =>
-                                                                                setForm(
-                                                                                    (
-                                                                                        current,
-                                                                                    ) => ({
-                                                                                        ...current,
-                                                                                        parameters:
-                                                                                            current.parameters.map(
-                                                                                                (
-                                                                                                    row,
-                                                                                                    rowIndex,
-                                                                                                ) =>
-                                                                                                    rowIndex ===
-                                                                                                    index
-                                                                                                        ? {
-                                                                                                              ...row,
-                                                                                                              ranges: event
-                                                                                                                  .target
-                                                                                                                  .value,
-                                                                                                          }
-                                                                                                        : row,
-                                                                                            ),
-                                                                                    }),
-                                                                                )
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setForm(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    parameters:
+                                                                                        current.parameters.map(
+                                                                                            (
+                                                                                                row,
+                                                                                                rowIndex,
+                                                                                            ) =>
+                                                                                                rowIndex ===
+                                                                                                index
+                                                                                                    ? {
+                                                                                                          ...row,
+                                                                                                          ranges: event
+                                                                                                              .target
+                                                                                                              .value,
+                                                                                                      }
+                                                                                                    : row,
+                                                                                        ),
+                                                                                }),
+                                                                            )
                                                                         }
                                                                     />
                                                                 </td>
                                                                 <td className="px-3 py-2">
                                                                     <Input
+                                                                        aria-label={`Parameter ${index + 1} UOM`}
                                                                         placeholder="UOM"
                                                                         value={
                                                                             parameter.uom
                                                                         }
-                                                                        onChange={
-                                                                            (
-                                                                                event,
-                                                                            ) =>
-                                                                                setForm(
-                                                                                    (
-                                                                                        current,
-                                                                                    ) => ({
-                                                                                        ...current,
-                                                                                        parameters:
-                                                                                            current.parameters.map(
-                                                                                                (
-                                                                                                    row,
-                                                                                                    rowIndex,
-                                                                                                ) =>
-                                                                                                    rowIndex ===
-                                                                                                    index
-                                                                                                        ? {
-                                                                                                              ...row,
-                                                                                                              uom: event
-                                                                                                                  .target
-                                                                                                                  .value,
-                                                                                                          }
-                                                                                                        : row,
-                                                                                            ),
-                                                                                    }),
-                                                                                )
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setForm(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    parameters:
+                                                                                        current.parameters.map(
+                                                                                            (
+                                                                                                row,
+                                                                                                rowIndex,
+                                                                                            ) =>
+                                                                                                rowIndex ===
+                                                                                                index
+                                                                                                    ? {
+                                                                                                          ...row,
+                                                                                                          uom: event
+                                                                                                              .target
+                                                                                                              .value,
+                                                                                                      }
+                                                                                                    : row,
+                                                                                        ),
+                                                                                }),
+                                                                            )
                                                                         }
                                                                     />
                                                                 </td>
                                                                 <td className="px-3 py-2">
                                                                     <SelectNative
+                                                                        aria-label={`Parameter ${index + 1} result type`}
                                                                         value={
                                                                             parameter.result_type
                                                                         }
-                                                                        onChange={
-                                                                            (
-                                                                                event,
-                                                                            ) =>
-                                                                                setForm(
-                                                                                    (
-                                                                                        current,
-                                                                                    ) => ({
-                                                                                        ...current,
-                                                                                        parameters:
-                                                                                            current.parameters.map(
-                                                                                                (
-                                                                                                    row,
-                                                                                                    rowIndex,
-                                                                                                ) =>
-                                                                                                    rowIndex ===
-                                                                                                    index
-                                                                                                        ? {
-                                                                                                              ...row,
-                                                                                                              result_type:
-                                                                                                                  event
-                                                                                                                      .target
-                                                                                                                      .value,
-                                                                                                          }
-                                                                                                        : row,
-                                                                                            ),
-                                                                                    }),
-                                                                                )
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setForm(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    parameters:
+                                                                                        current.parameters.map(
+                                                                                            (
+                                                                                                row,
+                                                                                                rowIndex,
+                                                                                            ) =>
+                                                                                                rowIndex ===
+                                                                                                index
+                                                                                                    ? {
+                                                                                                          ...row,
+                                                                                                          result_type:
+                                                                                                              event
+                                                                                                                  .target
+                                                                                                                  .value,
+                                                                                                      }
+                                                                                                    : row,
+                                                                                        ),
+                                                                                }),
+                                                                            )
                                                                         }
                                                                     >
                                                                         {formOptions.resultTypes.map(
@@ -788,7 +860,9 @@ export default function LabIntakeEdit({
                                                                                         type.value
                                                                                     }
                                                                                 >
-                                                                                    {type.label}
+                                                                                    {
+                                                                                        type.label
+                                                                                    }
                                                                                 </option>
                                                                             ),
                                                                         )}
@@ -799,6 +873,7 @@ export default function LabIntakeEdit({
                                                                         type="button"
                                                                         size="sm"
                                                                         variant="ghost"
+                                                                        aria-label={`Remove parameter ${index + 1}`}
                                                                         onClick={() =>
                                                                             setForm(
                                                                                 (
@@ -848,9 +923,7 @@ export default function LabIntakeEdit({
                             </>
                         ) : null}
 
-                        {error ? (
-                            <p className="text-sm text-red-600">{error}</p>
-                        ) : null}
+                        <AlertError errors={error ? [error] : []} />
 
                         <div className="flex items-center gap-2 pt-2">
                             <Button onClick={submit} disabled={processing}>

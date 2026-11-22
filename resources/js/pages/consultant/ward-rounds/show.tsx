@@ -1,16 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { discharge, index, view } from '@/routes/consultant/ward-rounds';
 
@@ -33,16 +27,17 @@ type Ward = {
     description: string | null;
     beds: Bed[];
 };
-export default function WardRoundShow({
-    ward,
-}: {
-    ward: Ward;
-}) {
+export default function WardRoundShow({ ward }: { ward: Ward }) {
     const team = usePage().props.currentTeam?.slug ?? '';
     const [searchQuery, setSearchQuery] = useState('');
     const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
     const [dischargingBed, setDischargingBed] = useState<Bed | null>(null);
     const [walletError, setWalletError] = useState<string | null>(null);
+    const [dischargeProcessing, setDischargeProcessing] = useState(false);
+
+    const currencySymbolProps = usePage().props.currencySymbol;
+    const currencySymbol =
+        typeof currencySymbolProps === 'string' ? currencySymbolProps : '₦';
 
     // Filter beds by hospital number or patient name
     const filteredBeds = useMemo(() => {
@@ -57,6 +52,47 @@ export default function WardRoundShow({
             return patientId.includes(query) || patientName.includes(query);
         });
     }, [ward.beds, searchQuery]);
+
+    function openDischarge(bed: Bed) {
+        if (bed.patientWallet < 0) {
+            setWalletError(
+                `Cannot discharge: patient has an outstanding balance of ${currencySymbol}${Math.abs(bed.patientWallet).toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
+            );
+            return;
+        }
+
+        setWalletError(null);
+        setDischargingBed(bed);
+        setDischargeModalOpen(true);
+    }
+
+    function confirmDischarge() {
+        if (!dischargingBed?.admissionId) {
+            return;
+        }
+
+        setDischargeProcessing(true);
+        setWalletError(null);
+
+        router.patch(
+            discharge.url({
+                current_team: team,
+                admission: dischargingBed.admissionId,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setDischargeModalOpen(false);
+                    setDischargingBed(null);
+                },
+                onError: (errors: Record<string, string>) => {
+                    setWalletError(errors.message ?? 'Something went wrong.');
+                },
+                onFinish: () => setDischargeProcessing(false),
+            },
+        );
+    }
 
     return (
         <>
@@ -76,30 +112,47 @@ export default function WardRoundShow({
                     </Button>
                 </div>
 
+                {walletError ? <AlertError errors={[walletError]} /> : null}
+
                 <div>
                     <div>
                         <form
                             className="relative mb-4 flex max-w-sm gap-2"
                             onSubmit={(e) => {
                                 e.preventDefault();
-                                const firstMatch = filteredBeds.find((b) => b.admissionId);
-                                if (firstMatch) {
-                                    router.get(view.url({ current_team: team, admission: firstMatch.admissionId }));
+                                const firstMatch = filteredBeds.find(
+                                    (b) => b.admissionId !== null,
+                                );
+                                if (firstMatch?.admissionId != null) {
+                                    router.get(
+                                        view.url({
+                                            current_team: team,
+                                            admission: firstMatch.admissionId,
+                                        }),
+                                    );
                                 }
                             }}
                         >
                             <Input
+                                aria-label="Search by hospital number or patient name"
                                 placeholder="Search by hospital no or patient name…"
                                 value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
+                                onChange={(event) =>
+                                    setSearchQuery(event.target.value)
+                                }
                             />
-                            <Button type="submit" size="sm" disabled={!searchQuery.trim()}>
+                            <Button
+                                type="submit"
+                                size="sm"
+                                disabled={!searchQuery.trim()}
+                            >
                                 Search
                             </Button>
                         </form>
                         {searchQuery && (
                             <p className="mb-2 text-xs text-muted-foreground">
-                                {filteredBeds.length} result{filteredBeds.length !== 1 ? 's' : ''} found
+                                {filteredBeds.length} result
+                                {filteredBeds.length !== 1 ? 's' : ''} found
                             </p>
                         )}
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -117,10 +170,16 @@ export default function WardRoundShow({
                                         {bed.admissionId ? (
                                             <>
                                                 <p className="font-medium">
-                                                    {bed.patientName ?? bed.patientId}
+                                                    {bed.patientName ??
+                                                        bed.patientId}
                                                 </p>
-                                                <p>Hospital No: {bed.patientId}</p>
-                                                <p>Doctor: {bed.doctorName ?? '—'}</p>
+                                                <p>
+                                                    Hospital No: {bed.patientId}
+                                                </p>
+                                                <p>
+                                                    Doctor:{' '}
+                                                    {bed.doctorName ?? '—'}
+                                                </p>
                                                 <p>
                                                     Admitted:{' '}
                                                     {bed.admittedAt
@@ -133,7 +192,8 @@ export default function WardRoundShow({
                                                     <Link
                                                         href={view.url({
                                                             current_team: team,
-                                                            admission: bed.admissionId,
+                                                            admission:
+                                                                bed.admissionId,
                                                         })}
                                                     >
                                                         Ward round
@@ -142,11 +202,9 @@ export default function WardRoundShow({
                                                 <Button
                                                     size="sm"
                                                     variant="destructive"
-                                                    onClick={() => {
-                                                        setDischargingBed(bed);
-                                                        setWalletError(null);
-                                                        setDischargeModalOpen(true);
-                                                    }}
+                                                    onClick={() =>
+                                                        openDischarge(bed)
+                                                    }
                                                 >
                                                     Discharge
                                                 </Button>
@@ -164,77 +222,24 @@ export default function WardRoundShow({
                 </div>
             </div>
 
-            <Dialog
+            <ConfirmDialog
                 open={dischargeModalOpen}
                 onOpenChange={(open) => {
-                    setDischargeModalOpen(open);
-                    if (!open) {
+                    if (!open && !dischargeProcessing) {
+                        setDischargeModalOpen(false);
                         setWalletError(null);
                         setDischargingBed(null);
                     }
                 }}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirm discharge</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to discharge{' '}
-                            <strong>{dischargingBed?.patientName ?? dischargingBed?.patientId}</strong>?
-                        </DialogDescription>
-                    </DialogHeader>
-                    {walletError && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-                            {walletError}
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setDischargeModalOpen(false);
-                                setWalletError(null);
-                                setDischargingBed(null);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            disabled={!dischargingBed}
-                            onClick={() => {
-                                if (!dischargingBed) return;
-                                if (dischargingBed.patientWallet < 0) {
-                                    setWalletError(
-                                        `Cannot discharge: patient has an outstanding balance of ₦${Math.abs(dischargingBed.patientWallet).toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
-                                    );
-                                    return;
-                                }
-                                router.patch(
-                                    discharge.url({
-                                        current_team: team,
-                                        admission: dischargingBed.admissionId!,
-                                    }),
-                                    {},
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: () => {
-                                            setDischargeModalOpen(false);
-                                            setDischargingBed(null);
-                                        },
-                                        onError: (errors) => {
-                                            if (errors.message) {
-                                                setWalletError(errors.message);
-                                            }
-                                        },
-                                    },
-                                );
-                            }}
-                        >
-                            Discharge
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                title="Confirm discharge"
+                description={`Are you sure you want to discharge ${dischargingBed?.patientName ?? dischargingBed?.patientId ?? 'this patient'}?`}
+                confirmLabel={
+                    dischargeProcessing ? 'Discharging...' : 'Discharge'
+                }
+                destructive
+                processing={dischargeProcessing}
+                onConfirm={confirmDischarge}
+            />
         </>
     );
 }

@@ -1,8 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -91,13 +93,21 @@ export default function VendorsIndex({
     const [viewing, setViewing] = useState<Vendor | null>(null);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-    const [processing, setProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [formProcessing, setFormProcessing] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [formFieldErrors, setFormFieldErrors] = useState<
+        Record<string, string>
+    >({});
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [bulkDeleteProcessing, setBulkDeleteProcessing] = useState(false);
+    const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
 
     function openCreate() {
         setEditing(null);
         setForm(emptyForm);
-        setError(null);
+        setFormError(null);
+        setFormFieldErrors({});
         setFormOpen(true);
     }
 
@@ -111,19 +121,25 @@ export default function VendorsIndex({
             address: vendor.address ?? '',
             company: vendor.company ?? '',
         });
-        setError(null);
+        setFormError(null);
+        setFormFieldErrors({});
         setFormOpen(true);
     }
 
     function submit() {
-        setProcessing(true);
-        setError(null);
+        setFormProcessing(true);
+        setFormError(null);
+        setFormFieldErrors({});
         const options = {
             preserveScroll: true,
             onSuccess: () => setFormOpen(false),
-            onError: (errors: Record<string, string>) =>
-                setError(Object.values(errors)[0] ?? 'Unable to save vendor.'),
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) => {
+                setFormFieldErrors(errors);
+                setFormError(
+                    Object.values(errors)[0] ?? 'Unable to save vendor.',
+                );
+            },
+            onFinish: () => setFormProcessing(false),
         };
 
         if (editing) {
@@ -141,8 +157,9 @@ export default function VendorsIndex({
     }
 
     function destroy() {
-        if (!deleting) return;
-        setProcessing(true);
+        if (!deleting || deleteProcessing) return;
+        setDeleteProcessing(true);
+        setDeleteError(null);
         router.delete(
             vendorRoutes.destroy.url({
                 current_team: teamSlug,
@@ -151,14 +168,19 @@ export default function VendorsIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setDeleting(null),
-                onFinish: () => setProcessing(false),
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Unable to delete vendor.',
+                    ),
+                onFinish: () => setDeleteProcessing(false),
             },
         );
     }
 
     function destroySelected() {
-        if (selectedIds.length === 0) return;
-        setProcessing(true);
+        if (selectedIds.length === 0 || bulkDeleteProcessing) return;
+        setBulkDeleteProcessing(true);
+        setBulkDeleteError(null);
         router.delete(vendorRoutes.bulk.destroy.url(teamSlug), {
             data: { ids: selectedIds },
             preserveScroll: true,
@@ -166,7 +188,11 @@ export default function VendorsIndex({
                 setSelectedIds([]);
                 setBulkDeleteOpen(false);
             },
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) =>
+                setBulkDeleteError(
+                    Object.values(errors)[0] ?? 'Unable to delete vendors.',
+                ),
+            onFinish: () => setBulkDeleteProcessing(false),
         });
     }
 
@@ -222,21 +248,23 @@ export default function VendorsIndex({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex flex-1 items-center gap-2"
+                        className="flex flex-1 flex-wrap items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applySearch();
                         }}
                     >
+                        <Label htmlFor="vendor-search" className="sr-only">
+                            Search vendors
+                        </Label>
                         <Input
+                            id="vendor-search"
                             className="max-w-sm"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search vendors..."
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                     {selectedIds.length > 0 ? (
                         <>
@@ -246,7 +274,10 @@ export default function VendorsIndex({
                             <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => setBulkDeleteOpen(true)}
+                                onClick={() => {
+                                    setBulkDeleteError(null);
+                                    setBulkDeleteOpen(true);
+                                }}
                             >
                                 Delete selected
                             </Button>
@@ -257,146 +288,159 @@ export default function VendorsIndex({
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        type="checkbox"
-                                        aria-label="Select all vendors on this page"
-                                        checked={
-                                            vendors.data.length > 0 &&
-                                            vendors.data.every((vendor) =>
-                                                selectedIds.includes(vendor.id),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelectedIds(
-                                                event.target.checked
-                                                    ? [
-                                                          ...new Set([
-                                                              ...selectedIds,
-                                                              ...vendors.data.map(
-                                                                  (vendor) =>
-                                                                      vendor.id,
-                                                              ),
-                                                          ]),
-                                                      ]
-                                                    : selectedIds.filter(
-                                                          (id) =>
-                                                              !vendors.data.some(
-                                                                  (vendor) =>
-                                                                      vendor.id ===
-                                                                      id,
-                                                              ),
-                                                      ),
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email address</TableHead>
-                                <TableHead>Phone</TableHead>
-                                <TableHead>Mobile</TableHead>
-                                <TableHead>Company</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {vendors.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={7}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No vendors found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                vendors.data.map((vendor) => (
-                                    <TableRow key={vendor.id}>
-                                        <TableCell>
-                                            <input
-                                                type="checkbox"
-                                                aria-label={`Select ${vendor.name}`}
-                                                checked={selectedIds.includes(
-                                                    vendor.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelectedIds(
-                                                        event.target.checked
-                                                            ? [
+                                    <TableHead>
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Select all vendors on this page"
+                                            checked={
+                                                vendors.data.length > 0 &&
+                                                vendors.data.every((vendor) =>
+                                                    selectedIds.includes(
+                                                        vendor.id,
+                                                    ),
+                                                )
+                                            }
+                                            onChange={(event) =>
+                                                setSelectedIds(
+                                                    event.target.checked
+                                                        ? [
+                                                              ...new Set([
                                                                   ...selectedIds,
-                                                                  vendor.id,
-                                                              ]
-                                                            : selectedIds.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      vendor.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {vendor.name}
-                                        </TableCell>
-                                        <TableCell>
-                                            {vendor.email ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {vendor.phone ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {vendor.mobile ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {vendor.company ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setViewing(vendor)
-                                                        }
-                                                    >
-                                                        <Eye className="mr-2 h-4 w-4" />
-                                                        View
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openEdit(vendor)
-                                                        }
-                                                    >
-                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        variant="destructive"
-                                                        onClick={() =>
-                                                            setDeleting(vendor)
-                                                        }
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                                                  ...vendors.data.map(
+                                                                      (
+                                                                          vendor,
+                                                                      ) =>
+                                                                          vendor.id,
+                                                                  ),
+                                                              ]),
+                                                          ]
+                                                        : selectedIds.filter(
+                                                              (id) =>
+                                                                  !vendors.data.some(
+                                                                      (
+                                                                          vendor,
+                                                                      ) =>
+                                                                          vendor.id ===
+                                                                          id,
+                                                                  ),
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                    </TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Email address</TableHead>
+                                    <TableHead>Phone</TableHead>
+                                    <TableHead>Mobile</TableHead>
+                                    <TableHead>Company</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {vendors.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No vendors found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                ) : (
+                                    vendors.data.map((vendor) => (
+                                        <TableRow key={vendor.id}>
+                                            <TableCell>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Select ${vendor.name}`}
+                                                    checked={selectedIds.includes(
+                                                        vendor.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelectedIds(
+                                                            event.target.checked
+                                                                ? [
+                                                                      ...selectedIds,
+                                                                      vendor.id,
+                                                                  ]
+                                                                : selectedIds.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          vendor.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                {vendor.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {vendor.email ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {vendor.phone ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {vendor.mobile ?? '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {vendor.company ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            aria-label={`Actions for vendor ${vendor.id}`}
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setViewing(
+                                                                    vendor,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(vendor)
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            variant="destructive"
+                                                            onClick={() =>
+                                                                setDeleting(
+                                                                    vendor,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
                 <Pagination
@@ -440,6 +484,7 @@ export default function VendorsIndex({
                                 <Input
                                     id={field}
                                     type={field === 'email' ? 'email' : 'text'}
+                                    aria-invalid={!!formFieldErrors[field]}
                                     value={form[field] ?? ''}
                                     onChange={(event) =>
                                         setForm({
@@ -449,12 +494,14 @@ export default function VendorsIndex({
                                     }
                                     required={field === 'name'}
                                 />
+                                <InputError message={formFieldErrors[field]} />
                             </div>
                         ))}
                         <div className="space-y-2 sm:col-span-2">
                             <Label htmlFor="address">Address</Label>
                             <Textarea
                                 id="address"
+                                aria-invalid={!!formFieldErrors.address}
                                 value={form.address ?? ''}
                                 onChange={(event) =>
                                     setForm({
@@ -463,22 +510,27 @@ export default function VendorsIndex({
                                     })
                                 }
                             />
+                            <InputError message={formFieldErrors.address} />
                         </div>
-                        {error ? (
-                            <p className="text-sm text-destructive sm:col-span-2">
-                                {error}
-                            </p>
+                        {formError ? (
+                            <div className="sm:col-span-2">
+                                <AlertError
+                                    errors={[formError]}
+                                    title="Unable to save vendor"
+                                />
+                            </div>
                         ) : null}
                     </div>
                     <SheetFooter>
                         <Button
                             variant="outline"
+                            disabled={formProcessing}
                             onClick={() => setFormOpen(false)}
                         >
                             Cancel
                         </Button>
-                        <Button disabled={processing} onClick={submit}>
-                            {processing ? 'Saving...' : 'Save vendor'}
+                        <Button disabled={formProcessing} onClick={submit}>
+                            {formProcessing ? 'Saving...' : 'Save vendor'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -560,22 +612,52 @@ export default function VendorsIndex({
                     ) : null}
                 </DialogContent>
             </Dialog>
+            {deleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete vendor"
+                    />
+                </div>
+            ) : null}
+            {bulkDeleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[bulkDeleteError]}
+                        title="Unable to delete vendors"
+                    />
+                </div>
+            ) : null}
             <ConfirmDialog
                 open={deleting !== null}
-                onOpenChange={(open) => !open && setDeleting(null)}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setDeleting(null);
+                        setDeleteError(null);
+                    }
+                }}
                 title="Delete vendor?"
-                description={`Delete ${deleting?.name ?? 'this vendor'}?`}
-                confirmLabel="Delete"
-                processing={processing}
+                description={`Delete ${deleting?.name ?? 'this vendor'}? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                processing={deleteProcessing}
+                destructive
                 onConfirm={destroy}
             />
             <ConfirmDialog
                 open={bulkDeleteOpen}
-                onOpenChange={setBulkDeleteOpen}
+                onOpenChange={(open) => {
+                    if (!open && !bulkDeleteProcessing) {
+                        setBulkDeleteOpen(false);
+                        setBulkDeleteError(null);
+                    }
+                }}
                 title="Delete selected vendors?"
-                description={`This deletes ${selectedIds.length} selected vendor records.`}
-                confirmLabel="Delete selected"
-                processing={processing}
+                description={`This deletes ${selectedIds.length} selected vendor records. This cannot be undone.`}
+                confirmLabel={
+                    bulkDeleteProcessing ? 'Deleting...' : 'Delete selected'
+                }
+                processing={bulkDeleteProcessing}
+                destructive
                 onConfirm={destroySelected}
             />
         </>

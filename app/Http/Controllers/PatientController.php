@@ -90,10 +90,12 @@ class PatientController extends Controller
     {
         $user = $request->user();
         $teamId = $user->currentTeam->getKey();
+        $validated = $request->validated();
+        unset($validated['billings']);
 
         $patient = Patient::create([
-            ...$request->validated(),
-            'slug' => $request->validated('slug') ?? $this->nextHospitalNumber(),
+            ...$validated,
+            'slug' => $validated['slug'] ?? $this->nextHospitalNumber(),
             'team_id' => $teamId,
         ]);
 
@@ -284,6 +286,9 @@ class PatientController extends Controller
                 ->orWhere('art', 'like', $like)
                 ->orWhere('slugOther', 'like', $like)
                 ->orWhere('fullName', 'like', $like)
+                ->orWhere('firstName', 'like', $like)
+                ->orWhere('middleName', 'like', $like)
+                ->orWhere('lastName', 'like', $like)
                 ->orWhere('gender', 'like', $like)
                 ->orWhere('email', 'like', $like)
                 ->orWhere('phone', 'like', $like));

@@ -1,12 +1,13 @@
 import { Form, Head, usePage } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { edit } from '@/routes/profile';
 import type { Auth } from '@/types';
 import { send } from '@/routes/verification';
@@ -90,19 +91,15 @@ export default function Profile({
                                     <div>
                                         <p className="-mt-4 text-sm text-muted-foreground">
                                             Your email address is unverified.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                            >
+                                            <TextLink href={send()} as="button">
                                                 Click here to re-send the
                                                 verification email.
-                                            </Link>
+                                            </TextLink>
                                         </p>
 
                                         {status ===
                                             'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
+                                            <div className="mt-2 text-sm font-medium text-green-600 dark:text-green-400">
                                                 A new verification link has been
                                                 sent to your email address.
                                             </div>
@@ -115,7 +112,8 @@ export default function Profile({
                                     disabled={processing}
                                     data-test="update-profile-button"
                                 >
-                                    Save
+                                    {processing && <Spinner />}
+                                    {processing ? 'Saving...' : 'Save'}
                                 </Button>
                             </div>
                         </>

@@ -1,5 +1,7 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,8 +31,13 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { home } from '@/routes';
 import { index as recordsIndex } from '@/routes/nursing/records';
-import { destroy, store, update } from '@/routes/nursing/records/present-pregnancy';
+import {
+    destroy,
+    store,
+    update,
+} from '@/routes/nursing/records/present-pregnancy';
 import type { Team } from '@/types';
 
 type PresentPregnancyRecord = {
@@ -83,7 +90,12 @@ const emptyForm: PresentPregnancyForm = {
 };
 
 const LIE_OPTIONS = ['longitudinal', 'transverse', 'oblique'];
-const POSITION_OPTIONS = ['left anterior', 'left posterior', 'right anterior', 'right posterior'];
+const POSITION_OPTIONS = [
+    'left anterior',
+    'left posterior',
+    'right anterior',
+    'right posterior',
+];
 
 export default function PresentPregnancyIndex({
     nursing,
@@ -106,6 +118,10 @@ export default function PresentPregnancyIndex({
     const [form, setForm] = useState<PresentPregnancyForm>(emptyForm);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [recordToDelete, setRecordToDelete] =
+        useState<PresentPregnancyRecord | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     function startCreate() {
         setEditId(null);
@@ -117,7 +133,9 @@ export default function PresentPregnancyIndex({
     function startEdit(record: PresentPregnancyRecord) {
         setEditId(record.id);
         setForm({
-            date: record.date ? record.date.split('T')[0] : new Date().toISOString().split('T')[0],
+            date: record.date
+                ? record.date.split('T')[0]
+                : new Date().toISOString().split('T')[0],
             bp: record.bp ?? '',
             gA: record.gA ?? '',
             weight: record.weight?.toString() ?? '',
@@ -128,7 +146,12 @@ export default function PresentPregnancyIndex({
             position: record.position ?? '',
             fhr: record.fhr?.toString() ?? '',
             hb: record.hb?.toString() ?? '',
-            oedema: record.oedema === true ? 'yes' : record.oedema === false ? 'no' : '',
+            oedema:
+                record.oedema === true
+                    ? 'yes'
+                    : record.oedema === false
+                      ? 'no'
+                      : '',
         });
         setError(null);
         setFormOpen(true);
@@ -151,7 +174,12 @@ export default function PresentPregnancyIndex({
             position: form.position || null,
             fhr: form.fhr ? parseInt(form.fhr, 10) : null,
             hb: form.hb ? parseFloat(form.hb) : null,
-            oedema: form.oedema === 'yes' ? true : form.oedema === 'no' ? false : null,
+            oedema:
+                form.oedema === 'yes'
+                    ? true
+                    : form.oedema === 'no'
+                      ? false
+                      : null,
         };
 
         const opts = {
@@ -187,14 +215,34 @@ export default function PresentPregnancyIndex({
         }
     }
 
-    function deleteRecord(id: number) {
+    function deleteRecord(record: PresentPregnancyRecord) {
+        setDeleteError(null);
+        setRecordToDelete(record);
+    }
+
+    function confirmDeleteRecord() {
+        if (!recordToDelete) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+        setDeleteError(null);
+
         router.delete(
             destroy.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
-                presentPregnancy: id,
+                presentPregnancy: recordToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setRecordToDelete(null),
+                onFinish: () => setDeleteProcessing(false),
+            },
         );
     }
 
@@ -204,7 +252,12 @@ export default function PresentPregnancyIndex({
 
     function renderOedemaBadge(value: boolean | null) {
         if (value === null) return '—';
-        if (value) return <Badge className="bg-emerald-100 text-emerald-800">Present</Badge>;
+        if (value)
+            return (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    Present
+                </Badge>
+            );
         return <Badge className="bg-muted text-muted-foreground">Absent</Badge>;
     }
 
@@ -213,6 +266,8 @@ export default function PresentPregnancyIndex({
             <Head title={`${nursing.patientId} — Present Pregnancy`} />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                {deleteError ? <AlertError errors={[deleteError]} /> : null}
+
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <Heading
@@ -223,9 +278,9 @@ export default function PresentPregnancyIndex({
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild>
-                            <a href={recordsIndex.url(teamSlug)}>
+                            <Link href={recordsIndex.url(teamSlug)}>
                                 Back to maternity
-                            </a>
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -268,55 +323,94 @@ export default function PresentPregnancyIndex({
                                             <TableRow key={record.id}>
                                                 <TableCell>
                                                     {record.date
-                                                        ? new Date(record.date).toLocaleDateString()
+                                                        ? new Date(
+                                                              record.date,
+                                                          ).toLocaleDateString()
                                                         : '—'}
                                                 </TableCell>
-                                                <TableCell>{record.bp ?? '—'}</TableCell>
-                                                <TableCell>{record.gA ?? '—'}</TableCell>
-                                                <TableCell>{record.weight ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    {record.bp ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.gA ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.weight ?? '—'}
+                                                </TableCell>
                                                 <TableCell>
                                                     {record.lmp
-                                                        ? new Date(record.lmp).toLocaleDateString()
+                                                        ? new Date(
+                                                              record.lmp,
+                                                          ).toLocaleDateString()
                                                         : '—'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {record.edd
-                                                        ? new Date(record.edd).toLocaleDateString()
+                                                        ? new Date(
+                                                              record.edd,
+                                                          ).toLocaleDateString()
                                                         : '—'}
                                                 </TableCell>
-                                                <TableCell>{record.sfh ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    {record.sfh ?? '—'}
+                                                </TableCell>
                                                 <TableCell>
                                                     {record.lie ? (
-                                                        <span className="capitalize">{record.lie}</span>
+                                                        <span className="capitalize">
+                                                            {record.lie}
+                                                        </span>
                                                     ) : (
                                                         '—'
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {record.position ? (
-                                                        <span className="capitalize">{record.position}</span>
+                                                        <span className="capitalize">
+                                                            {record.position}
+                                                        </span>
                                                     ) : (
                                                         '—'
                                                     )}
                                                 </TableCell>
-                                                <TableCell>{record.fhr ?? '—'}</TableCell>
-                                                <TableCell>{record.hb ?? '—'}</TableCell>
-                                                <TableCell>{renderOedemaBadge(record.oedema)}</TableCell>
-                                                <TableCell>{record.nurseName ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    {record.fhr ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.hb ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {renderOedemaBadge(
+                                                        record.oedema,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.nurseName ?? '—'}
+                                                </TableCell>
                                                 <TableCell>
                                                     {record.canEdit ? (
                                                         <div className="flex items-center gap-2">
                                                             <Button
                                                                 size="sm"
                                                                 variant="secondary"
-                                                                onClick={() => startEdit(record)}
+                                                                onClick={() =>
+                                                                    startEdit(
+                                                                        record,
+                                                                    )
+                                                                }
                                                             >
                                                                 Edit
                                                             </Button>
                                                             <Button
                                                                 size="sm"
-                                                                variant="outline"
-                                                                onClick={() => deleteRecord(record.id)}
+                                                                variant="destructive"
+                                                                disabled={
+                                                                    deleteProcessing
+                                                                }
+                                                                onClick={() =>
+                                                                    deleteRecord(
+                                                                        record,
+                                                                    )
+                                                                }
                                                             >
                                                                 Delete
                                                             </Button>
@@ -336,7 +430,7 @@ export default function PresentPregnancyIndex({
             <Sheet
                 open={formOpen}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !processing) {
                         setFormOpen(false);
                         setEditId(null);
                     }
@@ -354,11 +448,7 @@ export default function PresentPregnancyIndex({
 
                     <form onSubmit={submit}>
                         <div className="space-y-4 px-4 pb-4">
-                            {error && (
-                                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                    {error}
-                                </p>
-                            )}
+                            {error ? <AlertError errors={[error]} /> : null}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -367,7 +457,9 @@ export default function PresentPregnancyIndex({
                                         id="date"
                                         type="date"
                                         value={form.date}
-                                        onChange={(e) => updateField('date', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('date', e.target.value)
+                                        }
                                         required
                                     />
                                 </div>
@@ -378,7 +470,9 @@ export default function PresentPregnancyIndex({
                                         type="text"
                                         placeholder="e.g. 120/80"
                                         value={form.bp}
-                                        onChange={(e) => updateField('bp', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('bp', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -388,7 +482,9 @@ export default function PresentPregnancyIndex({
                                         type="text"
                                         placeholder="e.g. 28"
                                         value={form.gA}
-                                        onChange={(e) => updateField('gA', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('gA', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -399,7 +495,12 @@ export default function PresentPregnancyIndex({
                                         step="0.01"
                                         placeholder="e.g. 65.5"
                                         value={form.weight}
-                                        onChange={(e) => updateField('weight', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'weight',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -408,7 +509,9 @@ export default function PresentPregnancyIndex({
                                         id="lmp"
                                         type="date"
                                         value={form.lmp}
-                                        onChange={(e) => updateField('lmp', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('lmp', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -417,7 +520,9 @@ export default function PresentPregnancyIndex({
                                         id="edd"
                                         type="date"
                                         value={form.edd}
-                                        onChange={(e) => updateField('edd', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('edd', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -428,22 +533,32 @@ export default function PresentPregnancyIndex({
                                         step="0.1"
                                         placeholder="e.g. 28.5"
                                         value={form.sfh}
-                                        onChange={(e) => updateField('sfh', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('sfh', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="lie">Lie</Label>
                                     <Select
                                         value={form.lie}
-                                        onValueChange={(value) => updateField('lie', value)}
+                                        onValueChange={(value) =>
+                                            updateField('lie', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="lie">
                                             <SelectValue placeholder="Select lie" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {LIE_OPTIONS.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                                                <SelectItem
+                                                    key={option}
+                                                    value={option}
+                                                >
+                                                    {option
+                                                        .charAt(0)
+                                                        .toUpperCase() +
+                                                        option.slice(1)}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -453,15 +568,29 @@ export default function PresentPregnancyIndex({
                                     <Label htmlFor="position">Position</Label>
                                     <Select
                                         value={form.position}
-                                        onValueChange={(value) => updateField('position', value)}
+                                        onValueChange={(value) =>
+                                            updateField('position', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="position">
                                             <SelectValue placeholder="Select position" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {POSITION_OPTIONS.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                    {option.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                                <SelectItem
+                                                    key={option}
+                                                    value={option}
+                                                >
+                                                    {option
+                                                        .split(' ')
+                                                        .map(
+                                                            (w) =>
+                                                                w
+                                                                    .charAt(0)
+                                                                    .toUpperCase() +
+                                                                w.slice(1),
+                                                        )
+                                                        .join(' ')}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -474,7 +603,9 @@ export default function PresentPregnancyIndex({
                                         type="number"
                                         placeholder="e.g. 140"
                                         value={form.fhr}
-                                        onChange={(e) => updateField('fhr', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('fhr', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -485,21 +616,29 @@ export default function PresentPregnancyIndex({
                                         step="0.1"
                                         placeholder="e.g. 12.5"
                                         value={form.hb}
-                                        onChange={(e) => updateField('hb', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('hb', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="oedema">Oedema</Label>
                                     <Select
                                         value={form.oedema}
-                                        onValueChange={(value) => updateField('oedema', value)}
+                                        onValueChange={(value) =>
+                                            updateField('oedema', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="oedema">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Present</SelectItem>
-                                            <SelectItem value="no">Absent</SelectItem>
+                                            <SelectItem value="yes">
+                                                Present
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                Absent
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -525,19 +664,32 @@ export default function PresentPregnancyIndex({
                     </form>
                 </SheetContent>
             </Sheet>
+
+            <ConfirmDialog
+                open={recordToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setRecordToDelete(null);
+                    }
+                }}
+                title="Delete present pregnancy record"
+                description={`Delete the record dated ${recordToDelete?.date ? new Date(recordToDelete.date).toLocaleDateString() : 'this record'}? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={confirmDeleteRecord}
+            />
         </>
     );
 }
 
-PresentPregnancyIndex.layout = (props: {
-    currentTeam?: Team | null;
-}) => ({
+PresentPregnancyIndex.layout = (props: { currentTeam?: Team | null }) => ({
     breadcrumbs: [
         {
             title: 'Maternity',
             href: props.currentTeam
                 ? recordsIndex.url(props.currentTeam.slug)
-                : '/',
+                : home.url(),
         },
     ],
 });

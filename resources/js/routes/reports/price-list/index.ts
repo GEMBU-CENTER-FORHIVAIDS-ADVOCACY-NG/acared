@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */
@@ -17,7 +17,7 @@ exportMethod.definition = {
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */
@@ -50,7 +50,7 @@ exportMethod.url = (args?: { current_team?: string | number } | [current_team: s
 
 /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */
@@ -60,7 +60,7 @@ exportMethod.get = (args?: { current_team?: string | number } | [current_team: s
 })
 /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */
@@ -71,7 +71,7 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
 
     /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */
@@ -82,7 +82,7 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
 
             /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */
@@ -92,7 +92,7 @@ exportMethod.head = (args?: { current_team?: string | number } | [current_team: 
         })
             /**
 * @see \App\Http\Controllers\OperationalReportController::exportMethod
- * @see app/Http/Controllers/OperationalReportController.php:171
+ * @see app/Http/Controllers/OperationalReportController.php:220
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/reports/price-list/export'
  */

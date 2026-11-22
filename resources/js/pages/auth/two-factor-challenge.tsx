@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import {
     InputOTP,
     InputOTPGroup,
@@ -59,12 +61,20 @@ export default function TwoFactorChallenge() {
                     className="space-y-4"
                     resetOnError
                     resetOnSuccess={!showRecoveryInput}
+                    onError={() => setCode('')}
                 >
                     {({ errors, processing, clearErrors }) => (
                         <>
                             {showRecoveryInput ? (
                                 <>
+                                    <Label
+                                        htmlFor="recovery_code"
+                                        className="sr-only"
+                                    >
+                                        Recovery code
+                                    </Label>
                                     <Input
+                                        id="recovery_code"
                                         name="recovery_code"
                                         type="text"
                                         placeholder="Enter recovery code"
@@ -80,6 +90,7 @@ export default function TwoFactorChallenge() {
                                     <div className="flex w-full items-center justify-center">
                                         <InputOTP
                                             name="code"
+                                            aria-label="Authentication code"
                                             maxLength={OTP_MAX_LENGTH}
                                             value={code}
                                             onChange={(value) => setCode(value)}
@@ -109,7 +120,8 @@ export default function TwoFactorChallenge() {
                                 className="w-full"
                                 disabled={processing}
                             >
-                                Continue
+                                {processing && <Spinner />}
+                                {processing ? 'Verifying...' : 'Continue'}
                             </Button>
 
                             <div className="text-center text-sm text-muted-foreground">

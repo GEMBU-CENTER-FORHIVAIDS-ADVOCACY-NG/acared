@@ -3,6 +3,7 @@ import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,11 +68,13 @@ export default function MarkupsIndex({
     const [selected, setSelected] = useState<number[]>([]);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    function applyFilters(page = 1, perPage = filters.perPage) {
+    function applyFilters(page = 1, perPage = filters.perPage, search = query) {
         router.get(
             markupRoutes.index.url(teamSlug, {
-                query: { q: query || undefined, page, perPage },
+                query: { q: search || undefined, page, perPage },
             }),
             {},
             { preserveState: true, preserveScroll: true, replace: true },
@@ -81,22 +84,27 @@ export default function MarkupsIndex({
         setEditing(null);
         setValue('5');
         setError(null);
+        setFieldErrors({});
         setFormOpen(true);
     }
     function openEdit(markup: Markup) {
         setEditing(markup);
         setValue(String(markup.value));
         setError(null);
+        setFieldErrors({});
         setFormOpen(true);
     }
     function save() {
         setProcessing(true);
         setError(null);
+        setFieldErrors({});
         const options = {
             preserveScroll: true,
             onSuccess: () => setFormOpen(false),
-            onError: (errors: Record<string, string>) =>
-                setError(Object.values(errors)[0] ?? 'Unable to save markup.'),
+            onError: (errors: Record<string, string>) => {
+                setFieldErrors(errors);
+                setError(Object.values(errors)[0] ?? 'Unable to save markup.');
+            },
             onFinish: () => setProcessing(false),
         };
         if (editing)
@@ -118,6 +126,7 @@ export default function MarkupsIndex({
     function deleteOne() {
         if (!deleting) return;
         setProcessing(true);
+        setDeleteError(null);
         router.delete(
             markupRoutes.destroy.url({
                 current_team: teamSlug,
@@ -126,12 +135,17 @@ export default function MarkupsIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setDeleting(null),
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Unable to delete markup.',
+                    ),
                 onFinish: () => setProcessing(false),
             },
         );
     }
     function deleteSelected() {
         setProcessing(true);
+        setDeleteError(null);
         router.delete(markupRoutes.bulk.destroy.url(teamSlug), {
             data: { ids: selected },
             preserveScroll: true,
@@ -139,6 +153,10 @@ export default function MarkupsIndex({
                 setSelected([]);
                 setBulkDeleteOpen(false);
             },
+            onError: (errors: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errors)[0] ?? 'Unable to delete markups.',
+                ),
             onFinish: () => setProcessing(false),
         });
     }
@@ -153,7 +171,9 @@ export default function MarkupsIndex({
                         title="Markups"
                         description="Set the percentage increases used when receiving inventory."
                     />
-                    <Button onClick={openCreate}>Create markup</Button>
+                    <Button onClick={openCreate} disabled={processing}>
+                        Create markup
+                    </Button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
@@ -164,13 +184,14 @@ export default function MarkupsIndex({
                         }}
                     >
                         <Input
-                            className="max-w-sm"
+                            aria-label="Search markups"
+                            className="min-w-0 flex-1 sm:max-w-sm"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search markups..."
                         />
-                        <Button type="submit">
-                            Search
+                        <Button type="submit" disabled={processing}>
+                            {processing ? 'Searching...' : 'Search'}
                         </Button>
                     </form>
                     {selected.length ? (
@@ -181,7 +202,11 @@ export default function MarkupsIndex({
                             <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => setBulkDeleteOpen(true)}
+                                onClick={() => {
+                                    setDeleteError(null);
+                                    setBulkDeleteOpen(true);
+                                }}
+                                disabled={processing}
                             >
                                 Delete selected
                             </Button>
@@ -190,149 +215,202 @@ export default function MarkupsIndex({
                 </div>
                 <Card>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        type="checkbox"
-                                        aria-label="Select all markups"
-                                        checked={
-                                            markups.data.length > 0 &&
-                                            markups.data.every((markup) =>
-                                                selected.includes(markup.id),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelected(
-                                                event.target.checked
-                                                    ? [
-                                                          ...new Set([
-                                                              ...selected,
-                                                              ...markups.data.map(
-                                                                  (markup) =>
-                                                                      markup.id,
-                                                              ),
-                                                          ]),
-                                                      ]
-                                                    : selected.filter(
-                                                          (id) =>
-                                                              !markups.data.some(
-                                                                  (markup) =>
-                                                                      markup.id ===
-                                                                      id,
-                                                              ),
-                                                      ),
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Value</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead>Updated</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {markups.data.length === 0 ? (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={6}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No markups found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                markups.data.map((markup) => (
-                                    <TableRow key={markup.id}>
-                                        <TableCell>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>
                                             <input
                                                 type="checkbox"
-                                                aria-label={`Select ${markup.name}`}
-                                                checked={selected.includes(
-                                                    markup.id,
-                                                )}
+                                                aria-label="Select all markups"
+                                                checked={
+                                                    markups.data.length > 0 &&
+                                                    markups.data.every(
+                                                        (markup) =>
+                                                            selected.includes(
+                                                                markup.id,
+                                                            ),
+                                                    )
+                                                }
                                                 onChange={(event) =>
                                                     setSelected(
                                                         event.target.checked
                                                             ? [
-                                                                  ...selected,
-                                                                  markup.id,
+                                                                  ...new Set([
+                                                                      ...selected,
+                                                                      ...markups.data.map(
+                                                                          (
+                                                                              markup,
+                                                                          ) =>
+                                                                              markup.id,
+                                                                      ),
+                                                                  ]),
                                                               ]
                                                             : selected.filter(
                                                                   (id) =>
-                                                                      id !==
-                                                                      markup.id,
+                                                                      !markups.data.some(
+                                                                          (
+                                                                              markup,
+                                                                          ) =>
+                                                                              markup.id ===
+                                                                              id,
+                                                                      ),
                                                               ),
                                                     )
                                                 }
                                             />
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {markup.name}
-                                        </TableCell>
-                                        <TableCell>{markup.value}%</TableCell>
-                                        <TableCell>
-                                            {markup.createdAt
-                                                ? new Date(
-                                                      markup.createdAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {markup.updatedAt
-                                                ? new Date(
-                                                      markup.updatedAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setViewing(markup)
-                                                        }
-                                                    >
-                                                        <Eye className="mr-2 h-4 w-4" />
-                                                        View
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openEdit(markup)
-                                                        }
-                                                    >
-                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setDeleting(markup)
-                                                        }
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                                        </TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Value</TableHead>
+                                        <TableHead>Created</TableHead>
+                                        <TableHead>Updated</TableHead>
+                                        <TableHead className="text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {markups.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span>
+                                                        No markups found.
+                                                    </span>
+                                                    {filters.q ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="link"
+                                                            size="sm"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                            onClick={() => {
+                                                                setQuery('');
+                                                                applyFilters(
+                                                                    1,
+                                                                    filters.perPage,
+                                                                    '',
+                                                                );
+                                                            }}
+                                                        >
+                                                            Clear filters
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        markups.data.map((markup) => (
+                                            <TableRow key={markup.id}>
+                                                <TableCell>
+                                                    <input
+                                                        type="checkbox"
+                                                        aria-label={`Select ${markup.name}`}
+                                                        checked={selected.includes(
+                                                            markup.id,
+                                                        )}
+                                                        onChange={(event) =>
+                                                            setSelected(
+                                                                event.target
+                                                                    .checked
+                                                                    ? [
+                                                                          ...selected,
+                                                                          markup.id,
+                                                                      ]
+                                                                    : selected.filter(
+                                                                          (
+                                                                              id,
+                                                                          ) =>
+                                                                              id !==
+                                                                              markup.id,
+                                                                      ),
+                                                            )
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="font-medium">
+                                                    {markup.name}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {markup.value}%
+                                                </TableCell>
+                                                <TableCell>
+                                                    {markup.createdAt
+                                                        ? new Date(
+                                                              markup.createdAt,
+                                                          ).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {markup.updatedAt
+                                                        ? new Date(
+                                                              markup.updatedAt,
+                                                          ).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                aria-label={`Actions for ${markup.name}`}
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    setViewing(
+                                                                        markup,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                View
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openEdit(
+                                                                        markup,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setDeleteError(
+                                                                        null,
+                                                                    );
+                                                                    setDeleting(
+                                                                        markup,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
                 <Pagination
@@ -346,7 +424,14 @@ export default function MarkupsIndex({
                     onPerPageChange={(perPage) => applyFilters(1, perPage)}
                 />
             </div>
-            <Sheet open={formOpen} onOpenChange={setFormOpen}>
+            <Sheet
+                open={formOpen}
+                onOpenChange={(open) => {
+                    if (!open && !processing) {
+                        setFormOpen(false);
+                    }
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto sm:max-w-sm">
                     <SheetHeader>
                         <SheetTitle>
@@ -357,7 +442,14 @@ export default function MarkupsIndex({
                             from its percentage.
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="space-y-4 px-4 py-5">
+                    <form
+                        id="markup-form"
+                        className="space-y-4 px-4 py-5"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            save();
+                        }}
+                    >
                         <div className="space-y-2">
                             <Label htmlFor="markup-value">
                                 Increase: {value}%
@@ -372,24 +464,37 @@ export default function MarkupsIndex({
                                 onChange={(event) =>
                                     setValue(event.target.value)
                                 }
+                                aria-invalid={Boolean(fieldErrors.value)}
                             />
+                            <InputError message={fieldErrors.value} />
                         </div>
                         <p className="text-sm text-muted-foreground">
                             {value}% Increase
                         </p>
                         {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
+                            <p
+                                className="text-sm text-destructive"
+                                role="alert"
+                            >
+                                {error}
+                            </p>
                         ) : null}
-                    </div>
+                    </form>
                     <SheetFooter>
                         <Button
+                            type="button"
                             variant="outline"
                             onClick={() => setFormOpen(false)}
+                            disabled={processing}
                         >
                             Cancel
                         </Button>
-                        <Button disabled={processing} onClick={save}>
-                            Save markup
+                        <Button
+                            type="submit"
+                            form="markup-form"
+                            disabled={processing}
+                        >
+                            {processing ? 'Saving...' : 'Save markup'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -434,22 +539,37 @@ export default function MarkupsIndex({
             </Sheet>
             <ConfirmDialog
                 open={deleting !== null}
-                onOpenChange={(open) => !open && setDeleting(null)}
+                onOpenChange={(open) => {
+                    if (!open && !processing) {
+                        setDeleting(null);
+                    }
+                }}
+                destructive
                 title="Delete markup?"
                 description={`Delete ${deleting?.name ?? 'this markup'}? Items using it may also be removed.`}
-                confirmLabel="Delete"
+                confirmLabel={processing ? 'Deleting...' : 'Delete'}
                 processing={processing}
                 onConfirm={deleteOne}
             />
             <ConfirmDialog
                 open={bulkDeleteOpen}
-                onOpenChange={setBulkDeleteOpen}
+                onOpenChange={(open) => {
+                    if (!open && !processing) {
+                        setBulkDeleteOpen(false);
+                    }
+                }}
+                destructive
                 title="Delete selected markups?"
                 description="Items using these markups may also be affected."
-                confirmLabel="Delete selected"
+                confirmLabel={processing ? 'Deleting...' : 'Delete selected'}
                 processing={processing}
                 onConfirm={deleteSelected}
             />
+            {deleteError ? (
+                <p className="text-sm text-destructive" role="alert">
+                    {deleteError}
+                </p>
+            ) : null}
         </>
     );
 }

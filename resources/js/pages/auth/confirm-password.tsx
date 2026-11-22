@@ -37,6 +37,7 @@ export default function ConfirmPassword() {
                                 placeholder="Password"
                                 autoComplete="current-password"
                                 autoFocus
+                                required
                             />
 
                             <InputError message={errors.password} />
@@ -44,12 +45,15 @@ export default function ConfirmPassword() {
 
                         <div className="flex items-center">
                             <Button
+                                type="submit"
                                 className="w-full"
                                 disabled={processing}
                                 data-test="confirm-password-button"
                             >
                                 {processing && <Spinner />}
-                                Confirm password
+                                {processing
+                                    ? 'Confirming...'
+                                    : 'Confirm password'}
                             </Button>
                         </div>
                     </div>

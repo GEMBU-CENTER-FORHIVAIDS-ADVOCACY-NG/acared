@@ -1,3 +1,5 @@
+import './qrcode.d.ts';
+
 import type { Auth } from '@/types/auth';
 import type { Team } from '@/types/teams';
 

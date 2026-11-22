@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { edit } from '@/routes/security';
 import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
 import ManagePasskeys from '@/components/manage-passkeys';
@@ -20,6 +21,7 @@ type Props = {
 
 export default function Security(props: Props) {
     const passwordInput = useRef<HTMLInputElement>(null);
+    const passwordConfirmationInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
 
     return (
@@ -54,6 +56,10 @@ export default function Security(props: Props) {
                         if (errors.current_password) {
                             currentPasswordInput.current?.focus();
                         }
+
+                        if (errors.password_confirmation) {
+                            passwordConfirmationInput.current?.focus();
+                        }
                     }}
                     className="space-y-6 md:max-w-xl"
                 >
@@ -71,6 +77,7 @@ export default function Security(props: Props) {
                                     className="mt-1 block w-full"
                                     autoComplete="current-password"
                                     placeholder="Current password"
+                                    required
                                 />
 
                                 <InputError message={errors.current_password} />
@@ -87,6 +94,7 @@ export default function Security(props: Props) {
                                     autoComplete="new-password"
                                     placeholder="New password"
                                     passwordrules={props.passwordRules}
+                                    required
                                 />
 
                                 <InputError message={errors.password} />
@@ -99,11 +107,13 @@ export default function Security(props: Props) {
 
                                 <PasswordInput
                                     id="password_confirmation"
+                                    ref={passwordConfirmationInput}
                                     name="password_confirmation"
                                     className="mt-1 block w-full"
                                     autoComplete="new-password"
                                     placeholder="Confirm password"
                                     passwordrules={props.passwordRules}
+                                    required
                                 />
 
                                 <InputError
@@ -116,7 +126,8 @@ export default function Security(props: Props) {
                                     disabled={processing}
                                     data-test="update-password-button"
                                 >
-                                    Save
+                                    {processing && <Spinner />}
+                                    {processing ? 'Saving...' : 'Save'}
                                 </Button>
                             </div>
                         </>

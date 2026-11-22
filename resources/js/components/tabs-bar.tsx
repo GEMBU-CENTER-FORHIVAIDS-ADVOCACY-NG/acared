@@ -23,6 +23,7 @@ export default function TabsBar({
     return (
         <div
             role="tablist"
+            data-slot="tabs-bar"
             className={cn(
                 'flex items-center gap-1 overflow-x-auto rounded-lg bg-muted p-1',
                 className,

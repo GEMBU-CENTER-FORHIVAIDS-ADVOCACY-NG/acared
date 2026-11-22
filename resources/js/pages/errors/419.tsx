@@ -1,9 +1,35 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ClockAlert } from 'lucide-react';
-import { home } from '@/routes';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { dashboard, login } from '@/routes';
+import { index as teamsIndex } from '@/routes/teams';
+import type { Auth, Team } from '@/types';
 
 export default function PageExpired() {
+    const { auth, currentTeam } = usePage<{
+        auth?: Auth;
+        currentTeam?: Team | null;
+    }>().props;
+    const [reloading, setReloading] = useState(false);
+
+    const destination = auth?.user
+        ? currentTeam
+            ? dashboard(currentTeam.slug)
+            : teamsIndex()
+        : login();
+    const destinationLabel = auth?.user
+        ? currentTeam
+            ? 'Go to Dashboard'
+            : 'Go to Teams'
+        : 'Log in';
+
+    const refresh = () =>
+        router.reload({
+            onStart: () => setReloading(true),
+            onFinish: () => setReloading(false),
+        });
+
     return (
         <>
             <Head title="Page Expired" />
@@ -14,17 +40,27 @@ export default function PageExpired() {
                         <ClockAlert className="size-10 text-muted-foreground" />
                     </div>
 
-                    <h1 className="mb-2 text-2xl font-semibold">Page Expired</h1>
+                    <h1 className="mb-2 text-2xl font-semibold">
+                        Page Expired
+                    </h1>
 
                     <p className="mb-8 text-muted-foreground">
-                        The page has expired due to inactivity. Please refresh the page or return to
-                        the dashboard.
+                        The page has expired due to inactivity. Please refresh
+                        the page or return to the dashboard.
                     </p>
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                        <Link href={home()}>
-                            <Button>Go to Dashboard</Button>
-                        </Link>
+                        <Button asChild>
+                            <Link href={destination}>{destinationLabel}</Link>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={reloading}
+                            onClick={refresh}
+                        >
+                            {reloading ? 'Refreshing...' : 'Try again'}
+                        </Button>
                     </div>
                 </div>
             </div>

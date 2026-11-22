@@ -23,12 +23,24 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { show as laboratoryShow } from '@/routes/laboratories';
+import { laboratory as laboratoryReport } from '@/routes/reports';
 import { exportMethod as exportReport } from '@/routes/reports/laboratory';
 import type { LabReportFilters, LaboratoryPaginator, Team } from '@/types';
 
 type LayoutProps = {
     currentTeam?: Team | null;
 };
+
+function formatReportDateLocal(value: string | null): string {
+    if (!value) {
+        return formatReportDate(null);
+    }
+
+    return formatReportDate(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+    );
+}
 
 export default function LaboratoryReport({
     currencySymbol,
@@ -49,12 +61,19 @@ export default function LaboratoryReport({
     const [search, setSearch] = useState(filters.q);
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
+    const [isVisiting, setIsVisiting] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const hasInvalidRange = Boolean(from && to && from > to);
 
     function applyFilters(patch: Partial<LabReportFilters>) {
         const next = { ...filters, page: 1, ...patch };
+        if (next.from && next.to && next.from > next.to) {
+            return;
+        }
 
+        setIsVisiting(true);
         router.get(
-            `/${teamSlug}/reports/laboratory`,
+            laboratoryReport.url({ current_team: teamSlug }),
             {
                 q: next.q || undefined,
                 from: next.from || undefined,
@@ -62,28 +81,50 @@ export default function LaboratoryReport({
                 perPage: next.perPage,
                 page: next.page,
             },
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setIsVisiting(false),
+            },
         );
     }
+    const printReport = () => {
+        setIsPrinting(true);
+        const finishPrint = () => {
+            setIsPrinting(false);
+            window.removeEventListener('afterprint', finishPrint);
+        };
+        window.addEventListener('afterprint', finishPrint);
+        handlePrint();
+    };
 
     return (
         <>
             <Head title="Laboratory investigation" />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                <div className="no-print flex flex-wrap items-center justify-between gap-3">
                     <Heading
                         title={`${teamName} clinical report`}
                         description="Laboratory investigation — submitted requests only."
                     />
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={handlePrint}>
-                            Print
+                        <Button
+                            variant="outline"
+                            onClick={printReport}
+                            disabled={isPrinting}
+                        >
+                            {isPrinting ? 'Printing…' : 'Print'}
                         </Button>
                         <Button variant="outline" asChild>
                             <a
                                 href={exportReport.url(teamSlug, {
-                                    query: { q: search, from: from || null, to: to || null },
+                                    query: {
+                                        q: filters.q || undefined,
+                                        from: filters.from || undefined,
+                                        to: filters.to || undefined,
+                                    },
                                 })}
                             >
                                 Export CSV
@@ -92,7 +133,7 @@ export default function LaboratoryReport({
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 no-print">
+                <div className="no-print grid gap-3 sm:grid-cols-2">
                     <StatCard
                         title="Submitted"
                         value={summary.count.toLocaleString()}
@@ -105,22 +146,30 @@ export default function LaboratoryReport({
                     />
                 </div>
 
-                <div className="flex flex-wrap items-end gap-2 no-print">
+                <div className="no-print flex flex-wrap items-end gap-2">
                     <form
-                        className="flex items-center gap-2"
+                        className="flex items-end gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters({ q: search });
                         }}
                     >
-                        <Input
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search patient, consultant..."
-                            className="w-72"
-                        />
-                        <Button type="submit">
-                            Search
+                        <div className="space-y-2">
+                            <Label htmlFor="laboratory-report-search">
+                                Search
+                            </Label>
+                            <Input
+                                id="laboratory-report-search"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Search patient, consultant..."
+                                className="w-72"
+                            />
+                        </div>
+                        <Button type="submit" disabled={isVisiting}>
+                            {isVisiting ? 'Searching…' : 'Search'}
                         </Button>
                     </form>
                     <div className="space-y-2">
@@ -151,14 +200,25 @@ export default function LaboratoryReport({
                                 to: to || null,
                             })
                         }
+                        disabled={isVisiting || hasInvalidRange}
                     >
-                        Apply
+                        {isVisiting ? 'Applying…' : 'Apply'}
                     </Button>
+                    {hasInvalidRange && (
+                        <p
+                            role="alert"
+                            className="w-full text-xs text-destructive"
+                        >
+                            From date must be on or before to date.
+                        </p>
+                    )}
                 </div>
 
                 <div ref={printRef} className="report-print-container">
                     <h2 className="mb-3 text-lg font-semibold">
-                        Laboratory Investigation Report from {formatReportDate(from)} to {formatReportDate(to)}
+                        Laboratory Investigation Report from{' '}
+                        {formatReportDateLocal(from)} to{' '}
+                        {formatReportDateLocal(to)}
                     </h2>
                     <Card>
                         <CardContent className="p-0">
@@ -182,13 +242,16 @@ export default function LaboratoryReport({
                                                 colSpan={6}
                                                 className="py-8 text-center text-muted-foreground"
                                             >
-                                                No submitted laboratory requests found.
+                                                No submitted laboratory requests
+                                                found.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         laboratories.data.map((lab) => (
                                             <TableRow key={lab.id}>
-                                                <TableCell>{lab.patientId}</TableCell>
+                                                <TableCell>
+                                                    {lab.patientId}
+                                                </TableCell>
                                                 <TableCell>
                                                     {lab.patientName ?? '—'}
                                                 </TableCell>
@@ -196,7 +259,10 @@ export default function LaboratoryReport({
                                                     {lab.doctorName ?? '—'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="secondary" className="capitalize">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="capitalize"
+                                                    >
                                                         {lab.status}
                                                     </Badge>
                                                 </TableCell>
@@ -211,7 +277,14 @@ export default function LaboratoryReport({
                                                         variant="secondary"
                                                     >
                                                         <Link
-                                                            href={`/${teamSlug}/laboratories/${lab.id}`}
+                                                            href={laboratoryShow.url(
+                                                                {
+                                                                    current_team:
+                                                                        teamSlug,
+                                                                    laboratory:
+                                                                        lab.id,
+                                                                },
+                                                            )}
                                                         >
                                                             Open
                                                         </Link>
@@ -226,7 +299,10 @@ export default function LaboratoryReport({
                     </Card>
                 </div>
 
-                <div className="no-print">
+                <div
+                    className={`no-print ${isVisiting ? 'pointer-events-none opacity-60' : ''}`}
+                    aria-busy={isVisiting}
+                >
                     <Pagination
                         meta={{
                             currentPage: laboratories.current_page,

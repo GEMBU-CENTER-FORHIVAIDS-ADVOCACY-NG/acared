@@ -199,6 +199,14 @@ class Patient extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Patient $patient): void {
+            $patient->fullName = trim(implode(' ', array_filter([
+                $patient->firstName,
+                $patient->middleName,
+                $patient->lastName,
+            ], fn ($part) => $part !== null && $part !== '')));
+        });
+
         static::addGlobalScope('team', function (Builder $query) {
             if (auth()->hasUser() && auth()->user()->currentTeam) {
                 $query->whereBelongsTo(auth()->user()->currentTeam);

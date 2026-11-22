@@ -1,7 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
+import TabsBar from '@/components/tabs-bar';
 import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
 import { TreatmentViewModal } from '@/components/treatment-view-modal';
 import { PrescriptionViewModal } from '@/components/prescription-view-modal';
@@ -10,18 +13,9 @@ import { ComplaintViewModal } from '@/components/complaint-view-modal';
 import { ExaminationViewModal } from '@/components/examination-view-modal';
 import { DiagnosisViewModal } from '@/components/diagnosis-view-modal';
 import { AdmissionViewModal } from '@/components/admission-view-modal';
-import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     show as wardRoundShow,
     view as wardRoundView,
@@ -90,10 +84,12 @@ const SECTIONS: { key: ConsultationSection; label: string }[] = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-    warning: 'bg-amber-100 text-amber-800',
-    info: 'bg-sky-100 text-sky-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    danger: 'bg-rose-100 text-rose-800',
+    warning:
+        'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+    success:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    danger: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
     gray: 'bg-muted text-muted-foreground',
 };
 
@@ -115,36 +111,50 @@ export default function WardRoundView({
     );
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
-    const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
-    const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
+    const [viewVitalSigns, setViewVitalSigns] =
+        useState<ConsultationRecord | null>(null);
+    const [viewTreatment, setViewTreatment] =
+        useState<ConsultationRecord | null>(null);
+    const [viewPrescription, setViewPrescription] =
+        useState<ConsultationRecord | null>(null);
     const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
-    const [viewComplaint, setViewComplaint] = useState<ConsultationRecord | null>(null);
+    const [viewComplaint, setViewComplaint] =
+        useState<ConsultationRecord | null>(null);
     const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
     const [walletError, setWalletError] = useState<string | null>(null);
-    const [viewExamination, setViewExamination] = useState<ConsultationRecord | null>(null);
-    const [viewDiagnosis, setViewDiagnosis] = useState<ConsultationRecord | null>(null);
-    const [viewAdmission, setViewAdmission] = useState<ConsultationRecord | null>(null);
+    const [dischargeProcessing, setDischargeProcessing] = useState(false);
+    const [viewExamination, setViewExamination] =
+        useState<ConsultationRecord | null>(null);
+    const [viewDiagnosis, setViewDiagnosis] =
+        useState<ConsultationRecord | null>(null);
+    const [viewAdmission, setViewAdmission] =
+        useState<ConsultationRecord | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [recordToDelete, setRecordToDelete] =
+        useState<ConsultationRecord | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
 
     const recordType = (
         section === 'overview' ? null : section
     ) as ConsultationRecordType | null;
 
     const isPaginated = recordType
-        ? typeof records[recordType] !== 'undefined'
-            && 'data' in records[recordType]
-            && 'currentPage' in records[recordType]
+        ? typeof records[recordType] !== 'undefined' &&
+          'data' in records[recordType] &&
+          'currentPage' in records[recordType]
         : false;
 
     const paginatedRecords: PaginatedConsultationRecords | null = isPaginated
-        ? records[recordType as keyof typeof records] as PaginatedConsultationRecords
+        ? (records[
+              recordType as keyof typeof records
+          ] as PaginatedConsultationRecords)
         : null;
 
-    const currentRecords: ConsultationRecord[] = isPaginated
+    const currentRecords: ConsultationRecord[] = paginatedRecords
         ? paginatedRecords.data
         : recordType
-            ? (records[recordType] as ConsultationRecord[])
-            : [];
+          ? (records[recordType] as ConsultationRecord[])
+          : [];
 
     function applyPagination(page: number, perPage?: number) {
         if (!recordType) {
@@ -154,16 +164,19 @@ export default function WardRoundView({
         const currentPerPage = perPage ?? pagination?.perPage ?? 25;
 
         router.get(
-            wardRoundView.url({
-                current_team: teamSlug,
-                admission: admission.id,
-                section: recordType,
-            }, {
-                query: {
-                    page,
-                    perPage: currentPerPage,
+            wardRoundView.url(
+                {
+                    current_team: teamSlug,
+                    admission: admission.id,
+                    section: recordType,
                 },
-            }),
+                {
+                    query: {
+                        page,
+                        perPage: currentPerPage,
+                    },
+                },
+            ),
             {},
             { preserveState: false, preserveScroll: true, replace: true },
         );
@@ -255,27 +268,74 @@ export default function WardRoundView({
         }
     }
 
-    function destroy(record: ConsultationRecord) {
-        if (!recordType) {
+    function destroyRecord(record: ConsultationRecord) {
+        setActionError(null);
+        setRecordToDelete(record);
+    }
+
+    function confirmDelete() {
+        if (!recordType || !recordToDelete) {
             return;
         }
+
+        setDeleteProcessing(true);
+        setActionError(null);
 
         router.delete(
             destroy.url({
                 current_team: teamSlug,
                 admission: admission.id,
                 type: recordType,
-                record: record.id,
+                record: recordToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setRecordToDelete(null),
+                onFinish: () => setDeleteProcessing(false),
+            },
+        );
+    }
+
+    function openDischarge() {
+        if (admission.patientWallet < 0) {
+            setWalletError(
+                `Cannot discharge: patient has an outstanding balance of ${currencySymbol}${Math.abs(admission.patientWallet).toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
+            );
+            return;
+        }
+
+        setWalletError(null);
+        setDischargeModalOpen(true);
+    }
+
+    function confirmDischarge() {
+        setDischargeProcessing(true);
+        setWalletError(null);
+
+        router.patch(
+            discharge.url({
+                current_team: teamSlug,
+                admission: admission.id,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setDischargeModalOpen(false),
+                onError: (errors: Record<string, string>) => {
+                    setWalletError(errors.message ?? 'Something went wrong.');
+                },
+                onFinish: () => setDischargeProcessing(false),
+            },
         );
     }
 
     return (
         <>
-            <Head
-                title={`${admission.patientId} - Ward round`}
-            />
+            <Head title={`${admission.patientId} - Ward round`} />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -289,10 +349,8 @@ export default function WardRoundView({
                             <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => {
-                                    setWalletError(null);
-                                    setDischargeModalOpen(true);
-                                }}
+                                disabled={dischargeProcessing}
+                                onClick={openDischarge}
                             >
                                 Discharge
                             </Button>
@@ -310,20 +368,16 @@ export default function WardRoundView({
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    {SECTIONS.map((item) => (
-                        <Button
-                            key={item.key}
-                            size="sm"
-                            variant={
-                                item.key === section ? 'default' : 'secondary'
-                            }
-                            onClick={() => switchSection(item.key)}
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
-                </div>
+                <TabsBar
+                    items={SECTIONS}
+                    value={section}
+                    onChange={(key) =>
+                        switchSection(key as ConsultationSection)
+                    }
+                />
+
+                {actionError ? <AlertError errors={[actionError]} /> : null}
+                {walletError ? <AlertError errors={[walletError]} /> : null}
 
                 {section === 'overview' ? (
                     <Card>
@@ -343,17 +397,17 @@ export default function WardRoundView({
                             />
                             <DetailRow label="Gender" value={detail.gender} />
                             <DetailRow label="Age" value={detail.age} />
-                            <DetailRow label="Category" value={detail.category} />
+                            <DetailRow
+                                label="Category"
+                                value={detail.category}
+                            />
                             <DetailRow label="Ward" value={detail.wardName} />
                             <DetailRow label="Bed" value={detail.bedName} />
                             <DetailRow
                                 label="Doctor"
                                 value={detail.doctorName}
                             />
-                            <DetailRow
-                                label="Status"
-                                value={detail.status}
-                            />
+                            <DetailRow label="Status" value={detail.status} />
                             <DetailRow
                                 label="Admitted"
                                 value={
@@ -407,17 +461,37 @@ export default function WardRoundView({
                                                     recordType as ConsultationRecordType
                                                 }
                                                 record={record}
-                                                currencySymbol={currencySymbol}
                                                 onEdit={() => openEdit(record)}
-                                                onDelete={() => destroy(record)}
-                                                onViewVitalSigns={(r) => setViewVitalSigns(r)}
-                                                onViewTreatment={(r) => setViewTreatment(r)}
-                                                onViewPrescription={(r) => setViewPrescription(r)}
-                                                onViewLaboratory={(id) => setViewLaboratory(id)}
-                                                onViewComplaint={(r) => setViewComplaint(r)}
-                                                onViewExamination={(r) => setViewExamination(r)}
-                                                onViewDiagnosis={(r) => setViewDiagnosis(r)}
-                                                onViewAdmission={(r) => setViewAdmission(r)}
+                                                onDelete={() =>
+                                                    destroyRecord(record)
+                                                }
+                                                deleteProcessing={
+                                                    deleteProcessing
+                                                }
+                                                onViewVitalSigns={(r) =>
+                                                    setViewVitalSigns(r)
+                                                }
+                                                onViewTreatment={(r) =>
+                                                    setViewTreatment(r)
+                                                }
+                                                onViewPrescription={(r) =>
+                                                    setViewPrescription(r)
+                                                }
+                                                onViewLaboratory={(id) =>
+                                                    setViewLaboratory(id)
+                                                }
+                                                onViewComplaint={(r) =>
+                                                    setViewComplaint(r)
+                                                }
+                                                onViewExamination={(r) =>
+                                                    setViewExamination(r)
+                                                }
+                                                onViewDiagnosis={(r) =>
+                                                    setViewDiagnosis(r)
+                                                }
+                                                onViewAdmission={(r) =>
+                                                    setViewAdmission(r)
+                                                }
                                             />
                                         ))}
                                     </div>
@@ -538,72 +612,38 @@ export default function WardRoundView({
                 }}
             />
 
-            <Dialog
+            <ConfirmDialog
                 open={dischargeModalOpen}
                 onOpenChange={(open) => {
-                    setDischargeModalOpen(open);
-                    if (!open) {
+                    if (!open && !dischargeProcessing) {
+                        setDischargeModalOpen(false);
                         setWalletError(null);
                     }
                 }}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirm discharge</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to discharge{' '}
-                            <strong>{admission.patientName ?? admission.patientId}</strong>?
-                        </DialogDescription>
-                    </DialogHeader>
-                    {walletError && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-                            {walletError}
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setDischargeModalOpen(false);
-                                setWalletError(null);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => {
-                                if (admission.patientWallet < 0) {
-                                    setWalletError(
-                                        `Cannot discharge: patient has an outstanding balance of ${currencySymbol}${Math.abs(admission.patientWallet).toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
-                                    );
-                                    return;
-                                }
-                                router.patch(
-                                    discharge.url({
-                                        current_team: teamSlug,
-                                        admission: admission.id,
-                                    }),
-                                    {},
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: () => {
-                                            setDischargeModalOpen(false);
-                                        },
-                                        onError: (errors) => {
-                                            if (errors.message) {
-                                                setWalletError(errors.message);
-                                            }
-                                        },
-                                    },
-                                );
-                            }}
-                        >
-                            Discharge
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                title="Confirm discharge"
+                description={`Are you sure you want to discharge ${admission.patientName ?? admission.patientId}?`}
+                confirmLabel={
+                    dischargeProcessing ? 'Discharging...' : 'Discharge'
+                }
+                destructive
+                processing={dischargeProcessing}
+                onConfirm={confirmDischarge}
+            />
+
+            <ConfirmDialog
+                open={recordToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setRecordToDelete(null);
+                    }
+                }}
+                title="Delete record"
+                description={`Delete this ${recordType ?? 'ward round'} record? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={confirmDelete}
+            />
         </>
     );
 }
@@ -617,11 +657,20 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
     );
 }
 
-const isDisabledForEdit = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+const isDisabledForEdit = (
+    type: ConsultationRecordType,
+    status: string | null | undefined,
+): boolean => {
     if (!status) {
         return false;
     }
-    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    const generalDisabled = [
+        'paid',
+        'submitted',
+        'dispensed',
+        'completed',
+        'cancelled',
+    ];
     if (generalDisabled.includes(status)) {
         return true;
     }
@@ -634,11 +683,20 @@ const isDisabledForEdit = (type: ConsultationRecordType, status: string | null |
     return false;
 };
 
-const isDisabledForDelete = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+const isDisabledForDelete = (
+    type: ConsultationRecordType,
+    status: string | null | undefined,
+): boolean => {
     if (!status) {
         return false;
     }
-    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    const generalDisabled = [
+        'paid',
+        'submitted',
+        'dispensed',
+        'completed',
+        'cancelled',
+    ];
     if (generalDisabled.includes(status)) {
         return true;
     }
@@ -654,9 +712,9 @@ const isDisabledForDelete = (type: ConsultationRecordType, status: string | null
 function RecordCard({
     type,
     record,
-    currencySymbol,
     onEdit,
     onDelete,
+    deleteProcessing,
     onViewVitalSigns,
     onViewTreatment,
     onViewPrescription,
@@ -668,9 +726,9 @@ function RecordCard({
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
-    currencySymbol: string;
     onEdit: () => void;
     onDelete: () => void;
+    deleteProcessing: boolean;
     onViewVitalSigns: (record: ConsultationRecord) => void;
     onViewTreatment: (record: ConsultationRecord) => void;
     onViewPrescription: (record: ConsultationRecord) => void;
@@ -784,8 +842,11 @@ function RecordCard({
                 </Button>
                 <Button
                     size="sm"
-                    variant="outline"
-                    disabled={isDisabledForDelete(type, record.status)}
+                    variant="destructive"
+                    disabled={
+                        isDisabledForDelete(type, record.status) ||
+                        deleteProcessing
+                    }
                     onClick={onDelete}
                 >
                     Delete

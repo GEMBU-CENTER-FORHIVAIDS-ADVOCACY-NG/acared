@@ -20,7 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { view } from '@/routes/nursing/records';
+import { history, view } from '@/routes/nursing/records';
 import type { NursingStatusOption, DoctorOption } from '@/types';
 
 type RecordItem = {
@@ -53,10 +53,12 @@ type Filters = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-    warning: 'bg-amber-100 text-amber-800',
-    info: 'bg-sky-100 text-sky-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    danger: 'bg-rose-100 text-rose-800',
+    warning:
+        'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+    success:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    danger: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
     gray: 'bg-muted text-muted-foreground',
 };
 
@@ -77,7 +79,7 @@ export default function AncHistoryIndex({
     function applyFilters(next: Partial<Filters>) {
         const merged = { ...filters, page: 1, ...next };
 
-        const historyRoute = `/nursing/records/history`;
+        const historyRoute = history.url({ current_team: teamSlug });
 
         router.get(
             historyRoute,
@@ -104,6 +106,7 @@ export default function AncHistoryIndex({
                     />
                     <div className="flex items-center gap-2">
                         <SelectNative
+                            aria-label="Filter by status"
                             value={filters.status}
                             onChange={(event) =>
                                 applyFilters({ status: event.target.value })
@@ -119,6 +122,7 @@ export default function AncHistoryIndex({
                             ))}
                         </SelectNative>
                         <SelectNative
+                            aria-label="Filter by nurse"
                             value={filters.nurse_id ?? ''}
                             onChange={(event) =>
                                 applyFilters({
@@ -144,7 +148,7 @@ export default function AncHistoryIndex({
                     <CardHeader>
                         <CardTitle>All ANC records</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -215,20 +219,27 @@ export default function AncHistoryIndex({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
+                                                            aria-label={`Actions for ${row.patientId}`}
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
                                                             <Link
                                                                 href={view.url({
-                                                                    current_team: teamSlug,
-                                                                    nursing: row.id,
+                                                                    current_team:
+                                                                        teamSlug,
+                                                                    nursing:
+                                                                        row.id,
                                                                 })}
                                                             >
                                                                 <Eye className="mr-2 h-4 w-4" />
@@ -268,8 +279,8 @@ AncHistoryIndex.layout = (props: {
         {
             title: 'ANC History',
             href: props.currentTeam
-                ? `${props.currentTeam.slug}/nursing/records/history`
-                : '/nursing/records/history',
+                ? history.url(props.currentTeam.slug)
+                : history.url(''),
         },
     ],
 });

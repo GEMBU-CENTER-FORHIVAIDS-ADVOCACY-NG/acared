@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admission;
 use App\Models\Appointment;
 use App\Models\Billing;
 use App\Models\Consultation;
@@ -622,29 +623,23 @@ class NursingController extends Controller
             'weekdays' => ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
             'days' => $days,
             'selectedDate' => $selectedDate,
-            'timeSlots' => array_map(fn (array $slot) => [
-                'label' => $slot['label'],
-                'status' => $slot['status'],
-            ], $slotGrid),
             'availableCount' => collect($slotGrid)->where('status', 'available')->count(),
             'monthStats' => [
                 'scheduled' => $monthNursings->where('status', 'scheduled')->count(),
                 'started' => $monthNursings->where('status', 'in_progress')->count(),
                 'completed' => $monthNursings->where('status', 'completed')->count(),
             ],
-            'upcoming' => Nursing::query()
-                ->when($user->hasRole('Nurse'), fn (Builder $query) => $query->where('nurse_id', $user->getKey()))
-                ->whereIn('status', ['scheduled', 'in_progress'])
-                ->with(['patient', 'nurse'])
-                ->where('starts_at', '>=', $now->startOfDay())
-                ->orderBy('starts_at')
-                ->limit(5)
+            'admittedPatients' => Admission::query()
+                ->where('status', 'admitted')
+                ->whereHas('patient')
+                ->with(['patient', 'ward', 'bed'])
+                ->orderByDesc('created_at')
                 ->get()
-                ->map(fn (Nursing $nursing) => [
-                    'id' => $nursing->getKey(),
-                    'name' => $nursing->patient_id.' - '.($nursing->patient->fullName ?? 'Unknown patient'),
-                    'meta' => ($nursing->starts_at?->format('D M j, g:i A') ?? '').' — '.($nursing->nurse->name ?? 'Unassigned'),
-                    'status' => $nursing->status,
+                ->map(fn (Admission $admission) => [
+                    'id' => $admission->getKey(),
+                    'name' => $admission->patient?->fullName ?? 'Unknown patient',
+                    'meta' => 'Hospital No: '.$admission->patient_id,
+                    'wardBed' => ($admission->ward?->name ?? 'No ward').' · '.($admission->bed?->name ?? 'No bed'),
                 ])
                 ->values()
                 ->all(),

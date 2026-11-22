@@ -1,7 +1,15 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type KeyboardEvent,
+} from 'react';
 import BillingController from '@/actions/App/Http/Controllers/BillingController';
+import AlertError from '@/components/alert-error';
 import ConsultationDayTimeline from '@/components/consultation-day-timeline';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +26,9 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { index, view } from '@/routes/consultations';
+import { home } from '@/routes';
+import { view as consultantWardRoundView } from '@/routes/consultant/ward-rounds';
+import { index } from '@/routes/consultations';
 import type {
     ConsultationDailyTimelineEvent,
     ConsultationFilters,
@@ -26,15 +36,14 @@ import type {
     ConsultationStatusOption,
     DoctorOption,
 } from '@/types';
-import type {
-    BillingPatientOption,
-    NewBillingOptions,
-} from '@/types/finance';
+import type { BillingPatientOption, NewBillingOptions } from '@/types/finance';
 
 type ServiceLineRow = {
     price_list_id: string;
     unitPrice: string;
 };
+
+const ADMITTED_PATIENTS_PER_PAGE = 5;
 
 type Props = {
     filters: ConsultationFilters;
@@ -43,14 +52,6 @@ type Props = {
     dailyTimeline: ConsultationDailyTimelineEvent[];
     sidebar: ConsultationSidebar;
     newBillingOptions: NewBillingOptions;
-};
-
-const STATUS_BADGE: Record<string, string> = {
-    warning: 'bg-amber-100 text-amber-800',
-    info: 'bg-sky-100 text-sky-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    danger: 'bg-rose-100 text-rose-800',
-    gray: 'bg-muted text-muted-foreground',
 };
 
 export default function ConsultationsIndex({
@@ -62,28 +63,40 @@ export default function ConsultationsIndex({
     newBillingOptions,
 }: Props) {
     const { currentTeam } = usePage().props;
-    const { currencySymbol = '₦' } = usePage().props;
+    const currencySymbolProps = usePage().props.currencySymbol;
+    const currencySymbol =
+        typeof currencySymbolProps === 'string' ? currencySymbolProps : '₦';
     const teamSlug = currentTeam?.slug;
     const [search, setSearch] = useState(filters.q);
+    const [admittedPatientSearch, setAdmittedPatientSearch] = useState('');
+    const [admittedPatientsPage, setAdmittedPatientsPage] = useState(1);
 
-    function applySearch() {
-        router.get(
-            index.url(teamSlug, {
-                query: {
-                    q: search || undefined,
-                },
-            }),
-            {},
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
-    }
+    const admittedPatientQuery = admittedPatientSearch.trim().toLowerCase();
+    const filteredAdmittedPatients = sidebar.admittedPatients.filter((item) =>
+        [item.name, item.meta, item.wardBed].some((value) =>
+            value.toLowerCase().includes(admittedPatientQuery),
+        ),
+    );
+    const admittedPatientsLastPage = Math.max(
+        1,
+        Math.ceil(filteredAdmittedPatients.length / ADMITTED_PATIENTS_PER_PAGE),
+    );
+    const currentAdmittedPatientsPage = Math.min(
+        admittedPatientsPage,
+        admittedPatientsLastPage,
+    );
+    const paginatedAdmittedPatients = filteredAdmittedPatients.slice(
+        (currentAdmittedPatientsPage - 1) * ADMITTED_PATIENTS_PER_PAGE,
+        currentAdmittedPatientsPage * ADMITTED_PATIENTS_PER_PAGE,
+    );
 
-    function applyFilters(next: Partial<ConsultationFilters>) {
+    function visit(next: Partial<ConsultationFilters> = {}) {
         const merged = { ...filters, ...next };
 
         router.get(
             index.url(teamSlug, {
                 query: {
+                    q: merged.q || undefined,
                     status: merged.status || undefined,
                     doctor_id: merged.doctor_id ?? undefined,
                     date: merged.date || undefined,
@@ -94,6 +107,14 @@ export default function ConsultationsIndex({
         );
     }
 
+    function applySearch() {
+        visit({ q: search });
+    }
+
+    function applyFilters(next: Partial<ConsultationFilters>) {
+        visit(next);
+    }
+
     // New Billing state
     const [billingOpen, setBillingOpen] = useState(false);
     const [billingLines, setBillingLines] = useState<ServiceLineRow[]>([
@@ -101,51 +122,73 @@ export default function ConsultationsIndex({
     ]);
     const [billingProcessing, setBillingProcessing] = useState(false);
     const [billingError, setBillingError] = useState<string | null>(null);
-    const [billingPatientSearchQuery, setBillingPatientSearchQuery] = useState('');
-    const [billingPatientSearchResults, setBillingPatientSearchResults] = useState<BillingPatientOption[]>([]);
-    const [billingPatientSearchOpen, setBillingPatientSearchOpen] = useState(false);
-    const [billingPatientSearchLoading, setBillingPatientSearchLoading] = useState(false);
-    const [billingExistingPatientId, setBillingExistingPatientId] = useState('');
-    const [billingSelectedPatientLabel, setBillingSelectedPatientLabel] = useState('');
+    const [billingPatientSearchQuery, setBillingPatientSearchQuery] =
+        useState('');
+    const [billingPatientSearchResults, setBillingPatientSearchResults] =
+        useState<BillingPatientOption[]>([]);
+    const [billingPatientSearchOpen, setBillingPatientSearchOpen] =
+        useState(false);
+    const [
+        billingPatientSearchActiveIndex,
+        setBillingPatientSearchActiveIndex,
+    ] = useState(0);
+    const [billingPatientSearchLoading, setBillingPatientSearchLoading] =
+        useState(false);
+    const [billingExistingPatientId, setBillingExistingPatientId] =
+        useState('');
+    const [billingSelectedPatientLabel, setBillingSelectedPatientLabel] =
+        useState('');
     const billingPatientSearchInputRef = useRef<HTMLInputElement>(null);
     const billingPatientSearchContainerRef = useRef<HTMLDivElement>(null);
-    const billingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const billingDebounceTimerRef = useRef<ReturnType<
+        typeof setTimeout
+    > | null>(null);
 
     const billingTotal = useMemo(
         () =>
-            billingLines.reduce((sum, line) => sum + (Number(line.unitPrice) || 0), 0),
+            billingLines.reduce(
+                (sum, line) => sum + (Number(line.unitPrice) || 0),
+                0,
+            ),
         [billingLines],
     );
 
     // Debounced search for patients
-    const searchBillingPatients = useCallback((query: string) => {
-        if (billingDebounceTimerRef.current) {
-            clearTimeout(billingDebounceTimerRef.current);
-        }
+    const searchBillingPatients = useCallback(
+        (query: string) => {
+            if (billingDebounceTimerRef.current) {
+                clearTimeout(billingDebounceTimerRef.current);
+            }
 
-        if (!query.trim()) {
-            setBillingPatientSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setBillingPatientSearchResults([]);
+                setBillingPatientSearchActiveIndex(0);
+                return;
+            }
 
-        setBillingPatientSearchLoading(true);
-        billingDebounceTimerRef.current = setTimeout(() => {
-            const url = BillingController.searchPatients.url(teamSlug, { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setBillingPatientSearchResults(results);
-                    setBillingPatientSearchLoading(false);
-                })
-                .catch(() => {
-                    setBillingPatientSearchLoading(false);
+            setBillingPatientSearchLoading(true);
+            billingDebounceTimerRef.current = setTimeout(() => {
+                const url = BillingController.searchPatients.url(teamSlug, {
+                    query: { q: query },
                 });
-        }, 300);
-    }, [teamSlug]);
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then((res) => res.json())
+                    .then((results) => {
+                        setBillingPatientSearchResults(results);
+                        setBillingPatientSearchActiveIndex(0);
+                        setBillingPatientSearchLoading(false);
+                    })
+                    .catch(() => {
+                        setBillingPatientSearchLoading(false);
+                    });
+            }, 300);
+        },
+        [teamSlug],
+    );
 
     // Close billing patient dropdown on outside click
     useEffect(() => {
@@ -156,7 +199,9 @@ export default function ConsultationsIndex({
         const handleClick = (event: MouseEvent) => {
             if (
                 billingPatientSearchContainerRef.current &&
-                !billingPatientSearchContainerRef.current.contains(event.target as Node)
+                !billingPatientSearchContainerRef.current.contains(
+                    event.target as Node,
+                )
             ) {
                 setBillingPatientSearchOpen(false);
             }
@@ -180,6 +225,7 @@ export default function ConsultationsIndex({
         setBillingSelectedPatientLabel('');
         setBillingPatientSearchQuery('');
         setBillingPatientSearchResults([]);
+        setBillingPatientSearchActiveIndex(0);
         setBillingPatientSearchOpen(false);
         setBillingLines([{ price_list_id: '', unitPrice: '' }]);
         setBillingError(null);
@@ -194,10 +240,56 @@ export default function ConsultationsIndex({
         setBillingLines((current) =>
             current.map((row, rowIndex) =>
                 rowIndex === index
-                    ? { ...row, price_list_id: value, unitPrice: service ? String(service.price) : '' }
+                    ? {
+                          ...row,
+                          price_list_id: value,
+                          unitPrice: service ? String(service.price) : '',
+                      }
                     : row,
             ),
         );
+    }
+
+    function selectBillingPatient(option: BillingPatientOption) {
+        setBillingExistingPatientId(option.slug);
+        setBillingSelectedPatientLabel(option.label);
+        setBillingPatientSearchQuery('');
+        setBillingPatientSearchResults([]);
+        setBillingPatientSearchActiveIndex(0);
+        setBillingPatientSearchOpen(false);
+    }
+
+    function handleBillingPatientKeyDown(
+        event: KeyboardEvent<HTMLInputElement>,
+    ) {
+        if (billingExistingPatientId) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setBillingPatientSearchOpen(true);
+            setBillingPatientSearchActiveIndex((current) =>
+                Math.min(
+                    current + 1,
+                    Math.max(billingPatientSearchResults.length - 1, 0),
+                ),
+            );
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setBillingPatientSearchActiveIndex((current) =>
+                Math.max(current - 1, 0),
+            );
+        } else if (event.key === 'Enter') {
+            const option =
+                billingPatientSearchResults[billingPatientSearchActiveIndex];
+            if (billingPatientSearchOpen && option) {
+                event.preventDefault();
+                selectBillingPatient(option);
+            }
+        } else if (event.key === 'Escape') {
+            setBillingPatientSearchOpen(false);
+        }
     }
 
     function submitBilling() {
@@ -321,147 +413,206 @@ export default function ConsultationsIndex({
                     ))}
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="lg:col-span-2">
+                <div className="grid gap-6 lg:grid-cols-4">
+                    <Card className="min-w-0 lg:col-span-3">
                         <CardHeader>
                             <CardTitle>
                                 {sidebar.calendarLabel}'s schedule
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ConsultationDayTimeline events={dailyTimeline} />
+                            <ConsultationDayTimeline
+                                events={dailyTimeline}
+                                board
+                            />
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>
-                                {sidebar.calendarLabel}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <form
-                                className="flex items-center gap-2"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    applySearch();
-                                }}
-                            >
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <Input
-                                        className="pl-10"
-                                        value={search}
-                                        placeholder="Search visits..."
-                                        onChange={(event) => setSearch(event.target.value)}
-                                    />
-                                </div>
-                                <Button type="submit" size="sm" className="shrink-0" variant="default">
-                                    <Search className="h-4 w-4" />
-                                </Button>
-                            </form>
-
-                            <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                                {sidebar.weekdays.map((day) => (
-                                    <span
-                                        key={day}
-                                        className="text-muted-foreground"
-                                    >
-                                        {day}
-                                    </span>
-                                ))}
-                                {sidebar.days.map((day) => (
-                                    <span
-                                        key={day.date}
-                                        onClick={() => {
-                                            if (day.inMonth) {
-                                                applyFilters({ date: day.date });
+                    <div className="grid content-start gap-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>{sidebar.calendarLabel}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <form
+                                    className="flex items-center gap-2"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        applySearch();
+                                    }}
+                                >
+                                    <div className="relative flex-1">
+                                        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Input
+                                            className="pl-10"
+                                            value={search}
+                                            placeholder="Search visits..."
+                                            onChange={(event) =>
+                                                setSearch(event.target.value)
                                             }
-                                        }}
-                                        className={`flex h-8 cursor-default items-center justify-center rounded-md ${
-                                            day.isToday
-                                                ? 'bg-primary text-primary-foreground'
-                                                : day.hasAppointments
-                                                  ? 'bg-muted font-medium'
-                                                  : ''
-                                        } ${day.inMonth ? 'cursor-pointer hover:bg-accent' : 'opacity-40'} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                                        />
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        size="sm"
+                                        className="shrink-0"
+                                        variant="default"
+                                        aria-label="Search visits"
                                     >
-                                        {day.day}
-                                    </span>
-                                ))}
-                            </div>
+                                        <Search className="h-4 w-4" />
+                                    </Button>
+                                </form>
 
-                            <div>
-                                <p className="mb-2 text-sm font-medium">
-                                    Today&apos;s slots
-                                </p>
-                                <div className="flex flex-wrap gap-1">
-                                    {sidebar.timeSlots.map((slot) => (
+                                <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                                    {sidebar.weekdays.map((day) => (
                                         <span
-                                            key={slot.label}
-                                            className={`rounded px-2 py-0.5 text-xs ${
-                                                slot.status === 'available'
-                                                    ? 'bg-emerald-100 text-emerald-800'
-                                                    : slot.status === 'booked'
-                                                      ? 'bg-rose-100 text-rose-800'
-                                                      : STATUS_BADGE.gray
-                                            }`}
+                                            key={day}
+                                            className="text-muted-foreground"
                                         >
-                                            {slot.label}
+                                            {day}
                                         </span>
                                     ))}
+                                    {sidebar.days.map((day) => (
+                                        <button
+                                            key={day.date}
+                                            type="button"
+                                            disabled={!day.inMonth}
+                                            aria-label={`${day.date}${day.isToday ? ' (today)' : ''}${day.hasAppointments ? ', has appointments' : ''}`}
+                                            aria-pressed={
+                                                sidebar.selectedDate ===
+                                                day.date
+                                            }
+                                            onClick={() =>
+                                                applyFilters({ date: day.date })
+                                            }
+                                            className={`flex h-8 items-center justify-center rounded-md ${
+                                                day.isToday
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : day.hasAppointments
+                                                      ? 'bg-muted font-medium'
+                                                      : ''
+                                            } ${day.inMonth ? 'cursor-pointer hover:bg-accent' : 'cursor-default opacity-40'} ${sidebar.selectedDate === day.date ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                                        >
+                                            {day.day}
+                                        </button>
+                                    ))}
                                 </div>
-                            </div>
+                            </CardContent>
+                        </Card>
 
-                            <div>
-                                <p className="mb-2 text-sm font-medium">
-                                    Upcoming
-                                </p>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Patients on admission</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="relative">
+                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        aria-label="Search admitted patients"
+                                        className="pl-9"
+                                        value={admittedPatientSearch}
+                                        placeholder="Search admitted patients..."
+                                        onChange={(event) => {
+                                            setAdmittedPatientSearch(
+                                                event.target.value,
+                                            );
+                                            setAdmittedPatientsPage(1);
+                                        }}
+                                    />
+                                </div>
                                 <ul className="space-y-2">
-                                    {sidebar.upcoming.length === 0 ? (
+                                    {filteredAdmittedPatients.length === 0 ? (
                                         <li className="text-sm text-muted-foreground">
-                                            No upcoming consultations.
+                                            {admittedPatientQuery
+                                                ? 'No admitted patients match your search.'
+                                                : 'No patients currently on admission.'}
                                         </li>
                                     ) : (
-                                        sidebar.upcoming.map((item) => (
-                                            <li
-                                                key={item.id}
-                                                className="flex items-start justify-between gap-2"
-                                            >
-                                                <div>
+                                        paginatedAdmittedPatients.map(
+                                            (item) => (
+                                                <li
+                                                    key={item.id}
+                                                    className="min-w-0"
+                                                >
                                                     <Link
-                                                        href={view.url({
-                                                            current_team:
-                                                                teamSlug,
-                                                            consultation:
-                                                                 item.id,
-                                                        })}
-                                                        className="text-sm font-medium hover:underline"
+                                                        href={consultantWardRoundView.url(
+                                                            {
+                                                                current_team:
+                                                                    teamSlug,
+                                                                admission:
+                                                                    item.id,
+                                                            },
+                                                        )}
+                                                        className="block text-sm leading-snug font-medium break-words hover:underline"
                                                     >
                                                         {item.name}
                                                     </Link>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.meta}
-                                                    </p>
-                                                </div>
-                                                <Badge
-                                                    className={
-                                                        STATUS_BADGE.gray
-                                                    }
-                                                >
-                                                    {item.status}
-                                                </Badge>
-                                            </li>
-                                        ))
+                                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                        <span className="text-xs break-words text-muted-foreground">
+                                                            {item.meta}
+                                                        </span>
+                                                        <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300">
+                                                            {item.wardBed}
+                                                        </Badge>
+                                                    </div>
+                                                </li>
+                                            ),
+                                        )
                                     )}
                                 </ul>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                {filteredAdmittedPatients.length > 0 && (
+                                    <div className="flex items-center justify-between gap-2 pt-1">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={
+                                                currentAdmittedPatientsPage <= 1
+                                            }
+                                            onClick={() =>
+                                                setAdmittedPatientsPage(
+                                                    currentAdmittedPatientsPage -
+                                                        1,
+                                                )
+                                            }
+                                        >
+                                            <ChevronLeft className="size-4" />
+                                            Previous
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={
+                                                currentAdmittedPatientsPage >=
+                                                admittedPatientsLastPage
+                                            }
+                                            onClick={() =>
+                                                setAdmittedPatientsPage(
+                                                    currentAdmittedPatientsPage +
+                                                        1,
+                                                )
+                                            }
+                                        >
+                                            Next
+                                            <ChevronRight className="size-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
                 {/* New Billing Sheet */}
-                <Sheet open={billingOpen} onOpenChange={setBillingOpen}>
+                <Sheet
+                    open={billingOpen}
+                    onOpenChange={(open) => {
+                        if (!billingProcessing) {
+                            setBillingOpen(open);
+                        }
+                    }}
+                >
                     <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
                         <SheetHeader>
                             <SheetTitle>New Billing</SheetTitle>
@@ -472,7 +623,10 @@ export default function ConsultationsIndex({
 
                         <div className="space-y-4 px-4 pb-6">
                             {/* Patient Search */}
-                            <div className="space-y-2" ref={billingPatientSearchContainerRef}>
+                            <div
+                                className="space-y-2"
+                                ref={billingPatientSearchContainerRef}
+                            >
                                 <Label htmlFor="billing-existing-patient">
                                     Existing patient
                                 </Label>
@@ -482,11 +636,32 @@ export default function ConsultationsIndex({
                                         data-test="new-billing-patient"
                                         ref={billingPatientSearchInputRef}
                                         placeholder="Search patient by name, code, or phone…"
-                                        value={billingExistingPatientId ? billingSelectedPatientLabel : billingPatientSearchQuery}
+                                        role="combobox"
+                                        aria-autocomplete="list"
+                                        aria-expanded={
+                                            billingPatientSearchOpen &&
+                                            !billingExistingPatientId
+                                        }
+                                        aria-controls="billing-patient-listbox"
+                                        aria-activedescendant={
+                                            billingPatientSearchOpen &&
+                                            billingPatientSearchResults.length >
+                                                0
+                                                ? `billing-patient-option-${billingPatientSearchActiveIndex}`
+                                                : undefined
+                                        }
+                                        value={
+                                            billingExistingPatientId
+                                                ? billingSelectedPatientLabel
+                                                : billingPatientSearchQuery
+                                        }
                                         readOnly={!!billingExistingPatientId}
+                                        onKeyDown={handleBillingPatientKeyDown}
                                         onClick={() => {
                                             if (!billingExistingPatientId) {
-                                                setBillingPatientSearchOpen(true);
+                                                setBillingPatientSearchOpen(
+                                                    true,
+                                                );
                                             }
                                         }}
                                         onChange={(event) => {
@@ -498,36 +673,50 @@ export default function ConsultationsIndex({
                                             setBillingPatientSearchOpen(true);
                                         }}
                                     />
-                                    {billingPatientSearchOpen && !billingExistingPatientId && (
-                                        <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
-                                            {billingPatientSearchLoading && (
-                                                <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                    Searching…
-                                                </div>
-                                            )}
-                                            {!billingPatientSearchLoading && billingPatientSearchResults.length === 0 && billingPatientSearchQuery.trim() && (
-                                                <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                    No patients found
-                                                </div>
-                                            )}
-                                            {billingPatientSearchResults.map((option) => (
-                                                <button
-                                                    key={option.slug}
-                                                    type="button"
-                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                    onClick={() => {
-                                                        setBillingExistingPatientId(option.slug);
-                                                        setBillingSelectedPatientLabel(option.label);
-                                                        setBillingPatientSearchQuery('');
-                                                        setBillingPatientSearchResults([]);
-                                                        setBillingPatientSearchOpen(false);
-                                                    }}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
+                                    {billingPatientSearchOpen &&
+                                        !billingExistingPatientId && (
+                                            <div
+                                                id="billing-patient-listbox"
+                                                role="listbox"
+                                                className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
+                                            >
+                                                {billingPatientSearchLoading && (
+                                                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                        Searching…
+                                                    </div>
+                                                )}
+                                                {!billingPatientSearchLoading &&
+                                                    billingPatientSearchResults.length ===
+                                                        0 &&
+                                                    billingPatientSearchQuery.trim() && (
+                                                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                            No patients found
+                                                        </div>
+                                                    )}
+                                                {billingPatientSearchResults.map(
+                                                    (option, index) => (
+                                                        <button
+                                                            key={option.slug}
+                                                            id={`billing-patient-option-${index}`}
+                                                            type="button"
+                                                            role="option"
+                                                            aria-selected={
+                                                                billingPatientSearchActiveIndex ===
+                                                                index
+                                                            }
+                                                            className={`w-full px-3 py-2 text-left text-sm hover:bg-accent ${billingPatientSearchActiveIndex === index ? 'bg-accent' : ''}`}
+                                                            onClick={() =>
+                                                                selectBillingPatient(
+                                                                    option,
+                                                                )
+                                                            }
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ),
+                                                )}
+                                            </div>
+                                        )}
                                 </div>
                             </div>
 
@@ -540,67 +729,111 @@ export default function ConsultationsIndex({
                                         <table className="w-full text-sm">
                                             <thead className="bg-muted/50">
                                                 <tr>
-                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                    <th
+                                                        className="px-4 py-2 text-left font-medium"
+                                                        style={{ width: '70%' }}
+                                                    >
                                                         Service
                                                     </th>
-                                                    <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
+                                                    <th
+                                                        className="px-4 py-2 text-left font-medium"
+                                                        style={{ width: '25%' }}
+                                                    >
                                                         Price
                                                     </th>
-                                                    <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                                    <th
+                                                        className="px-4 py-2 text-center font-medium"
+                                                        style={{ width: '5%' }}
+                                                    ></th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y">
-                                                {billingLines.map((line, index) => (
-                                                    <tr key={index}>
-                                                        <td className="px-4 py-2">
-                                                            <SelectNative
-                                                                value={line.price_list_id}
-                                                                placeholder="Select service…"
-                                                                onChange={(event) =>
-                                                                    chooseBillingService(
-                                                                        index,
-                                                                        event.target.value,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">Select service…</option>
-                                                                {newBillingOptions.services.map(
-                                                                    (service) => (
-                                                                        <option
-                                                                            key={service.id}
-                                                                            value={String(service.id)}
-                                                                        >
-                                                                            {service.name}
-                                                                        </option>
-                                                                    ),
-                                                                )}
-                                                            </SelectNative>
-                                                        </td>
-                                                        <td className="px-4 py-2">
-                                                            <Input
-                                                                value={line.unitPrice}
-                                                                readOnly
-                                                            />
-                                                        </td>
-                                                        <td className="px-4 py-2 text-center">
-                                                            {billingLines.length > 1 ? (
-                                                                <button
-                                                                    type="button"
-                                                                    className="text-muted-foreground hover:text-red-600"
-                                                                    onClick={() =>
-                                                                        setBillingLines((current) =>
-                                                                            current.filter(
-                                                                                (_, i) => i !== index,
-                                                                            ),
+                                                {billingLines.map(
+                                                    (line, index) => (
+                                                        <tr key={index}>
+                                                            <td className="px-4 py-2">
+                                                                <SelectNative
+                                                                    value={
+                                                                        line.price_list_id
+                                                                    }
+                                                                    placeholder="Select service…"
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        chooseBillingService(
+                                                                            index,
+                                                                            event
+                                                                                .target
+                                                                                .value,
                                                                         )
                                                                     }
                                                                 >
-                                                                    <X className="h-4 w-4" />
-                                                                </button>
-                                                            ) : null}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                                    <option value="">
+                                                                        Select
+                                                                        service…
+                                                                    </option>
+                                                                    {newBillingOptions.services.map(
+                                                                        (
+                                                                            service,
+                                                                        ) => (
+                                                                            <option
+                                                                                key={
+                                                                                    service.id
+                                                                                }
+                                                                                value={String(
+                                                                                    service.id,
+                                                                                )}
+                                                                            >
+                                                                                {
+                                                                                    service.name
+                                                                                }
+                                                                            </option>
+                                                                        ),
+                                                                    )}
+                                                                </SelectNative>
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                <Input
+                                                                    aria-label={`Price for service ${index + 1}`}
+                                                                    value={
+                                                                        line.unitPrice
+                                                                    }
+                                                                    readOnly
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2 text-center">
+                                                                {billingLines.length >
+                                                                1 ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        aria-label={`Remove service ${index + 1}`}
+                                                                        disabled={
+                                                                            billingProcessing
+                                                                        }
+                                                                        className="text-muted-foreground hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                                                                        onClick={() =>
+                                                                            setBillingLines(
+                                                                                (
+                                                                                    current,
+                                                                                ) =>
+                                                                                    current.filter(
+                                                                                        (
+                                                                                            _,
+                                                                                            i,
+                                                                                        ) =>
+                                                                                            i !==
+                                                                                            index,
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                ) : null}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -611,7 +844,8 @@ export default function ConsultationsIndex({
                                         Total
                                     </span>
                                     <span className="text-sm font-semibold tabular-nums">
-                                        {currencySymbol} {billingTotal.toLocaleString()}
+                                        {currencySymbol}{' '}
+                                        {billingTotal.toLocaleString()}
                                     </span>
                                 </div>
 
@@ -619,10 +853,14 @@ export default function ConsultationsIndex({
                                     type="button"
                                     size="sm"
                                     variant="secondary"
+                                    disabled={billingProcessing}
                                     onClick={() =>
                                         setBillingLines([
                                             ...billingLines,
-                                            { price_list_id: '', unitPrice: '' },
+                                            {
+                                                price_list_id: '',
+                                                unitPrice: '',
+                                            },
                                         ])
                                     }
                                 >
@@ -632,9 +870,7 @@ export default function ConsultationsIndex({
                             </div>
 
                             {billingError ? (
-                                <p className="text-sm text-destructive">
-                                    {billingError}
-                                </p>
+                                <AlertError errors={[billingError]} />
                             ) : null}
                         </div>
 
@@ -643,6 +879,7 @@ export default function ConsultationsIndex({
                                 type="button"
                                 variant="secondary"
                                 className="flex-1"
+                                disabled={billingProcessing}
                                 onClick={() => setBillingOpen(false)}
                             >
                                 Cancel
@@ -654,7 +891,9 @@ export default function ConsultationsIndex({
                                 disabled={billingProcessing}
                                 data-test="submit-new-billing"
                             >
-                                {billingProcessing ? 'Saving...' : 'Create billing'}
+                                {billingProcessing
+                                    ? 'Saving...'
+                                    : 'Create billing'}
                             </Button>
                         </SheetFooter>
                     </SheetContent>
@@ -670,7 +909,9 @@ ConsultationsIndex.layout = (props: {
     breadcrumbs: [
         {
             title: 'Consultations',
-            href: props.currentTeam ? index.url(props.currentTeam.slug) : '/',
+            href: props.currentTeam
+                ? index.url(props.currentTeam.slug)
+                : home.url(),
         },
     ],
 });

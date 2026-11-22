@@ -20,6 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { home } from '@/routes';
 import { history, view } from '@/routes/consultations';
 import type {
     ConsultationFilters,
@@ -36,10 +37,12 @@ type Props = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-    warning: 'bg-amber-100 text-amber-800',
-    info: 'bg-sky-100 text-sky-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    danger: 'bg-rose-100 text-rose-800',
+    warning:
+        'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+    success:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    danger: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
     gray: 'bg-muted text-muted-foreground',
 };
 
@@ -58,6 +61,7 @@ export default function AppointmentHistoryIndex({
         router.get(
             history.url(teamSlug, {
                 query: {
+                    q: merged.q || undefined,
                     status: merged.status || undefined,
                     doctor_id: merged.doctor_id ?? undefined,
                     perPage: merged.perPage,
@@ -82,6 +86,7 @@ export default function AppointmentHistoryIndex({
                     />
                     <div className="flex items-center gap-2">
                         <SelectNative
+                            aria-label="Filter by status"
                             value={filters.status}
                             onChange={(event) =>
                                 applyFilters({ status: event.target.value })
@@ -97,6 +102,7 @@ export default function AppointmentHistoryIndex({
                             ))}
                         </SelectNative>
                         <SelectNative
+                            aria-label="Filter by doctor"
                             value={filters.doctor_id ?? ''}
                             onChange={(event) =>
                                 applyFilters({
@@ -122,7 +128,7 @@ export default function AppointmentHistoryIndex({
                     <CardHeader>
                         <CardTitle>All consultations</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -184,16 +190,21 @@ export default function AppointmentHistoryIndex({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
+                                                            aria-label={`Actions for ${consultation.patientId}`}
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
                                                             <Link
                                                                 href={view.url({
                                                                     current_team:
@@ -238,9 +249,7 @@ AppointmentHistoryIndex.layout = (props: {
     breadcrumbs: [
         {
             title: 'Appointment History',
-            href: props.currentTeam
-                ? history.url(props.currentTeam.slug)
-                : '/',
+            href: props.currentTeam ? history.url(props.currentTeam.slug) : home.url(),
         },
     ],
 });

@@ -50,6 +50,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                                 autoComplete="new-password"
                                 className="mt-1 block w-full"
                                 autoFocus
+                                required
                                 placeholder="Password"
                                 passwordrules={passwordRules}
                             />
@@ -65,6 +66,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                                 name="password_confirmation"
                                 autoComplete="new-password"
                                 className="mt-1 block w-full"
+                                required
                                 placeholder="Confirm password"
                                 passwordrules={passwordRules}
                             />
@@ -81,7 +83,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                             data-test="reset-password-button"
                         >
                             {processing && <Spinner />}
-                            Reset password
+                            {processing ? 'Resetting...' : 'Reset password'}
                         </Button>
                     </div>
                 )}

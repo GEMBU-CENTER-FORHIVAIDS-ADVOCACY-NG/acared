@@ -1,7 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import ConsultationRecordController from '@/actions/App/Http/Controllers/ConsultationRecordController';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import TabsBar from '@/components/tabs-bar';
 import Pagination from '@/components/pagination';
 import { VitalSignsViewModal } from '@/components/vital-signs-view-modal';
 import { TreatmentViewModal } from '@/components/treatment-view-modal';
@@ -12,23 +15,29 @@ import { ExaminationViewModal } from '@/components/examination-view-modal';
 import { DiagnosisViewModal } from '@/components/diagnosis-view-modal';
 import { AdmissionViewModal } from '@/components/admission-view-modal';
 import { EndAppointmentModal } from '@/components/end-appointment-modal';
-import { notesToString } from '@/utils/notes';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogClose,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
-import { end, index, start, transfer, view, viewAll } from '@/routes/consultations';
+import { home } from '@/routes';
+import {
+    end,
+    index,
+    start,
+    transfer,
+    view,
+    viewAll,
+} from '@/routes/consultations';
 import { ConsultationRecordForm } from './record-form';
 import type {
     ConsultationDetail,
@@ -70,10 +79,12 @@ const SECTIONS: { key: ConsultationSection; label: string }[] = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-    warning: 'bg-amber-100 text-amber-800',
-    info: 'bg-sky-100 text-sky-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    danger: 'bg-rose-100 text-rose-800',
+    warning:
+        'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300',
+    success:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    danger: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
     gray: 'bg-muted text-muted-foreground',
 };
 
@@ -103,29 +114,70 @@ export default function ConsultationsView({
     );
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [viewVitalSigns, setViewVitalSigns] = useState<ConsultationRecord | null>(null);
-    const [viewTreatment, setViewTreatment] = useState<ConsultationRecord | null>(null);
-    const [viewPrescription, setViewPrescription] = useState<ConsultationRecord | null>(null);
+    const [viewVitalSigns, setViewVitalSigns] =
+        useState<ConsultationRecord | null>(null);
+    const [viewTreatment, setViewTreatment] =
+        useState<ConsultationRecord | null>(null);
+    const [viewPrescription, setViewPrescription] =
+        useState<ConsultationRecord | null>(null);
     const [viewLaboratory, setViewLaboratory] = useState<number | null>(null);
-    const [viewComplaint, setViewComplaint] = useState<ConsultationRecord | null>(null);
-    const [viewExamination, setViewExamination] = useState<ConsultationRecord | null>(null);
-    const [viewDiagnosis, setViewDiagnosis] = useState<ConsultationRecord | null>(null);
-    const [viewAdmission, setViewAdmission] = useState<ConsultationRecord | null>(null);
+    const [viewComplaint, setViewComplaint] =
+        useState<ConsultationRecord | null>(null);
+    const [viewExamination, setViewExamination] =
+        useState<ConsultationRecord | null>(null);
+    const [viewDiagnosis, setViewDiagnosis] =
+        useState<ConsultationRecord | null>(null);
+    const [viewAdmission, setViewAdmission] =
+        useState<ConsultationRecord | null>(null);
     const [showEndAppointment, setShowEndAppointment] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    const [recordToDelete, setRecordToDelete] =
+        useState<ConsultationRecord | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [showStartConfirm, setShowStartConfirm] = useState(false);
+    const [startProcessing, setStartProcessing] = useState(false);
+    const [showEndConfirm, setShowEndConfirm] = useState(false);
+    const [endProcessing, setEndProcessing] = useState(false);
 
     // Transfer state
     const [transferOpen, setTransferOpen] = useState(false);
+    const [showTransferConfirm, setShowTransferConfirm] = useState(false);
     const [transferForm, setTransferForm] = useState(EMPTY_TRANSFER);
     const [transferProcessing, setTransferProcessing] = useState(false);
     const [transferError, setTransferError] = useState<string | null>(null);
 
     const recordType = section === 'overview' ? null : section;
 
+    const transferTargetLabel =
+        transferForm.transferTo === 'doctor'
+            ? (doctorOptions.find(
+                  (option) => option.id === Number(transferForm.doctor_id),
+              )?.name ?? 'the selected doctor')
+            : (nurseOptions.find(
+                  (option) => option.id === Number(transferForm.nurse_id),
+              )?.name ?? 'the selected nurse');
+
     // Transfer functions
     function openTransfer() {
         setTransferForm(EMPTY_TRANSFER);
         setTransferError(null);
+        setShowTransferConfirm(false);
         setTransferOpen(true);
+    }
+
+    function openTransferConfirm() {
+        if (
+            !(transferForm.transferTo === 'doctor'
+                ? transferForm.doctor_id
+                : transferForm.nurse_id)
+        ) {
+            setTransferError(`Please select a ${transferForm.transferTo}.`);
+            return;
+        }
+
+        setTransferError(null);
+        setShowTransferConfirm(true);
     }
 
     function submitTransfer() {
@@ -145,6 +197,7 @@ export default function ConsultationsView({
                         Object.values(errors)[0] ?? 'Something went wrong.',
                     ),
                 onSuccess: () => {
+                    setShowTransferConfirm(false);
                     setTransferOpen(false);
                     setTransferForm(EMPTY_TRANSFER);
                 },
@@ -155,20 +208,22 @@ export default function ConsultationsView({
 
     // Determine if records are paginated
     const isPaginated = recordType
-        ? typeof records[recordType] !== 'undefined'
-            && 'data' in records[recordType]
-            && 'currentPage' in records[recordType]
+        ? typeof records[recordType] !== 'undefined' &&
+          'data' in records[recordType] &&
+          'currentPage' in records[recordType]
         : false;
 
     const paginatedRecords: PaginatedConsultationRecords | null = isPaginated
-        ? records[recordType as keyof typeof records] as PaginatedConsultationRecords
+        ? (records[
+              recordType as keyof typeof records
+          ] as PaginatedConsultationRecords)
         : null;
 
-    const currentRecords: ConsultationRecord[] = isPaginated
+    const currentRecords: ConsultationRecord[] = paginatedRecords
         ? paginatedRecords.data
         : recordType
-            ? (records[recordType] as ConsultationRecord[])
-            : [];
+          ? (records[recordType] as ConsultationRecord[])
+          : [];
 
     function applyPagination(page: number, perPage?: number) {
         if (!recordType) {
@@ -178,16 +233,19 @@ export default function ConsultationsView({
         const currentPerPage = perPage ?? pagination?.perPage ?? 25;
 
         router.get(
-            view.url({
-                current_team: teamSlug,
-                consultation: consultation.id,
-                section: recordType,
-            }, {
-                query: {
-                    page,
-                    perPage: currentPerPage,
+            view.url(
+                {
+                    current_team: teamSlug,
+                    consultation: consultation.id,
+                    section: recordType,
                 },
-            }),
+                {
+                    query: {
+                        page,
+                        perPage: currentPerPage,
+                    },
+                },
+            ),
             {},
             { preserveState: false, preserveScroll: true, replace: true },
         );
@@ -288,46 +346,90 @@ export default function ConsultationsView({
     }
 
     function destroy(record: ConsultationRecord) {
-        if (!recordType) {
+        setActionError(null);
+        setRecordToDelete(record);
+    }
+
+    function confirmDelete() {
+        if (!recordType || !recordToDelete) {
             return;
         }
+
+        setDeleteProcessing(true);
+        setActionError(null);
 
         router.delete(
             ConsultationRecordController.destroy.url({
                 current_team: teamSlug,
                 consultation: consultation.id,
                 type: recordType,
-                record: record.id,
+                record: recordToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setRecordToDelete(null),
+                onFinish: () => setDeleteProcessing(false),
+            },
         );
     }
 
     function startConsultation() {
+        setStartProcessing(true);
+        setActionError(null);
+
         router.patch(
             start.url({
                 current_team: teamSlug,
                 consultation: consultation.id,
             }),
             {},
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setShowStartConfirm(false),
+                onFinish: () => setStartProcessing(false),
+            },
         );
     }
 
     function endConsultation() {
+        setEndProcessing(true);
+        setActionError(null);
+
         router.patch(
             end.url({
                 current_team: teamSlug,
                 consultation: consultation.id,
             }),
             {},
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => {
+                    setShowEndConfirm(false);
+                    setShowEndAppointment(false);
+                },
+                onFinish: () => setEndProcessing(false),
+            },
         );
     }
 
-    const canEnd =
-        detail.status !== 'completed' &&
-        (records.prescriptions?.length ?? 0) > 0;
+    const prescriptions = records.prescriptions;
+    const prescriptionCount = Array.isArray(prescriptions)
+        ? prescriptions.length
+        : (prescriptions?.total ?? 0);
+
+    const canEnd = detail.status !== 'completed' && prescriptionCount > 0;
 
     return (
         <>
@@ -343,11 +445,7 @@ export default function ConsultationsView({
                         />
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            asChild
-                        >
+                        <Button size="sm" variant="outline" asChild>
                             <Link
                                 href={viewAll.url({
                                     current_team: teamSlug,
@@ -366,44 +464,44 @@ export default function ConsultationsView({
                         </Button>
                         {consultation.status !== 'started' &&
                         consultation.status !== 'completed' ? (
-                            <Button onClick={startConsultation}>
-                                Start appointment
+                            <Button
+                                onClick={() => {
+                                    setActionError(null);
+                                    setShowStartConfirm(true);
+                                }}
+                                disabled={startProcessing}
+                            >
+                                {startProcessing
+                                    ? 'Starting...'
+                                    : 'Start appointment'}
                             </Button>
                         ) : null}
                         {canEnd ? (
                             <Button
                                 variant="secondary"
-                                onClick={endConsultation}
+                                onClick={() => {
+                                    setActionError(null);
+                                    setShowEndConfirm(true);
+                                }}
+                                disabled={endProcessing}
                             >
-                                End appointment
+                                {endProcessing
+                                    ? 'Ending...'
+                                    : 'End appointment'}
                             </Button>
                         ) : null}
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                    {SECTIONS.map((item) => {
-                        const isDisabled =
-                            consultation.status === 'scheduled' &&
-                            item.key !== 'overview';
+                <TabsBar
+                    items={SECTIONS}
+                    value={section}
+                    onChange={(key) =>
+                        switchSection(key as ConsultationSection)
+                    }
+                />
 
-                        return (
-                            <Button
-                                key={item.key}
-                                size="sm"
-                                variant={
-                                    item.key === section
-                                        ? 'default'
-                                        : 'secondary'
-                                }
-                                disabled={isDisabled}
-                                onClick={() => switchSection(item.key)}
-                            >
-                                {item.label}
-                            </Button>
-                        );
-                    })}
-                </div>
+                {actionError ? <AlertError errors={[actionError]} /> : null}
 
                 {section === 'overview' ? (
                     <Card>
@@ -423,7 +521,10 @@ export default function ConsultationsView({
                             />
                             <DetailRow label="Gender" value={detail.gender} />
                             <DetailRow label="Age" value={detail.age} />
-                            <DetailRow label="Category" value={detail.category} />
+                            <DetailRow
+                                label="Category"
+                                value={detail.category}
+                            />
                             <DetailRow
                                 label="Appointment date and time"
                                 value={
@@ -496,17 +597,35 @@ export default function ConsultationsView({
                                                     recordType as ConsultationRecordType
                                                 }
                                                 record={record}
-                                                currencySymbol={currencySymbol}
                                                 onEdit={() => openEdit(record)}
                                                 onDelete={() => destroy(record)}
-                                                onViewVitalSigns={(r) => setViewVitalSigns(r)}
-                                                onViewTreatment={(r) => setViewTreatment(r)}
-                                                onViewPrescription={(r) => setViewPrescription(r)}
-                                                onViewLaboratory={(id) => setViewLaboratory(id)}
-                                                onViewComplaint={(r) => setViewComplaint(r)}
-                                                onViewExamination={(r) => setViewExamination(r)}
-                                                onViewDiagnosis={(r) => setViewDiagnosis(r)}
-                                                onViewAdmission={(r) => setViewAdmission(r)}
+                                                deleteProcessing={
+                                                    deleteProcessing
+                                                }
+                                                onViewVitalSigns={(r) =>
+                                                    setViewVitalSigns(r)
+                                                }
+                                                onViewTreatment={(r) =>
+                                                    setViewTreatment(r)
+                                                }
+                                                onViewPrescription={(r) =>
+                                                    setViewPrescription(r)
+                                                }
+                                                onViewLaboratory={(id) =>
+                                                    setViewLaboratory(id)
+                                                }
+                                                onViewComplaint={(r) =>
+                                                    setViewComplaint(r)
+                                                }
+                                                onViewExamination={(r) =>
+                                                    setViewExamination(r)
+                                                }
+                                                onViewDiagnosis={(r) =>
+                                                    setViewDiagnosis(r)
+                                                }
+                                                onViewAdmission={(r) =>
+                                                    setViewAdmission(r)
+                                                }
                                             />
                                         ))}
                                     </div>
@@ -631,13 +750,21 @@ export default function ConsultationsView({
                 open={showEndAppointment}
                 onEndAppointment={() => {
                     setShowEndAppointment(false);
-                    endConsultation();
+                    setActionError(null);
+                    setShowEndConfirm(true);
                 }}
                 onContinue={() => setShowEndAppointment(false)}
             />
 
             {/* Transfer Patient Dialog */}
-            <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+            <Dialog
+                open={transferOpen}
+                onOpenChange={(open) => {
+                    if (!transferProcessing) {
+                        setTransferOpen(open);
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Transfer patient</DialogTitle>
@@ -726,30 +853,93 @@ export default function ConsultationsView({
                         )}
 
                         {transferError ? (
-                            <p className="text-sm text-destructive">
-                                {transferError}
-                            </p>
+                            <AlertError errors={[transferError]} />
                         ) : null}
                     </div>
 
                     <DialogFooter className="gap-2">
                         <DialogClose asChild>
-                            <Button type="button" variant="secondary">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={transferProcessing}
+                            >
                                 Cancel
                             </Button>
                         </DialogClose>
                         <Button
                             type="button"
-                            onClick={submitTransfer}
+                            onClick={openTransferConfirm}
                             disabled={transferProcessing}
                         >
-                            {transferProcessing
-                                ? 'Transferring...'
-                                : 'Transfer patient'}
+                            Review transfer
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={recordToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setRecordToDelete(null);
+                    }
+                }}
+                title="Delete record"
+                description={`Delete this ${recordType ?? 'consultation'} record? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={confirmDelete}
+            />
+
+            <ConfirmDialog
+                open={showStartConfirm}
+                onOpenChange={(open) => {
+                    if (!open && !startProcessing) {
+                        setShowStartConfirm(false);
+                    }
+                }}
+                title="Start appointment"
+                description="Start this consultation appointment now?"
+                confirmLabel={
+                    startProcessing ? 'Starting...' : 'Start appointment'
+                }
+                processing={startProcessing}
+                onConfirm={startConsultation}
+            />
+
+            <ConfirmDialog
+                open={showEndConfirm}
+                onOpenChange={(open) => {
+                    if (!open && !endProcessing) {
+                        setShowEndConfirm(false);
+                    }
+                }}
+                title="End appointment"
+                description="End this consultation appointment now?"
+                confirmLabel={endProcessing ? 'Ending...' : 'End appointment'}
+                destructive
+                processing={endProcessing}
+                onConfirm={endConsultation}
+            />
+
+            <ConfirmDialog
+                open={showTransferConfirm}
+                onOpenChange={(open) => {
+                    if (!open && !transferProcessing) {
+                        setShowTransferConfirm(false);
+                    }
+                }}
+                title="Transfer patient"
+                description={`Transfer ${consultation.patientId} to ${transferTargetLabel}?`}
+                confirmLabel={
+                    transferProcessing ? 'Transferring...' : 'Transfer patient'
+                }
+                destructive
+                processing={transferProcessing}
+                onConfirm={submitTransfer}
+            />
         </>
     );
 }
@@ -763,11 +953,20 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
     );
 }
 
-const isDisabledForEdit = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+const isDisabledForEdit = (
+    type: ConsultationRecordType,
+    status: string | null | undefined,
+): boolean => {
     if (!status) {
         return false;
     }
-    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    const generalDisabled = [
+        'paid',
+        'submitted',
+        'dispensed',
+        'completed',
+        'cancelled',
+    ];
     if (generalDisabled.includes(status)) {
         return true;
     }
@@ -780,11 +979,20 @@ const isDisabledForEdit = (type: ConsultationRecordType, status: string | null |
     return false;
 };
 
-const isDisabledForDelete = (type: ConsultationRecordType, status: string | null | undefined): boolean => {
+const isDisabledForDelete = (
+    type: ConsultationRecordType,
+    status: string | null | undefined,
+): boolean => {
     if (!status) {
         return false;
     }
-    const generalDisabled = ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'];
+    const generalDisabled = [
+        'paid',
+        'submitted',
+        'dispensed',
+        'completed',
+        'cancelled',
+    ];
     if (generalDisabled.includes(status)) {
         return true;
     }
@@ -800,9 +1008,9 @@ const isDisabledForDelete = (type: ConsultationRecordType, status: string | null
 function RecordCard({
     type,
     record,
-    currencySymbol,
     onEdit,
     onDelete,
+    deleteProcessing,
     onViewVitalSigns,
     onViewTreatment,
     onViewPrescription,
@@ -814,9 +1022,9 @@ function RecordCard({
 }: {
     type: ConsultationRecordType;
     record: ConsultationRecord;
-    currencySymbol: string;
     onEdit: () => void;
     onDelete: () => void;
+    deleteProcessing: boolean;
     onViewVitalSigns: (record: ConsultationRecord) => void;
     onViewTreatment: (record: ConsultationRecord) => void;
     onViewPrescription: (record: ConsultationRecord) => void;
@@ -930,8 +1138,11 @@ function RecordCard({
                 </Button>
                 <Button
                     size="sm"
-                    variant="outline"
-                    disabled={isDisabledForDelete(type, record.status)}
+                    variant="destructive"
+                    disabled={
+                        isDisabledForDelete(type, record.status) ||
+                        deleteProcessing
+                    }
                     onClick={onDelete}
                 >
                     Delete
@@ -947,7 +1158,7 @@ ConsultationsView.layout = (props: {
     breadcrumbs: [
         {
             title: 'Consultations',
-            href: props.currentTeam ? index.url(props.currentTeam.slug) : '/',
+            href: props.currentTeam ? index.url(props.currentTeam.slug) : home.url(),
         },
     ],
 });

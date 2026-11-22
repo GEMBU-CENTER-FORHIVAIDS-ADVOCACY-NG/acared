@@ -492,7 +492,7 @@ store.post = (args?: { current_team?: string | number } | [current_team: string 
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -508,7 +508,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -541,7 +541,7 @@ show.url = (args: { current_team?: string | number, patient: number | { id: numb
 
 /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -551,7 +551,7 @@ show.get = (args: { current_team?: string | number, patient: number | { id: numb
 })
 /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -562,7 +562,7 @@ show.head = (args: { current_team?: string | number, patient: number | { id: num
 
     /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -573,7 +573,7 @@ show.head = (args: { current_team?: string | number, patient: number | { id: num
 
             /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -583,7 +583,7 @@ show.head = (args: { current_team?: string | number, patient: number | { id: num
         })
             /**
 * @see \App\Http\Controllers\PatientController::show
- * @see app/Http/Controllers/PatientController.php:151
+ * @see app/Http/Controllers/PatientController.php:153
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -600,7 +600,7 @@ show.head = (args: { current_team?: string | number, patient: number | { id: num
     show.form = showForm
 /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -616,7 +616,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -649,7 +649,7 @@ edit.url = (args: { current_team?: string | number, patient: number | { id: numb
 
 /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -659,7 +659,7 @@ edit.get = (args: { current_team?: string | number, patient: number | { id: numb
 })
 /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -670,7 +670,7 @@ edit.head = (args: { current_team?: string | number, patient: number | { id: num
 
     /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -681,7 +681,7 @@ edit.head = (args: { current_team?: string | number, patient: number | { id: num
 
             /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -691,7 +691,7 @@ edit.head = (args: { current_team?: string | number, patient: number | { id: num
         })
             /**
 * @see \App\Http\Controllers\PatientController::edit
- * @see app/Http/Controllers/PatientController.php:161
+ * @see app/Http/Controllers/PatientController.php:163
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/edit'
  */
@@ -708,7 +708,7 @@ edit.head = (args: { current_team?: string | number, patient: number | { id: num
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\PatientController::update
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:174
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -724,7 +724,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::update
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:174
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -757,7 +757,7 @@ update.url = (args: { current_team?: string | number, patient: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\PatientController::update
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:174
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -768,7 +768,7 @@ update.patch = (args: { current_team?: string | number, patient: number | { id: 
 
     /**
 * @see \App\Http\Controllers\PatientController::update
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:174
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -784,7 +784,7 @@ update.patch = (args: { current_team?: string | number, patient: number | { id: 
 
             /**
 * @see \App\Http\Controllers\PatientController::update
- * @see app/Http/Controllers/PatientController.php:172
+ * @see app/Http/Controllers/PatientController.php:174
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -801,7 +801,7 @@ update.patch = (args: { current_team?: string | number, patient: number | { id: 
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:184
+ * @see app/Http/Controllers/PatientController.php:186
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -817,7 +817,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:184
+ * @see app/Http/Controllers/PatientController.php:186
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -850,7 +850,7 @@ destroy.url = (args: { current_team?: string | number, patient: number | { id: n
 
 /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:184
+ * @see app/Http/Controllers/PatientController.php:186
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -861,7 +861,7 @@ destroy.delete = (args: { current_team?: string | number, patient: number | { id
 
     /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:184
+ * @see app/Http/Controllers/PatientController.php:186
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -877,7 +877,7 @@ destroy.delete = (args: { current_team?: string | number, patient: number | { id
 
             /**
 * @see \App\Http\Controllers\PatientController::destroy
- * @see app/Http/Controllers/PatientController.php:184
+ * @see app/Http/Controllers/PatientController.php:186
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}'
  */
@@ -894,7 +894,7 @@ destroy.delete = (args: { current_team?: string | number, patient: number | { id
     destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\PatientController::restore
- * @see app/Http/Controllers/PatientController.php:196
+ * @see app/Http/Controllers/PatientController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/restore'
  */
@@ -910,7 +910,7 @@ restore.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::restore
- * @see app/Http/Controllers/PatientController.php:196
+ * @see app/Http/Controllers/PatientController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/restore'
  */
@@ -943,7 +943,7 @@ restore.url = (args: { current_team?: string | number, patient: number | { id: n
 
 /**
 * @see \App\Http\Controllers\PatientController::restore
- * @see app/Http/Controllers/PatientController.php:196
+ * @see app/Http/Controllers/PatientController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/restore'
  */
@@ -954,7 +954,7 @@ restore.patch = (args: { current_team?: string | number, patient: number | { id:
 
     /**
 * @see \App\Http\Controllers\PatientController::restore
- * @see app/Http/Controllers/PatientController.php:196
+ * @see app/Http/Controllers/PatientController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/restore'
  */
@@ -970,7 +970,7 @@ restore.patch = (args: { current_team?: string | number, patient: number | { id:
 
             /**
 * @see \App\Http\Controllers\PatientController::restore
- * @see app/Http/Controllers/PatientController.php:196
+ * @see app/Http/Controllers/PatientController.php:198
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/restore'
  */
@@ -987,7 +987,7 @@ restore.patch = (args: { current_team?: string | number, patient: number | { id:
     restore.form = restoreForm
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:208
+ * @see app/Http/Controllers/PatientController.php:210
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/force'
  */
@@ -1003,7 +1003,7 @@ forceDelete.definition = {
 
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:208
+ * @see app/Http/Controllers/PatientController.php:210
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/force'
  */
@@ -1036,7 +1036,7 @@ forceDelete.url = (args: { current_team?: string | number, patient: number | { i
 
 /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:208
+ * @see app/Http/Controllers/PatientController.php:210
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/force'
  */
@@ -1047,7 +1047,7 @@ forceDelete.delete = (args: { current_team?: string | number, patient: number | 
 
     /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:208
+ * @see app/Http/Controllers/PatientController.php:210
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/force'
  */
@@ -1063,7 +1063,7 @@ forceDelete.delete = (args: { current_team?: string | number, patient: number | 
 
             /**
 * @see \App\Http\Controllers\PatientController::forceDelete
- * @see app/Http/Controllers/PatientController.php:208
+ * @see app/Http/Controllers/PatientController.php:210
  * @param current_team - Default: '$currentTeam'
  * @route '/{current_team?}/patients/{patient}/force'
  */

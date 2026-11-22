@@ -1,11 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    ArchiveRestore,
-    MoreHorizontal,
-    Pencil,
-    Trash2,
-} from 'lucide-react';
+import { ArchiveRestore, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
@@ -87,8 +83,15 @@ export default function WardsIndex({
     const [form, setForm] = useState<Form>(blank);
     const [editing, setEditing] = useState<Ward | null>(null);
     const [deleting, setDeleting] = useState<Ward | null>(null);
+    const [forceDeleting, setForceDeleting] = useState<Ward | null>(null);
+    const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
     const [open, setOpen] = useState(false);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [forceDeleteProcessing, setForceDeleteProcessing] = useState(false);
+    const [bulkDeleteProcessing, setBulkDeleteProcessing] = useState(false);
+    const [restoreProcessing, setRestoreProcessing] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
     const visit = (patch: Partial<Filters>) =>
         router.get(
             index.url(team, { query: { ...filters, ...patch } }),
@@ -118,30 +121,97 @@ export default function WardsIndex({
             preserveScroll: true,
             onSuccess: () => setOpen(false),
         };
-        editing
-            ? router.patch(
-                  update.url({ current_team: team, ward: editing.id }),
-                  form,
-                  options,
-              )
-            : router.post(store.url(team), form, options);
+        if (editing) {
+            router.patch(
+                update.url({ current_team: team, ward: editing.id }),
+                form,
+                options,
+            );
+        } else {
+            router.post(store.url(team), form, options);
+        }
     };
     const remove = () => {
-        if (deleting)
-            router.delete(
-                destroy.url({ current_team: team, ward: deleting.id }),
-                {
-                    preserveScroll: true,
-                    onFinish: () => setDeleting(null),
-                },
-            );
+        if (!deleting) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+        setActionError(null);
+
+        router.delete(destroy.url({ current_team: team, ward: deleting.id }), {
+            preserveScroll: true,
+            onError: (errors: Record<string, string>) =>
+                setActionError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
+            onSuccess: () => setDeleting(null),
+            onFinish: () => setDeleteProcessing(false),
+        });
     };
-    const removeSelected = () =>
+    const forceRemove = () => {
+        if (!forceDeleting) {
+            return;
+        }
+
+        setForceDeleteProcessing(true);
+        setActionError(null);
+
+        router.delete(
+            forceDestroy.url({
+                current_team: team,
+                ward: forceDeleting.id,
+            }),
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setForceDeleting(null),
+                onFinish: () => setForceDeleteProcessing(false),
+            },
+        );
+    };
+    const removeSelected = () => {
+        if (selected.length === 0) {
+            return;
+        }
+
+        setBulkDeleteProcessing(true);
+        setActionError(null);
+
         router.delete(bulkDestroy.url(team), {
             data: { ids: selected },
             preserveScroll: true,
-            onSuccess: () => setSelected([]),
+            onError: (errors: Record<string, string>) =>
+                setActionError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
+            onSuccess: () => {
+                setSelected([]);
+                setBulkDeleteOpen(false);
+            },
+            onFinish: () => setBulkDeleteProcessing(false),
         });
+    };
+    const restoreWard = (ward: Ward) => {
+        setRestoreProcessing(true);
+        setActionError(null);
+
+        router.patch(
+            restore.url({ current_team: team, ward: ward.id }),
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onFinish: () => setRestoreProcessing(false),
+            },
+        );
+    };
     const changeBed = (index: number, name: string) =>
         setForm((current) => ({
             ...current,
@@ -153,6 +223,8 @@ export default function WardsIndex({
         <>
             <Head title="Wards and beds" />
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                {actionError ? <AlertError errors={[actionError]} /> : null}
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <Heading
                         variant="small"
@@ -172,14 +244,13 @@ export default function WardsIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search wards and beds"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search wards and beds"
                             className="max-w-sm"
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                     <Button
                         variant="outline"
@@ -190,213 +261,213 @@ export default function WardsIndex({
                         {filters.trashed ? 'Show active' : 'Show deleted'}
                     </Button>
                     {selected.length > 0 && !filters.trashed && (
-                        <Button variant="destructive" onClick={removeSelected}>
+                        <Button
+                            variant="destructive"
+                            disabled={bulkDeleteProcessing}
+                            onClick={() => setBulkDeleteOpen(true)}
+                        >
                             Delete selected ({selected.length})
                         </Button>
                     )}
                 </div>
                 <Card>
-                    <CardContent className="p-0">
+                    <CardContent className="overflow-x-auto p-0">
                         <Table>
                             <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        aria-label="Select all"
-                                        type="checkbox"
-                                        checked={
-                                            wards.data.length > 0 &&
-                                            wards.data.every((ward) =>
-                                                selected.includes(ward.id),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelected(
-                                                event.target.checked
-                                                    ? wards.data.map(
-                                                          (ward) => ward.id,
-                                                      )
-                                                    : [],
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>Ward / parent</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Capacity</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Active admissions</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {wards.data.length ? (
-                                wards.data.map((ward) => (
-                                    <TableRow key={ward.id}>
-                                        <TableCell>
-                                            <input
-                                                aria-label={`Select ${ward.name}`}
-                                                type="checkbox"
-                                                checked={selected.includes(
-                                                    ward.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelected(
-                                                        event.target.checked
-                                                            ? [
-                                                                  ...selected,
-                                                                  ward.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
+                                <TableRow>
+                                    <TableHead>
+                                        <input
+                                            aria-label="Select all"
+                                            type="checkbox"
+                                            checked={
+                                                wards.data.length > 0 &&
+                                                wards.data.every((ward) =>
+                                                    selected.includes(ward.id),
+                                                )
+                                            }
+                                            onChange={(event) =>
+                                                setSelected(
+                                                    event.target.checked
+                                                        ? wards.data.map(
+                                                              (ward) => ward.id,
+                                                          )
+                                                        : [],
+                                                )
+                                            }
+                                        />
+                                    </TableHead>
+                                    <TableHead>Ward / parent</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Capacity</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Active admissions</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {wards.data.length ? (
+                                    wards.data.map((ward) => (
+                                        <TableRow key={ward.id}>
+                                            <TableCell>
+                                                <input
+                                                    aria-label={`Select ${ward.name}`}
+                                                    type="checkbox"
+                                                    checked={selected.includes(
+                                                        ward.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelected(
+                                                            event.target.checked
+                                                                ? [
+                                                                      ...selected,
                                                                       ward.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">
-                                                {ward.name}
-                                            </div>
-                                            {ward.wardName && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    in {ward.wardName}
+                                                                  ]
+                                                                : selected.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          ward.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">
+                                                    {ward.name}
                                                 </div>
-                                            )}
-                                            {ward.isWard &&
-                                                ward.beds.length > 0 && (
-                                                    <div className="mt-1 text-xs text-muted-foreground">
-                                                        Beds:{' '}
-                                                        {ward.beds
-                                                            .map(
-                                                                (bed) =>
-                                                                    bed.name,
-                                                            )
-                                                            .join(', ')}
+                                                {ward.wardName && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        in {ward.wardName}
                                                     </div>
                                                 )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {ward.isWard ? 'Ward' : 'Bed'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {ward.isWard
-                                                ? `${ward.beds.length} beds / ${ward.capacity}`
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="capitalize">
-                                                {ward.deletedAt
-                                                    ? 'Deleted'
-                                                    : ward.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {ward.activeAdmissionsCount}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    {ward.deletedAt ? (
-                                                        <>
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    router.patch(
-                                                                        restore.url({
-                                                                            current_team:
-                                                                                team,
-                                                                            ward: ward.id,
-                                                                        }),
-                                                                        {},
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <ArchiveRestore className="mr-2 h-4 w-4" />
-                                                                Restore
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                variant="destructive"
-                                                                onClick={() =>
-                                                                    router.delete(
-                                                                        forceDestroy.url(
-                                                                            {
-                                                                                current_team:
-                                                                                    team,
-                                                                                ward: ward.id,
-                                                                            },
-                                                                        ),
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete permanently
-                                                            </DropdownMenuItem>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    startEdit(
-                                                                        ward,
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    !ward.isWard
-                                                                }
-                                                            >
-                                                                <Pencil className="mr-2 h-4 w-4" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                variant="destructive"
-                                                                onClick={() =>
-                                                                    setDeleting(
-                                                                        ward,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenuItem>
-                                                        </>
+                                                {ward.isWard &&
+                                                    ward.beds.length > 0 && (
+                                                        <div className="mt-1 text-xs text-muted-foreground">
+                                                            Beds:{' '}
+                                                            {ward.beds
+                                                                .map(
+                                                                    (bed) =>
+                                                                        bed.name,
+                                                                )
+                                                                .join(', ')}
+                                                        </div>
                                                     )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            </TableCell>
+                                            <TableCell>
+                                                {ward.isWard ? 'Ward' : 'Bed'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {ward.isWard
+                                                    ? `${ward.beds.length} beds / ${ward.capacity}`
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="capitalize"
+                                                >
+                                                    {ward.deletedAt
+                                                        ? 'Deleted'
+                                                        : ward.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {ward.activeAdmissionsCount}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            aria-label={`Actions for ${ward.name}`}
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        {ward.deletedAt ? (
+                                                            <>
+                                                                <DropdownMenuItem
+                                                                    disabled={
+                                                                        restoreProcessing
+                                                                    }
+                                                                    onClick={() =>
+                                                                        restoreWard(
+                                                                            ward,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                                                    Restore
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    variant="destructive"
+                                                                    disabled={
+                                                                        forceDeleteProcessing
+                                                                    }
+                                                                    onClick={() =>
+                                                                        setForceDeleting(
+                                                                            ward,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                    permanently
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <DropdownMenuItem
+                                                                    onClick={() =>
+                                                                        startEdit(
+                                                                            ward,
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        !ward.isWard
+                                                                    }
+                                                                >
+                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    variant="destructive"
+                                                                    onClick={() =>
+                                                                        setDeleting(
+                                                                            ward,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={7}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No wards or beds found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={7}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No wards or beds found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
                 <Pagination
@@ -542,12 +613,48 @@ export default function WardsIndex({
             <ConfirmDialog
                 open={deleting !== null}
                 onOpenChange={(open) => {
-                    if (!open) setDeleting(null);
+                    if (!open && !deleteProcessing) {
+                        setDeleting(null);
+                    }
                 }}
                 title={`Delete ${deleting?.name ?? 'ward'}?`}
                 description="This moves the ward or bed to deleted records."
-                confirmLabel="Delete"
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
                 onConfirm={remove}
+            />
+
+            <ConfirmDialog
+                open={forceDeleting !== null}
+                onOpenChange={(open) => {
+                    if (!open && !forceDeleteProcessing) {
+                        setForceDeleting(null);
+                    }
+                }}
+                title={`Delete ${forceDeleting?.name ?? 'ward'} permanently?`}
+                description="This permanently removes the ward or bed and cannot be undone."
+                confirmLabel={
+                    forceDeleteProcessing ? 'Deleting...' : 'Delete permanently'
+                }
+                destructive
+                processing={forceDeleteProcessing}
+                onConfirm={forceRemove}
+            />
+
+            <ConfirmDialog
+                open={bulkDeleteOpen}
+                onOpenChange={(open) => {
+                    if (!open && !bulkDeleteProcessing) {
+                        setBulkDeleteOpen(false);
+                    }
+                }}
+                title={`Delete ${selected.length} selected item${selected.length === 1 ? '' : 's'}?`}
+                description="This moves the selected wards or beds to deleted records."
+                confirmLabel={bulkDeleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={bulkDeleteProcessing}
+                onConfirm={removeSelected}
             />
         </>
     );

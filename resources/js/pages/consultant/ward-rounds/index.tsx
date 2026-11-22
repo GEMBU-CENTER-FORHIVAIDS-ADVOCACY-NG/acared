@@ -1,8 +1,16 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import { Plus, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type KeyboardEvent,
+} from 'react';
 import { billing as newBilling } from '@/routes/consultant/ward-rounds';
-import { searchPatients } from '@/actions/App/Http/Controllers/ConsultantWardRoundController';
+import { search as searchBillingPatientsRoute } from '@/routes/consultant/ward-rounds/billing/patients';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +27,13 @@ import {
 } from '@/components/ui/sheet';
 import { SelectNative } from '@/components/ui/select-native';
 import { Textarea } from '@/components/ui/textarea';
-import { admit, cancelAdmission, index as wardRoundsIndex, show, view } from '@/routes/consultant/ward-rounds';
+import {
+    admit,
+    cancelAdmission,
+    index as wardRoundsIndex,
+    show,
+    view,
+} from '@/routes/consultant/ward-rounds';
 import { searchAdmission } from '@/actions/App/Http/Controllers/ConsultantWardRoundController';
 import type { BillingPatientOption } from '@/types/finance';
 
@@ -98,6 +112,9 @@ export default function WardRoundsIndex({
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [confirmCancel, setConfirmCancel] = useState(false);
+    const [admissionProcessing, setAdmissionProcessing] = useState(false);
+    const [cancelProcessing, setCancelProcessing] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     // New Billing state
     const [billingOpen, setBillingOpen] = useState(false);
@@ -106,52 +123,82 @@ export default function WardRoundsIndex({
     ]);
     const [billingProcessing, setBillingProcessing] = useState(false);
     const [billingError, setBillingError] = useState<string | null>(null);
-    const [billingPatientSearchQuery, setBillingPatientSearchQuery] = useState('');
-    const [billingPatientSearchResults, setBillingPatientSearchResults] = useState<BillingPatientOption[]>([]);
-    const [billingPatientSearchOpen, setBillingPatientSearchOpen] = useState(false);
-    const [billingPatientSearchLoading, setBillingPatientSearchLoading] = useState(false);
-    const [billingExistingPatientId, setBillingExistingPatientId] = useState('');
-    const [billingSelectedPatientLabel, setBillingSelectedPatientLabel] = useState('');
+    const [billingPatientSearchQuery, setBillingPatientSearchQuery] =
+        useState('');
+    const [billingPatientSearchResults, setBillingPatientSearchResults] =
+        useState<BillingPatientOption[]>([]);
+    const [billingPatientSearchOpen, setBillingPatientSearchOpen] =
+        useState(false);
+    const [
+        billingPatientSearchActiveIndex,
+        setBillingPatientSearchActiveIndex,
+    ] = useState(0);
+    const [billingPatientSearchLoading, setBillingPatientSearchLoading] =
+        useState(false);
+    const [billingExistingPatientId, setBillingExistingPatientId] =
+        useState('');
+    const [billingSelectedPatientLabel, setBillingSelectedPatientLabel] =
+        useState('');
     const billingPatientSearchInputRef = useRef<HTMLInputElement>(null);
     const billingPatientSearchContainerRef = useRef<HTMLDivElement>(null);
-    const billingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const billingDebounceTimerRef = useRef<ReturnType<
+        typeof setTimeout
+    > | null>(null);
 
     const billingTotal = useMemo(
-        () => billingLines.reduce((sum, line) => sum + (Number(line.unitPrice) || 0), 0),
+        () =>
+            billingLines.reduce(
+                (sum, line) => sum + (Number(line.unitPrice) || 0),
+                0,
+            ),
         [billingLines],
     );
 
-    const currencySymbol = usePage().props.currencySymbol ?? '₦';
+    const currencySymbolProps = usePage().props.currencySymbol;
+    const currencySymbol =
+        typeof currencySymbolProps === 'string' ? currencySymbolProps : '₦';
 
-    const searchBillingPatients = useCallback((query: string) => {
-        if (billingDebounceTimerRef.current) {
-            clearTimeout(billingDebounceTimerRef.current);
-        }
+    const searchBillingPatients = useCallback(
+        (query: string) => {
+            if (billingDebounceTimerRef.current) {
+                clearTimeout(billingDebounceTimerRef.current);
+            }
 
-        if (!query.trim()) {
-            setBillingPatientSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setBillingPatientSearchResults([]);
+                setBillingPatientSearchActiveIndex(0);
+                return;
+            }
 
-        setBillingPatientSearchLoading(true);
-        billingDebounceTimerRef.current = setTimeout(() => {
-            const url = searchPatients.url(teamSlug, { query: { q: query } });
-            fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setBillingPatientSearchResults(results);
-                    setBillingPatientSearchLoading(false);
+            setBillingPatientSearchLoading(true);
+            billingDebounceTimerRef.current = setTimeout(() => {
+                const url = searchBillingPatientsRoute.url(teamSlug, {
+                    query: { q: query },
+                });
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 })
-                .catch(() => setBillingPatientSearchLoading(false));
-        }, 300);
-    }, [teamSlug]);
+                    .then((res) => res.json())
+                    .then((results) => {
+                        setBillingPatientSearchResults(results);
+                        setBillingPatientSearchActiveIndex(0);
+                        setBillingPatientSearchLoading(false);
+                    })
+                    .catch(() => setBillingPatientSearchLoading(false));
+            }, 300);
+        },
+        [teamSlug],
+    );
 
     useEffect(() => {
         if (!billingPatientSearchOpen) return;
         const handleClick = (event: MouseEvent) => {
-            if (billingPatientSearchContainerRef.current && !billingPatientSearchContainerRef.current.contains(event.target as Node)) {
+            if (
+                billingPatientSearchContainerRef.current &&
+                !billingPatientSearchContainerRef.current.contains(
+                    event.target as Node,
+                )
+            ) {
                 setBillingPatientSearchOpen(false);
             }
         };
@@ -161,7 +208,8 @@ export default function WardRoundsIndex({
 
     useEffect(() => {
         return () => {
-            if (billingDebounceTimerRef.current) clearTimeout(billingDebounceTimerRef.current);
+            if (billingDebounceTimerRef.current)
+                clearTimeout(billingDebounceTimerRef.current);
         };
     }, []);
 
@@ -170,6 +218,7 @@ export default function WardRoundsIndex({
         setBillingSelectedPatientLabel('');
         setBillingPatientSearchQuery('');
         setBillingPatientSearchResults([]);
+        setBillingPatientSearchActiveIndex(0);
         setBillingPatientSearchOpen(false);
         setBillingLines([{ price_list_id: '', unitPrice: '' }]);
         setBillingError(null);
@@ -177,14 +226,62 @@ export default function WardRoundsIndex({
     }
 
     function chooseBillingService(index: number, value: string) {
-        const service = billingOptions.services.find((item) => String(item.id) === value);
+        const service = billingOptions.services.find(
+            (item) => String(item.id) === value,
+        );
         setBillingLines((current) =>
             current.map((row, rowIndex) =>
                 rowIndex === index
-                    ? { ...row, price_list_id: value, unitPrice: service ? String(service.price) : '' }
+                    ? {
+                          ...row,
+                          price_list_id: value,
+                          unitPrice: service ? String(service.price) : '',
+                      }
                     : row,
             ),
         );
+    }
+
+    function selectBillingPatient(option: BillingPatientOption) {
+        setBillingExistingPatientId(option.slug);
+        setBillingSelectedPatientLabel(option.label);
+        setBillingPatientSearchQuery('');
+        setBillingPatientSearchResults([]);
+        setBillingPatientSearchActiveIndex(0);
+        setBillingPatientSearchOpen(false);
+    }
+
+    function handleBillingPatientKeyDown(
+        event: KeyboardEvent<HTMLInputElement>,
+    ) {
+        if (billingExistingPatientId) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setBillingPatientSearchOpen(true);
+            setBillingPatientSearchActiveIndex((current) =>
+                Math.min(
+                    current + 1,
+                    Math.max(billingPatientSearchResults.length - 1, 0),
+                ),
+            );
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setBillingPatientSearchActiveIndex((current) =>
+                Math.max(current - 1, 0),
+            );
+        } else if (event.key === 'Enter') {
+            const option =
+                billingPatientSearchResults[billingPatientSearchActiveIndex];
+            if (billingPatientSearchOpen && option) {
+                event.preventDefault();
+                selectBillingPatient(option);
+            }
+        } else if (event.key === 'Escape') {
+            setBillingPatientSearchOpen(false);
+        }
     }
 
     function submitBilling() {
@@ -217,7 +314,9 @@ export default function WardRoundsIndex({
         router.post(newBilling.url(teamSlug), payload, {
             preserveScroll: true,
             onError: (errors: Record<string, string>) =>
-                setBillingError(Object.values(errors)[0] ?? 'Something went wrong.'),
+                setBillingError(
+                    Object.values(errors)[0] ?? 'Something went wrong.',
+                ),
             onSuccess: () => setBillingOpen(false),
             onFinish: () => setBillingProcessing(false),
         });
@@ -239,7 +338,9 @@ export default function WardRoundsIndex({
     const canAdmit =
         pendingAdmissions.some(
             (admission) => String(admission.id) === admissionId,
-        ) && !!currentWardId && bedsAvailable.some((bed) => String(bed.id) === bedId);
+        ) &&
+        !!currentWardId &&
+        bedsAvailable.some((bed) => String(bed.id) === bedId);
 
     // Reset bed when ward changes
     const handleWardChange = (value: string) => {
@@ -258,8 +359,11 @@ export default function WardRoundsIndex({
 
     const submitAdmission = () => {
         if (!canAdmit) return;
+        setAdmissionProcessing(true);
+        setActionError(null);
+
         router.post(
-            admit.url({ current_team: teamSlug, ward: allWards[0]?.id ?? 1 }),
+            admit.url({ current_team: teamSlug, ward: Number(currentWardId) }),
             {
                 admission_id: admissionId,
                 ward_id: currentWardId,
@@ -268,12 +372,17 @@ export default function WardRoundsIndex({
             },
             {
                 preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
                 onSuccess: () => {
                     setAdmissionId('');
                     setSelectedWardId('');
                     setBedId('');
                     setNotes('');
                 },
+                onFinish: () => setAdmissionProcessing(false),
             },
         );
     };
@@ -284,18 +393,29 @@ export default function WardRoundsIndex({
     };
 
     const confirmCancelAdmission = () => {
+        setCancelProcessing(true);
+        setActionError(null);
+
         router.patch(
-            cancelAdmission.url({ current_team: teamSlug, admission: Number(admissionId) }),
+            cancelAdmission.url({
+                current_team: teamSlug,
+                admission: Number(admissionId),
+            }),
             {},
             {
                 preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setActionError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
                 onSuccess: () => {
+                    setConfirmCancel(false);
                     setAdmissionId('');
                     setSelectedWardId('');
                     setBedId('');
                     setNotes('');
                 },
-                onFinish: () => setConfirmCancel(false),
+                onFinish: () => setCancelProcessing(false),
             },
         );
     };
@@ -305,25 +425,25 @@ export default function WardRoundsIndex({
             title: 'Awaiting admission',
             value: counts.pending,
             description: 'Pending admission requests',
-            tone: 'text-rose-600',
+            tone: 'text-rose-600 dark:text-rose-400',
         },
         {
             title: 'Admitted patients',
             value: counts.admitted,
             description: 'Admitted patients',
-            tone: 'text-emerald-600',
+            tone: 'text-emerald-600 dark:text-emerald-400',
         },
         {
             title: 'Total requests',
             value: counts.total,
             description: 'Total requests',
-            tone: 'text-indigo-600',
+            tone: 'text-indigo-600 dark:text-indigo-400',
         },
         {
             title: 'Discharged patients',
             value: counts.discharged,
             description: 'Discharged patients',
-            tone: 'text-sky-600',
+            tone: 'text-sky-600 dark:text-sky-400',
         },
     ];
 
@@ -344,10 +464,12 @@ export default function WardRoundsIndex({
             .then((result) => {
                 setSearching(false);
                 if (result && result.id) {
-                    router.get(view.url({
-                        current_team: teamSlug,
-                        admission: result.id,
-                    }));
+                    router.get(
+                        view.url({
+                            current_team: teamSlug,
+                            admission: result.id,
+                        }),
+                    );
                 }
             })
             .catch(() => {
@@ -373,6 +495,7 @@ export default function WardRoundsIndex({
             <div className="flex items-center gap-3">
                 <div className="min-w-[150px] space-y-0">
                     <select
+                        aria-label="Filter by date"
                         value={dateFilter}
                         onChange={(event) => {
                             setDateFilter(event.target.value);
@@ -390,7 +513,7 @@ export default function WardRoundsIndex({
                                 },
                             );
                         }}
-                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors hover:border-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors hover:border-ring focus:border-ring focus:ring-2 focus:ring-ring/20 focus:outline-none"
                     >
                         {dateFilterOptions.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -413,9 +536,12 @@ export default function WardRoundsIndex({
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
                 <div className="flex items-center justify-between gap-4">
                     <div>
-                        <h2 className="mb-0.5 text-base font-medium">Ward rounds</h2>
+                        <h2 className="mb-0.5 text-base font-medium">
+                            Ward rounds
+                        </h2>
                         <p className="text-sm text-muted-foreground">
-                            Admission requests, admitted patients, and discharges.
+                            Admission requests, admitted patients, and
+                            discharges.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -424,7 +550,9 @@ export default function WardRoundsIndex({
                             type="search"
                             placeholder="Search by hospital no or name..."
                             value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onChange={(event) =>
+                                setSearchQuery(event.target.value)
+                            }
                             onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
                                     handleSearch();
@@ -435,6 +563,7 @@ export default function WardRoundsIndex({
                         <Button
                             type="button"
                             size="icon"
+                            aria-label="Search ward rounds"
                             onClick={handleSearch}
                             disabled={searching || !searchQuery.trim()}
                         >
@@ -442,6 +571,8 @@ export default function WardRoundsIndex({
                         </Button>
                     </div>
                 </div>
+
+                {actionError ? <AlertError errors={[actionError]} /> : null}
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {cards.map((card) => (
@@ -475,20 +606,22 @@ export default function WardRoundsIndex({
                                             <CardTitle className="flex items-center justify-between gap-2">
                                                 <span>{ward.name}</span>
                                                 <span
-                                                    className={`rounded-full px-2 py-1 text-xs ${ward.status === 'Occupied' ? 'bg-destructive/10 text-destructive' : ward.status === 'Partially occupied' ? 'bg-amber-500/10 text-amber-700' : 'bg-emerald-500/10 text-emerald-700'}`}
+                                                    className={`rounded-full px-2 py-1 text-xs ${ward.status === 'Occupied' ? 'bg-destructive/10 text-destructive' : ward.status === 'Partially occupied' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}
                                                 >
                                                     {ward.status}
                                                 </span>
                                             </CardTitle>
                                             <p className="text-sm text-muted-foreground">
-                                                {ward.description ?? 'No description'}
+                                                {ward.description ??
+                                                    'No description'}
                                             </p>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
                                             <div className="flex justify-between text-sm">
                                                 <span>Beds occupied</span>
                                                 <span className="font-medium">
-                                                    {ward.occupiedBedsCount} / {ward.bedsCount}
+                                                    {ward.occupiedBedsCount} /{' '}
+                                                    {ward.bedsCount}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between text-sm">
@@ -498,33 +631,50 @@ export default function WardRoundsIndex({
                                                 </span>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
-                                                {ward.beds.slice(0, 8).map((bed) => {
-                                                    const patientSuffix = bed.patientId && bed.patientName ? ` (${bed.patientId} - ${bed.patientName})` : '';
-                                                    return bed.admissionId ? (
-                                                        <Link
-                                                            key={bed.id}
-                                                            href={view.url({
-                                                                current_team: teamSlug,
-                                                                admission: bed.admissionId,
-                                                            })}
-                                                            title={bed.patientName ?? bed.status}
-                                                            className={`rounded border px-2 py-1 text-xs transition-colors hover:bg-accent ${bed.status === 'occupied' ? 'border-destructive/40 bg-destructive/5' : ''}`}
-                                                        >
-                                                            {bed.name}{patientSuffix}
-                                                        </Link>
-                                                    ) : (
-                                                        <span
-                                                            key={bed.id}
-                                                            title={bed.patientName ?? bed.status}
-                                                            className={`rounded border px-2 py-1 text-xs ${bed.status === 'occupied' ? 'border-destructive/40 bg-destructive/5' : ''}`}
-                                                        >
-                                                            {bed.name}{patientSuffix}
-                                                        </span>
-                                                    );
-                                                })}
+                                                {ward.beds
+                                                    .slice(0, 8)
+                                                    .map((bed) => {
+                                                        const patientSuffix =
+                                                            bed.patientId &&
+                                                            bed.patientName
+                                                                ? ` (${bed.patientId} - ${bed.patientName})`
+                                                                : '';
+                                                        return bed.admissionId ? (
+                                                            <Link
+                                                                key={bed.id}
+                                                                href={view.url({
+                                                                    current_team:
+                                                                        teamSlug,
+                                                                    admission:
+                                                                        bed.admissionId,
+                                                                })}
+                                                                title={
+                                                                    bed.patientName ??
+                                                                    bed.status
+                                                                }
+                                                                className={`rounded border px-2 py-1 text-xs transition-colors hover:bg-accent ${bed.status === 'occupied' ? 'border-destructive/40 bg-destructive/5' : ''}`}
+                                                            >
+                                                                {bed.name}
+                                                                {patientSuffix}
+                                                            </Link>
+                                                        ) : (
+                                                            <span
+                                                                key={bed.id}
+                                                                title={
+                                                                    bed.patientName ??
+                                                                    bed.status
+                                                                }
+                                                                className={`rounded border px-2 py-1 text-xs ${bed.status === 'occupied' ? 'border-destructive/40 bg-destructive/5' : ''}`}
+                                                            >
+                                                                {bed.name}
+                                                                {patientSuffix}
+                                                            </span>
+                                                        );
+                                                    })}
                                                 {ward.beds.length > 8 && (
                                                     <span className="px-2 py-1 text-xs text-muted-foreground">
-                                                        +{ward.beds.length - 8} more
+                                                        +{ward.beds.length - 8}{' '}
+                                                        more
                                                     </span>
                                                 )}
                                             </div>
@@ -569,34 +719,47 @@ export default function WardRoundsIndex({
                                         <div className="space-y-2">
                                             <Label>Waiting patients</Label>
                                             <div className="max-h-60 space-y-2 overflow-y-auto">
-                                                {pendingAdmissions.map((admission) => (
-                                                    <button
-                                                        key={admission.id}
-                                                        type="button"
-                                                        className={`w-full rounded-lg border p-3 text-left text-sm transition-colors hover:bg-accent ${String(admission.id) === admissionId ? 'border-primary bg-accent' : ''}`}
-                                                        onClick={() =>
-                                                            handleAdmissionChange(
-                                                                String(admission.id),
-                                                            )
-                                                        }
-                                                    >
-                                                        <p className="font-medium">
-                                                            {admission.patientId} —{' '}
-                                                            {admission.patientName}
-                                                        </p>
-                                                        {admission.requestedWardName && (
-                                                            <p className="text-xs text-muted-foreground">
-                                                                Requested:{' '}
-                                                                {admission.requestedWardName}
+                                                {pendingAdmissions.map(
+                                                    (admission) => (
+                                                        <button
+                                                            key={admission.id}
+                                                            type="button"
+                                                            className={`w-full rounded-lg border p-3 text-left text-sm transition-colors hover:bg-accent ${String(admission.id) === admissionId ? 'border-primary bg-accent' : ''}`}
+                                                            onClick={() =>
+                                                                handleAdmissionChange(
+                                                                    String(
+                                                                        admission.id,
+                                                                    ),
+                                                                )
+                                                            }
+                                                        >
+                                                            <p className="font-medium">
+                                                                {
+                                                                    admission.patientId
+                                                                }{' '}
+                                                                —{' '}
+                                                                {
+                                                                    admission.patientName
+                                                                }
                                                             </p>
-                                                        )}
-                                                        {admission.notes && (
-                                                            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                                                                {admission.notes}
-                                                            </p>
-                                                        )}
-                                                    </button>
-                                                ))}
+                                                            {admission.requestedWardName && (
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Requested:{' '}
+                                                                    {
+                                                                        admission.requestedWardName
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                            {admission.notes && (
+                                                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                                    {
+                                                                        admission.notes
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </button>
+                                                    ),
+                                                )}
                                             </div>
                                         </div>
 
@@ -606,6 +769,7 @@ export default function WardRoundsIndex({
                                                 <div className="space-y-1">
                                                     <Label>Ward</Label>
                                                     <select
+                                                        aria-label="Ward"
                                                         value={currentWardId}
                                                         onChange={(event) =>
                                                             handleWardChange(
@@ -613,7 +777,7 @@ export default function WardRoundsIndex({
                                                                     .value,
                                                             )
                                                         }
-                                                        className="flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                        className="flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                                     >
                                                         <option value="">
                                                             Select ward
@@ -625,7 +789,9 @@ export default function WardRoundsIndex({
                                                                     w.id,
                                                                 )}
                                                             >
-                                                                {w.name} ({w.beds.length} beds available)
+                                                                {w.name} (
+                                                                {w.beds.length}{' '}
+                                                                beds available)
                                                             </option>
                                                         ))}
                                                     </select>
@@ -633,6 +799,7 @@ export default function WardRoundsIndex({
                                                 <div className="space-y-1">
                                                     <Label>Available bed</Label>
                                                     <select
+                                                        aria-label="Available bed"
                                                         value={bedId}
                                                         onChange={(event) =>
                                                             setBedId(
@@ -640,8 +807,10 @@ export default function WardRoundsIndex({
                                                                     .value,
                                                             )
                                                         }
-                                                        disabled={!currentWardId}
-                                                        className="flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                        disabled={
+                                                            !currentWardId
+                                                        }
+                                                        className="flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
                                                         <option value="">
                                                             {currentWardId
@@ -651,24 +820,23 @@ export default function WardRoundsIndex({
                                                         {bedsAvailable.map(
                                                             (bed) => (
                                                                 <option
-                                                                    key={
-                                                                        bed.id
-                                                                    }
+                                                                    key={bed.id}
                                                                     value={String(
                                                                         bed.id,
                                                                     )}
                                                                 >
-                                                                    {
-                                                                        bed.name
-                                                                    }
+                                                                    {bed.name}
                                                                 </option>
                                                             ),
                                                         )}
                                                     </select>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label>Admission notes</Label>
+                                                    <Label>
+                                                        Admission notes
+                                                    </Label>
                                                     <Textarea
+                                                        aria-label="Admission notes"
                                                         value={notes}
                                                         onChange={(event) =>
                                                             setNotes(
@@ -681,18 +849,33 @@ export default function WardRoundsIndex({
                                                 <div className="flex gap-2">
                                                     <Button
                                                         className="flex-1"
-                                                        disabled={!canAdmit}
-                                                        onClick={submitAdmission}
+                                                        disabled={
+                                                            !canAdmit ||
+                                                            admissionProcessing
+                                                        }
+                                                        onClick={
+                                                            submitAdmission
+                                                        }
                                                     >
-                                                        Admit patient
+                                                        {admissionProcessing
+                                                            ? 'Admitting...'
+                                                            : 'Admit patient'}
                                                     </Button>
                                                     <Button
                                                         className="flex-1"
                                                         variant="destructive"
-                                                        disabled={!admissionId}
-                                                        onClick={cancelSelectedAdmission}
+                                                        disabled={
+                                                            !admissionId ||
+                                                            cancelProcessing ||
+                                                            admissionProcessing
+                                                        }
+                                                        onClick={
+                                                            cancelSelectedAdmission
+                                                        }
                                                     >
-                                                        Cancel
+                                                        {cancelProcessing
+                                                            ? 'Cancelling...'
+                                                            : 'Cancel'}
                                                     </Button>
                                                 </div>
                                             </div>
@@ -710,7 +893,14 @@ export default function WardRoundsIndex({
             </div>
 
             {/* New Billing Sheet */}
-            <Sheet open={billingOpen} onOpenChange={setBillingOpen}>
+            <Sheet
+                open={billingOpen}
+                onOpenChange={(open) => {
+                    if (!billingProcessing) {
+                        setBillingOpen(open);
+                    }
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
                     <SheetHeader>
                         <SheetTitle>New Billing</SheetTitle>
@@ -720,7 +910,10 @@ export default function WardRoundsIndex({
                     </SheetHeader>
 
                     <div className="space-y-4 px-4 pb-6">
-                        <div className="space-y-2" ref={billingPatientSearchContainerRef}>
+                        <div
+                            className="space-y-2"
+                            ref={billingPatientSearchContainerRef}
+                        >
                             <Label htmlFor="billing-existing-patient">
                                 Existing patient
                             </Label>
@@ -729,8 +922,26 @@ export default function WardRoundsIndex({
                                     id="billing-existing-patient"
                                     ref={billingPatientSearchInputRef}
                                     placeholder="Search patient by name, code, or phone…"
-                                    value={billingExistingPatientId ? billingSelectedPatientLabel : billingPatientSearchQuery}
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-expanded={
+                                        billingPatientSearchOpen &&
+                                        !billingExistingPatientId
+                                    }
+                                    aria-controls="billing-patient-listbox"
+                                    aria-activedescendant={
+                                        billingPatientSearchOpen &&
+                                        billingPatientSearchResults.length > 0
+                                            ? `billing-patient-option-${billingPatientSearchActiveIndex}`
+                                            : undefined
+                                    }
+                                    value={
+                                        billingExistingPatientId
+                                            ? billingSelectedPatientLabel
+                                            : billingPatientSearchQuery
+                                    }
                                     readOnly={!!billingExistingPatientId}
+                                    onKeyDown={handleBillingPatientKeyDown}
                                     onClick={() => {
                                         if (!billingExistingPatientId) {
                                             setBillingPatientSearchOpen(true);
@@ -745,36 +956,50 @@ export default function WardRoundsIndex({
                                         setBillingPatientSearchOpen(true);
                                     }}
                                 />
-                                {billingPatientSearchOpen && !billingExistingPatientId && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
-                                        {billingPatientSearchLoading && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                Searching…
-                                            </div>
-                                        )}
-                                        {!billingPatientSearchLoading && billingPatientSearchResults.length === 0 && billingPatientSearchQuery.trim() && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                No patients found
-                                            </div>
-                                        )}
-                                        {billingPatientSearchResults.map((option) => (
-                                            <button
-                                                key={option.slug}
-                                                type="button"
-                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                onClick={() => {
-                                                    setBillingExistingPatientId(option.slug);
-                                                    setBillingSelectedPatientLabel(option.label);
-                                                    setBillingPatientSearchQuery('');
-                                                    setBillingPatientSearchResults([]);
-                                                    setBillingPatientSearchOpen(false);
-                                                }}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                {billingPatientSearchOpen &&
+                                    !billingExistingPatientId && (
+                                        <div
+                                            id="billing-patient-listbox"
+                                            role="listbox"
+                                            className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
+                                        >
+                                            {billingPatientSearchLoading && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    Searching…
+                                                </div>
+                                            )}
+                                            {!billingPatientSearchLoading &&
+                                                billingPatientSearchResults.length ===
+                                                    0 &&
+                                                billingPatientSearchQuery.trim() && (
+                                                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                        No patients found
+                                                    </div>
+                                                )}
+                                            {billingPatientSearchResults.map(
+                                                (option, index) => (
+                                                    <button
+                                                        key={option.slug}
+                                                        id={`billing-patient-option-${index}`}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={
+                                                            billingPatientSearchActiveIndex ===
+                                                            index
+                                                        }
+                                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-accent ${billingPatientSearchActiveIndex === index ? 'bg-accent' : ''}`}
+                                                        onClick={() =>
+                                                            selectBillingPatient(
+                                                                option,
+                                                            )
+                                                        }
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
                             </div>
                         </div>
 
@@ -785,13 +1010,22 @@ export default function WardRoundsIndex({
                                     <table className="w-full text-sm">
                                         <thead className="bg-muted/50">
                                             <tr>
-                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '70%' }}>
+                                                <th
+                                                    className="px-4 py-2 text-left font-medium"
+                                                    style={{ width: '70%' }}
+                                                >
                                                     Service
                                                 </th>
-                                                <th className="px-4 py-2 text-left font-medium" style={{ width: '25%' }}>
+                                                <th
+                                                    className="px-4 py-2 text-left font-medium"
+                                                    style={{ width: '25%' }}
+                                                >
                                                     Price
                                                 </th>
-                                                <th className="px-4 py-2 text-center font-medium" style={{ width: '5%' }}></th>
+                                                <th
+                                                    className="px-4 py-2 text-center font-medium"
+                                                    style={{ width: '5%' }}
+                                                ></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
@@ -799,41 +1033,72 @@ export default function WardRoundsIndex({
                                                 <tr key={index}>
                                                     <td className="px-4 py-2">
                                                         <SelectNative
-                                                            value={line.price_list_id}
+                                                            aria-label={`Service ${index + 1}`}
+                                                            value={
+                                                                line.price_list_id
+                                                            }
                                                             placeholder="Select service…"
                                                             onChange={(event) =>
                                                                 chooseBillingService(
                                                                     index,
-                                                                    event.target.value,
+                                                                    event.target
+                                                                        .value,
                                                                 )
                                                             }
                                                         >
-                                                            <option value="">Select service…</option>
+                                                            <option value="">
+                                                                Select service…
+                                                            </option>
                                                             {billingOptions.services.map(
                                                                 (service) => (
                                                                     <option
-                                                                        key={service.id}
-                                                                        value={String(service.id)}
+                                                                        key={
+                                                                            service.id
+                                                                        }
+                                                                        value={String(
+                                                                            service.id,
+                                                                        )}
                                                                     >
-                                                                        {service.name}
+                                                                        {
+                                                                            service.name
+                                                                        }
                                                                     </option>
                                                                 ),
                                                             )}
                                                         </SelectNative>
                                                     </td>
                                                     <td className="px-4 py-2">
-                                                        <Input value={line.unitPrice} readOnly />
+                                                        <Input
+                                                            aria-label={`Price ${index + 1}`}
+                                                            value={
+                                                                line.unitPrice
+                                                            }
+                                                            readOnly
+                                                        />
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
-                                                        {billingLines.length > 1 ? (
+                                                        {billingLines.length >
+                                                        1 ? (
                                                             <button
                                                                 type="button"
-                                                                className="text-muted-foreground hover:text-red-600"
+                                                                aria-label={`Remove service ${index + 1}`}
+                                                                disabled={
+                                                                    billingProcessing
+                                                                }
+                                                                className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
                                                                 onClick={() =>
-                                                                    setBillingLines((current) =>
-                                                                        current.filter(
-                                                                            (_, i) => i !== index,
-                                                                        ),
+                                                                    setBillingLines(
+                                                                        (
+                                                                            current,
+                                                                        ) =>
+                                                                            current.filter(
+                                                                                (
+                                                                                    _,
+                                                                                    i,
+                                                                                ) =>
+                                                                                    i !==
+                                                                                    index,
+                                                                            ),
                                                                     )
                                                                 }
                                                             >
@@ -853,7 +1118,8 @@ export default function WardRoundsIndex({
                                     Total
                                 </span>
                                 <span className="text-sm font-semibold tabular-nums">
-                                    {currencySymbol} {billingTotal.toLocaleString()}
+                                    {currencySymbol}{' '}
+                                    {billingTotal.toLocaleString()}
                                 </span>
                             </div>
 
@@ -861,6 +1127,7 @@ export default function WardRoundsIndex({
                                 type="button"
                                 size="sm"
                                 variant="secondary"
+                                disabled={billingProcessing}
                                 onClick={() =>
                                     setBillingLines([
                                         ...billingLines,
@@ -874,9 +1141,7 @@ export default function WardRoundsIndex({
                         </div>
 
                         {billingError ? (
-                            <p className="text-sm text-destructive">
-                                {billingError}
-                            </p>
+                            <AlertError errors={[billingError]} />
                         ) : null}
                     </div>
 
@@ -885,6 +1150,7 @@ export default function WardRoundsIndex({
                             type="button"
                             variant="secondary"
                             className="flex-1"
+                            disabled={billingProcessing}
                             onClick={() => setBillingOpen(false)}
                         >
                             Cancel
@@ -903,12 +1169,19 @@ export default function WardRoundsIndex({
 
             <ConfirmDialog
                 open={confirmCancel}
-                onOpenChange={setConfirmCancel}
+                onOpenChange={(open) => {
+                    if (!open && !cancelProcessing) {
+                        setConfirmCancel(false);
+                    }
+                }}
                 title="Cancel admission"
                 description="Are you sure you want to cancel this admission request? This action cannot be undone."
-                confirmLabel="Cancel admission"
+                confirmLabel={
+                    cancelProcessing ? 'Cancelling...' : 'Cancel admission'
+                }
                 cancelLabel="Keep admission"
                 destructive
+                processing={cancelProcessing}
                 onConfirm={confirmCancelAdmission}
             />
         </>

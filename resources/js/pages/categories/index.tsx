@@ -4,6 +4,7 @@ import { useState } from 'react';
 import CategoryController from '@/actions/App/Http/Controllers/CategoryController';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,10 +23,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import {
-    Card,
-    CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -69,6 +67,8 @@ export default function CategoryIndex({
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState<CategoryFormValues>(EMPTY_FORM);
     const [formError, setFormError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
     const [toDelete, setToDelete] = useState<CategoryListItem | null>(null);
 
@@ -104,6 +104,7 @@ export default function CategoryIndex({
         setEditing(null);
         setForm(EMPTY_FORM);
         setFormError(null);
+        setFieldErrors({});
         setFormOpen(true);
     }
 
@@ -115,19 +116,23 @@ export default function CategoryIndex({
             description: category.description ?? '',
         });
         setFormError(null);
+        setFieldErrors({});
         setFormOpen(true);
     }
 
     function submitForm() {
         setProcessing(true);
         setFormError(null);
+        setFieldErrors({});
 
         const options = {
             preserveScroll: true,
-            onError: (errors: Record<string, string>) =>
+            onError: (errors: Record<string, string>) => {
+                setFieldErrors(errors);
                 setFormError(
                     Object.values(errors)[0] ?? 'Something went wrong.',
-                ),
+                );
+            },
             onSuccess: () => {
                 setFormOpen(false);
                 setForm(EMPTY_FORM);
@@ -163,15 +168,19 @@ export default function CategoryIndex({
         }
 
         setProcessing(true);
+        setDeleteError(null);
 
         router.delete(
             CategoryController.destroy.url([teamSlug ?? '', toDelete.id]),
             {
                 preserveScroll: true,
-                onFinish: () => {
-                    setProcessing(false);
-                    setToDelete(null);
-                },
+                onSuccess: () => setToDelete(null),
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ??
+                            'Unable to delete category.',
+                    ),
+                onFinish: () => setProcessing(false),
             },
         );
     }
@@ -199,7 +208,11 @@ export default function CategoryIndex({
                         title="Categories"
                         description="Manage the patient categories used across reception."
                     />
-                    <Button onClick={openCreate} data-test="new-category">
+                    <Button
+                        onClick={openCreate}
+                        disabled={processing}
+                        data-test="new-category"
+                    >
                         New category
                     </Button>
                 </div>
@@ -213,115 +226,183 @@ export default function CategoryIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search categories"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search categories..."
-                            className="max-w-sm"
+                            className="min-w-0 flex-1 sm:max-w-sm"
                             data-test="category-search"
                         />
-                        <Button type="submit">
-                            Search
+                        <Button type="submit" disabled={processing}>
+                            {processing ? 'Searching...' : 'Search'}
                         </Button>
                     </form>
                 </div>
 
                 <Card>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>
-                                        <button
-                                            type="button"
-                                            className="inline-flex items-center"
-                                            onClick={() => toggleSort('name')}
-                                        >
-                                            Name
-                                            {sortIndicator('name')}
-                                        </button>
-                                    </TableHead>
-                                    <TableHead>
-                                        <button
-                                            type="button"
-                                            className="inline-flex items-center"
-                                            onClick={() =>
-                                                toggleSort('discount_percentage')
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead
+                                            aria-sort={
+                                                filters.sort === 'name'
+                                                    ? filters.direction ===
+                                                      'asc'
+                                                        ? 'ascending'
+                                                        : 'descending'
+                                                    : 'none'
                                             }
                                         >
-                                            Discount
-                                            {sortIndicator('discount_percentage')}
-                                        </button>
-                                    </TableHead>
-                                    <TableHead>Patients</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="w-12 text-right">
-                                        Actions
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {categories.data.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            className="py-10 text-center text-muted-foreground"
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                onClick={() =>
+                                                    toggleSort('name')
+                                                }
+                                            >
+                                                Name
+                                                {sortIndicator('name')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead
+                                            aria-sort={
+                                                filters.sort ===
+                                                'discount_percentage'
+                                                    ? filters.direction ===
+                                                      'asc'
+                                                        ? 'ascending'
+                                                        : 'descending'
+                                                    : 'none'
+                                            }
                                         >
-                                            No categories found.
-                                        </TableCell>
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                onClick={() =>
+                                                    toggleSort(
+                                                        'discount_percentage',
+                                                    )
+                                                }
+                                            >
+                                                Discount
+                                                {sortIndicator(
+                                                    'discount_percentage',
+                                                )}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead>Patients</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead className="w-12 text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
-                                ) : (
-                                    categories.data.map((category) => (
-                                        <TableRow
-                                            key={category.id}
-                                            data-test="category-row"
-                                        >
-                                            <TableCell className="font-medium">
-                                                {category.name}
-                                            </TableCell>
-                                            <TableCell>
-                                                {category.discountPercentage}%
-                                            </TableCell>
-                                            <TableCell>
-                                                {category.patientsCount}
-                                            </TableCell>
-                                            <TableCell className="max-w-md truncate text-muted-foreground">
-                                                {category.description ?? '—'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                </TableHeader>
+                                <TableBody>
+                                    {categories.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={5}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span>
+                                                        No categories found.
+                                                    </span>
+                                                    {filters.q ? (
                                                         <Button
-                                                            variant="outline"
+                                                            type="button"
+                                                            variant="link"
                                                             size="sm"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                            onClick={() => {
+                                                                setSearch('');
+                                                                applyFilters({
+                                                                    q: '',
+                                                                    page: 1,
+                                                                });
+                                                            }}
                                                         >
-                                                            <MoreHorizontal className="size-4" />
+                                                            Clear filters
                                                         </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                openEdit(category)
-                                                            }
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                setToDelete(category)
-                                                            }
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                    ) : null}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : (
+                                        categories.data.map((category) => (
+                                            <TableRow
+                                                key={category.id}
+                                                data-test="category-row"
+                                            >
+                                                <TableCell className="font-medium">
+                                                    {category.name}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {
+                                                        category.discountPercentage
+                                                    }
+                                                    %
+                                                </TableCell>
+                                                <TableCell>
+                                                    {category.patientsCount}
+                                                </TableCell>
+                                                <TableCell className="max-w-md truncate text-muted-foreground">
+                                                    {category.description ??
+                                                        '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                aria-label={`Actions for ${category.name}`}
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openEdit(
+                                                                        category,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setDeleteError(
+                                                                        null,
+                                                                    );
+                                                                    setToDelete(
+                                                                        category,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -337,7 +418,14 @@ export default function CategoryIndex({
                 />
             </div>
 
-            <Sheet open={formOpen} onOpenChange={setFormOpen}>
+            <Sheet
+                open={formOpen}
+                onOpenChange={(open) => {
+                    if (!open && !processing) {
+                        setFormOpen(false);
+                    }
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto">
                     <SheetHeader>
                         <SheetTitle>
@@ -348,7 +436,14 @@ export default function CategoryIndex({
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="flex flex-1 flex-col gap-4 px-4 pb-4">
+                    <form
+                        id="category-form"
+                        className="flex flex-1 flex-col gap-4 px-4 pb-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            submitForm();
+                        }}
+                    >
                         <div className="space-y-2">
                             <Label htmlFor="category-name">Name</Label>
                             <Input
@@ -361,7 +456,9 @@ export default function CategoryIndex({
                                     }))
                                 }
                                 data-test="category-name"
+                                aria-invalid={Boolean(fieldErrors.name)}
                             />
+                            <InputError message={fieldErrors.name} />
                         </div>
 
                         <div className="space-y-2">
@@ -380,6 +477,12 @@ export default function CategoryIndex({
                                         discount_percentage: event.target.value,
                                     }))
                                 }
+                                aria-invalid={Boolean(
+                                    fieldErrors.discount_percentage,
+                                )}
+                            />
+                            <InputError
+                                message={fieldErrors.discount_percentage}
                             />
                         </div>
 
@@ -396,20 +499,33 @@ export default function CategoryIndex({
                                         description: event.target.value,
                                     }))
                                 }
+                                aria-invalid={Boolean(fieldErrors.description)}
                             />
+                            <InputError message={fieldErrors.description} />
                         </div>
 
                         {formError ? (
-                            <p className="text-sm text-destructive">
+                            <p
+                                className="text-sm text-destructive"
+                                role="alert"
+                            >
                                 {formError}
                             </p>
                         ) : null}
-                    </div>
+                    </form>
 
                     <SheetFooter>
                         <Button
                             type="button"
-                            onClick={submitForm}
+                            variant="outline"
+                            onClick={() => setFormOpen(false)}
+                            disabled={processing}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            form="category-form"
                             disabled={processing}
                             data-test="submit-category"
                         >
@@ -422,16 +538,22 @@ export default function CategoryIndex({
             <ConfirmDialog
                 open={toDelete !== null}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !processing) {
                         setToDelete(null);
                     }
                 }}
                 processing={processing}
+                destructive
                 title={`Delete "${toDelete?.name ?? ''}"?`}
                 description="Patients keep their record but lose this category. This cannot be undone."
-                confirmLabel="Delete"
+                confirmLabel={processing ? 'Deleting...' : 'Delete'}
                 onConfirm={deleteCategory}
             />
+            {deleteError && toDelete ? (
+                <p className="text-sm text-destructive" role="alert">
+                    {deleteError}
+                </p>
+            ) : null}
         </>
     );
 }

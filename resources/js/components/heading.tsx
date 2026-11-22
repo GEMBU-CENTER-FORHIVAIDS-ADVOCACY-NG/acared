@@ -10,6 +10,8 @@ export default function Heading({
     return (
         <header className={variant === 'small' ? '' : 'mb-8 space-y-0.5'}>
             <h2
+                data-slot="page-heading"
+                data-variant={variant}
                 className={
                     variant === 'small'
                         ? 'mb-0.5 text-base font-medium'

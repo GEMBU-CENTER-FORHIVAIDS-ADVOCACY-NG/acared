@@ -15,18 +15,15 @@ import {
     Upload,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { usePermissions } from '@/hooks/use-permissions';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -154,7 +151,14 @@ export default function InventoryStockIndex({
 }: {
     currencySymbol: string;
     inventories: Paginator;
-    filters: { q: string; status: string; categoryId: number | null; subcategoryId: number | null; sort: string; perPage: number };
+    filters: {
+        q: string;
+        status: string;
+        categoryId: number | null;
+        subcategoryId: number | null;
+        sort: string;
+        perPage: number;
+    };
     formOptions: {
         priceLists: { id: number; name: string }[];
         drugForms: { id: number; name: string }[];
@@ -174,13 +178,34 @@ export default function InventoryStockIndex({
     const teamSlug = currentTeam?.slug ?? '';
     const [query, setQuery] = useState(filters.q);
     const [status, setStatus] = useState(filters.status);
-    const [categoryId, setCategoryId] = useState(filters.categoryId?.toString() ?? '');
-    const [subcategoryId, setSubcategoryId] = useState(filters.subcategoryId?.toString() ?? '');
+    const [categoryId, setCategoryId] = useState(
+        filters.categoryId?.toString() ?? '',
+    );
+    const [subcategoryId, setSubcategoryId] = useState(
+        filters.subcategoryId?.toString() ?? '',
+    );
     const [editing, setEditing] = useState<Inventory | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState<FormValues>(emptyForm);
+    const [formProcessing, setFormProcessing] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [processing, setProcessing] = useState(false);
+    const [formFieldErrors, setFormFieldErrors] = useState<
+        Record<string, string>
+    >({});
+    const [adjustmentProcessing, setAdjustmentProcessing] = useState(false);
+    const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+    const [adjustmentFieldErrors, setAdjustmentFieldErrors] = useState<
+        Record<string, string>
+    >({});
+    const [transferProcessing, setTransferProcessing] = useState(false);
+    const [transferError, setTransferError] = useState<string | null>(null);
+    const [transferFieldErrors, setTransferFieldErrors] = useState<
+        Record<string, string>
+    >({});
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [bulkDeleteProcessing, setBulkDeleteProcessing] = useState(false);
+    const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
     const [selected, setSelected] = useState<number[]>([]);
     const [adjustOpen, setAdjustOpen] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
@@ -195,12 +220,17 @@ export default function InventoryStockIndex({
     const [importOpen, setImportOpen] = useState(false);
     const [importTarget, setImportTarget] = useState<InventoryTarget>('stock');
     const [importHeaders, setImportHeaders] = useState<string[]>([]);
-    const [importMapping, setImportMapping] = useState<ColumnMapping>(EMPTY_MAPPING);
+    const [importMapping, setImportMapping] =
+        useState<ColumnMapping>(EMPTY_MAPPING);
     const [importError, setImportError] = useState<string | null>(null);
     const [importProcessing, setImportProcessing] = useState(false);
     const importFileInput = useRef<HTMLInputElement>(null);
 
-    function applyFilters(page = 1, perPage = filters.perPage, sort = filters.sort) {
+    function applyFilters(
+        page = 1,
+        perPage = filters.perPage,
+        sort = filters.sort,
+    ) {
         router.get(
             stockRoutes.index.url(teamSlug, {
                 query: {
@@ -222,6 +252,7 @@ export default function InventoryStockIndex({
         setEditing(null);
         setForm(emptyForm);
         setFormError(null);
+        setFormFieldErrors({});
         setFormOpen(true);
     }
 
@@ -238,12 +269,14 @@ export default function InventoryStockIndex({
             expires_at: item.expiresAt ?? '',
         });
         setFormError(null);
+        setFormFieldErrors({});
         setFormOpen(true);
     }
 
     function submitForm() {
-        setProcessing(true);
+        setFormProcessing(true);
         setFormError(null);
+        setFormFieldErrors({});
         const payload = {
             ...form,
             price_list_id: Number(form.price_list_id),
@@ -257,12 +290,14 @@ export default function InventoryStockIndex({
         const options = {
             preserveScroll: true,
             onSuccess: () => setFormOpen(false),
-            onError: (errors: Record<string, string>) =>
+            onError: (errors: Record<string, string>) => {
+                setFormFieldErrors(errors);
                 setFormError(
                     Object.values(errors)[0] ??
                         'Unable to save inventory item.',
-                ),
-            onFinish: () => setProcessing(false),
+                );
+            },
+            onFinish: () => setFormProcessing(false),
         };
         if (editing) {
             router.patch(
@@ -278,16 +313,28 @@ export default function InventoryStockIndex({
         }
     }
 
-    function openOperation(kind: 'adjust' | 'transfer', ids: number[], isStockCountMode = false) {
+    function openOperation(
+        kind: 'adjust' | 'transfer',
+        ids: number[],
+        isStockCountMode = false,
+    ) {
         setSelected(ids);
+        setAdjustmentError(null);
+        setAdjustmentFieldErrors({});
+        setTransferError(null);
+        setTransferFieldErrors({});
         if (isStockCountMode) {
             setIsStockCount(true);
             setOperation('set');
             setReason('correction');
-            setQuantities(Object.fromEntries(ids.map((id) => {
-                const item = inventories.data.find((i) => i.id === id);
-                return [id, item ? String(item.quantity) : '0'];
-            })));
+            setQuantities(
+                Object.fromEntries(
+                    ids.map((id) => {
+                        const item = inventories.data.find((i) => i.id === id);
+                        return [id, item ? String(item.quantity) : '0'];
+                    }),
+                ),
+            );
         } else {
             setIsStockCount(false);
             setQuantities(Object.fromEntries(ids.map((id) => [id, '1'])));
@@ -297,8 +344,9 @@ export default function InventoryStockIndex({
     }
 
     function submitAdjustment() {
-        setProcessing(true);
-        setFormError(null);
+        setAdjustmentProcessing(true);
+        setAdjustmentError(null);
+        setAdjustmentFieldErrors({});
 
         const items = selected
             .map((id) => ({
@@ -308,8 +356,18 @@ export default function InventoryStockIndex({
             .filter((item) => item.quantity > 0);
 
         if (items.length === 0) {
-            setFormError('Please enter a quantity greater than zero for at least one item.');
-            setProcessing(false);
+            setAdjustmentError(
+                'Please enter a quantity greater than zero for at least one item.',
+            );
+            setAdjustmentFieldErrors(
+                Object.fromEntries(
+                    selected.map((id) => [
+                        String(id),
+                        'Enter a quantity greater than zero.',
+                    ]),
+                ),
+            );
+            setAdjustmentProcessing(false);
             return;
         }
 
@@ -323,18 +381,21 @@ export default function InventoryStockIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setAdjustOpen(false),
-                onError: (errors) =>
-                    setFormError(
+                onError: (errors: Record<string, string>) => {
+                    setAdjustmentFieldErrors(errors);
+                    setAdjustmentError(
                         Object.values(errors)[0] ?? 'Unable to adjust stock.',
-                    ),
-                onFinish: () => setProcessing(false),
+                    );
+                },
+                onFinish: () => setAdjustmentProcessing(false),
             },
         );
     }
 
     function submitTransfer() {
-        setProcessing(true);
-        setFormError(null);
+        setTransferProcessing(true);
+        setTransferError(null);
+        setTransferFieldErrors({});
 
         const items = selected
             .map((id) => ({
@@ -344,8 +405,18 @@ export default function InventoryStockIndex({
             .filter((item) => item.quantity > 0);
 
         if (items.length === 0) {
-            setFormError('Please enter a quantity greater than zero for at least one item.');
-            setProcessing(false);
+            setTransferError(
+                'Please enter a quantity greater than zero for at least one item.',
+            );
+            setTransferFieldErrors(
+                Object.fromEntries(
+                    selected.map((id) => [
+                        String(id),
+                        'Enter a quantity greater than zero.',
+                    ]),
+                ),
+            );
+            setTransferProcessing(false);
             return;
         }
 
@@ -359,18 +430,21 @@ export default function InventoryStockIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setTransferOpen(false),
-                onError: (errors) =>
-                    setFormError(
+                onError: (errors: Record<string, string>) => {
+                    setTransferFieldErrors(errors);
+                    setTransferError(
                         Object.values(errors)[0] ?? 'Unable to transfer stock.',
-                    ),
-                onFinish: () => setProcessing(false),
+                    );
+                },
+                onFinish: () => setTransferProcessing(false),
             },
         );
     }
 
     function deleteOne() {
-        if (!deleting) return;
-        setProcessing(true);
+        if (!deleting || deleteProcessing) return;
+        setDeleteProcessing(true);
+        setDeleteError(null);
         router.delete(
             stockRoutes.destroy.url({
                 current_team: teamSlug,
@@ -379,13 +453,20 @@ export default function InventoryStockIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => setDeleting(null),
-                onFinish: () => setProcessing(false),
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ??
+                            'Unable to delete inventory item.',
+                    ),
+                onFinish: () => setDeleteProcessing(false),
             },
         );
     }
 
     function deleteSelected() {
-        setProcessing(true);
+        if (bulkDeleteProcessing) return;
+        setBulkDeleteProcessing(true);
+        setBulkDeleteError(null);
         router.delete(stockRoutes.bulk.destroy.url(teamSlug), {
             data: { ids: selected },
             preserveScroll: true,
@@ -393,7 +474,12 @@ export default function InventoryStockIndex({
                 setSelected([]);
                 setBulkDeleteOpen(false);
             },
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) =>
+                setBulkDeleteError(
+                    Object.values(errors)[0] ??
+                        'Unable to delete inventory items.',
+                ),
+            onFinish: () => setBulkDeleteProcessing(false),
         });
     }
 
@@ -401,7 +487,24 @@ export default function InventoryStockIndex({
         selected.includes(item.id),
     );
 
-    function handleImportFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    function getStatusBadgeClass(status: string) {
+        const classes: Record<string, string> = {
+            low: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+            expiring:
+                'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+            expired:
+                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+            stocked:
+                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+            available:
+                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+        };
+        return classes[status] ?? 'bg-muted text-muted-foreground';
+    }
+
+    function handleImportFileChange(
+        event: React.ChangeEvent<HTMLInputElement>,
+    ) {
         const file = event.target.files?.[0];
         if (!file) {
             return;
@@ -419,22 +522,45 @@ export default function InventoryStockIndex({
                 setImportError('The CSV file is empty.');
                 return;
             }
-            const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+            const headers = lines[0]
+                .split(',')
+                .map((h) => h.trim().replace(/^"|"$/g, ''));
             setImportHeaders(headers);
 
             // Auto-map headers
             const autoMapping: ColumnMapping = { ...EMPTY_MAPPING };
             const aliases: Record<string, string> = {
-                'sku': 'sku', 'item_code': 'sku', 'item code': 'sku', 'code': 'sku',
-                'product': 'name', 'name': 'name', 'description': 'name', 'item': 'name',
-                'product form': 'drug_form', 'form': 'drug_form', 'drug_form': 'drug_form',
-                'minimum quantity': 'min_qty', 'min_qty': 'min_qty', 'min quantity': 'min_qty', 'minimum': 'min_qty',
-                'quantity': 'quantity', 'qty': 'quantity', 'stock': 'quantity',
-                'price': 'price', 'selling price': 'price', 'sell price': 'price',
-                'cost': 'cost', 'cost price': 'cost', 'buy price': 'cost', 'unit cost': 'cost',
-                'status': 'status',
-                'expires_at': 'expires_at', 'expiry': 'expires_at', 'expiry_date': 'expires_at',
-                'expiration': 'expires_at', 'expiration_date': 'expires_at',
+                sku: 'sku',
+                item_code: 'sku',
+                'item code': 'sku',
+                code: 'sku',
+                product: 'name',
+                name: 'name',
+                description: 'name',
+                item: 'name',
+                'product form': 'drug_form',
+                form: 'drug_form',
+                drug_form: 'drug_form',
+                'minimum quantity': 'min_qty',
+                min_qty: 'min_qty',
+                'min quantity': 'min_qty',
+                minimum: 'min_qty',
+                quantity: 'quantity',
+                qty: 'quantity',
+                stock: 'quantity',
+                price: 'price',
+                'selling price': 'price',
+                'sell price': 'price',
+                cost: 'cost',
+                'cost price': 'cost',
+                'buy price': 'cost',
+                'unit cost': 'cost',
+                status: 'status',
+                expires_at: 'expires_at',
+                expiry: 'expires_at',
+                expiry_date: 'expires_at',
+                expiration: 'expires_at',
+                expiration_date: 'expires_at',
             };
             for (const header of headers) {
                 const lower = header.toLowerCase();
@@ -457,9 +583,13 @@ export default function InventoryStockIndex({
 
         // Validate required mappings
         const required = ['name', 'drug_form', 'quantity', 'price', 'cost'];
-        const missing = required.filter((field) => !importMapping[field as keyof ColumnMapping]);
+        const missing = required.filter(
+            (field) => !importMapping[field as keyof ColumnMapping],
+        );
         if (missing.length > 0) {
-            setImportError('Please map all required fields: ' + missing.join(', '));
+            setImportError(
+                'Please map all required fields: ' + missing.join(', '),
+            );
             return;
         }
 
@@ -483,7 +613,9 @@ export default function InventoryStockIndex({
                 }
             },
             onError: (errors) =>
-                setImportError(errors.file ?? errors.mapping ?? 'Import failed.'),
+                setImportError(
+                    errors.file ?? errors.mapping ?? 'Import failed.',
+                ),
             onFinish: () => setImportProcessing(false),
         });
     }
@@ -508,14 +640,18 @@ export default function InventoryStockIndex({
                     />
                     <div className="flex gap-2">
                         <Button variant="outline" asChild>
-                            <a href={stockRoutes.export.url(teamSlug)}>
+                            <Link href={stockRoutes.export.url(teamSlug)}>
                                 Export CSV
-                            </a>
+                            </Link>
                         </Button>
                         <Button variant="outline" asChild>
-                            <a href={stockRoutes.exportStockTaking.url(teamSlug)}>
+                            <Link
+                                href={stockRoutes.exportStockTaking.url(
+                                    teamSlug,
+                                )}
+                            >
                                 Export stock taking
-                            </a>
+                            </Link>
                         </Button>
                         <Button variant="outline" asChild>
                             <Link href={stockRoutes.print.url(teamSlug)}>
@@ -523,16 +659,25 @@ export default function InventoryStockIndex({
                                 Print stock taking
                             </Link>
                         </Button>
-                        <Button variant="outline" onClick={() => setImportOpen(true)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setImportOpen(true)}
+                        >
                             <Upload className="mr-2 size-4" />
                             Import CSV
                         </Button>
-                        {can.canStockCount('inventory') && selected.length > 0 && (
-                            <Button variant="outline" onClick={() => openOperation('adjust', selected, true)}>
-                                <ClipboardCheck className="mr-2 size-4" />
-                                Stock Count ({selected.length})
-                            </Button>
-                        )}
+                        {can.canStockCount('inventory') &&
+                            selected.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        openOperation('adjust', selected, true)
+                                    }
+                                >
+                                    <ClipboardCheck className="mr-2 size-4" />
+                                    Stock Count ({selected.length})
+                                </Button>
+                            )}
                         <Button onClick={openCreate}>Add inventory item</Button>
                     </div>
                 </div>
@@ -583,13 +728,17 @@ export default function InventoryStockIndex({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <form
-                        className="flex flex-1 items-center gap-2"
+                        className="flex flex-1 flex-wrap items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             applyFilters();
                         }}
                     >
+                        <Label htmlFor="inventory-search" className="sr-only">
+                            Search inventory
+                        </Label>
                         <Input
+                            id="inventory-search"
                             className="max-w-sm"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
@@ -610,7 +759,9 @@ export default function InventoryStockIndex({
                         <SelectNative
                             aria-label="Filter by category"
                             value={categoryId}
-                            onChange={(event) => setCategoryId(event.target.value)}
+                            onChange={(event) =>
+                                setCategoryId(event.target.value)
+                            }
                         >
                             <option value="">All categories</option>
                             {formOptions.categories.map((category) => (
@@ -622,18 +773,21 @@ export default function InventoryStockIndex({
                         <SelectNative
                             aria-label="Filter by subcategory"
                             value={subcategoryId}
-                            onChange={(event) => setSubcategoryId(event.target.value)}
+                            onChange={(event) =>
+                                setSubcategoryId(event.target.value)
+                            }
                         >
                             <option value="">All subcategories</option>
                             {formOptions.subcategories.map((subcategory) => (
-                                <option key={subcategory.id} value={subcategory.id}>
+                                <option
+                                    key={subcategory.id}
+                                    value={subcategory.id}
+                                >
                                     {subcategory.name}
                                 </option>
                             ))}
                         </SelectNative>
-                        <Button type="submit">
-                            Filter
-                        </Button>
+                        <Button type="submit">Filter</Button>
                     </form>
                     {selected.length > 0 ? (
                         <>
@@ -644,7 +798,9 @@ export default function InventoryStockIndex({
                                 <Button
                                     size="sm"
                                     variant="secondary"
-                                    onClick={() => openOperation('adjust', selected, true)}
+                                    onClick={() =>
+                                        openOperation('adjust', selected, true)
+                                    }
                                 >
                                     Stock count
                                 </Button>
@@ -652,21 +808,28 @@ export default function InventoryStockIndex({
                             <Button
                                 size="sm"
                                 variant="secondary"
-                                onClick={() => openOperation('adjust', selected)}
+                                onClick={() =>
+                                    openOperation('adjust', selected)
+                                }
                             >
                                 Adjust stock
                             </Button>
                             <Button
                                 size="sm"
                                 variant="secondary"
-                                onClick={() => openOperation('transfer', selected)}
+                                onClick={() =>
+                                    openOperation('transfer', selected)
+                                }
                             >
                                 Transfer stock
                             </Button>
                             <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => setBulkDeleteOpen(true)}
+                                onClick={() => {
+                                    setBulkDeleteError(null);
+                                    setBulkDeleteOpen(true);
+                                }}
                             >
                                 Delete selected
                             </Button>
@@ -676,233 +839,297 @@ export default function InventoryStockIndex({
                 <Card>
                     <CardContent className="p-0">
                         <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <input
-                                        type="checkbox"
-                                        aria-label="Select all inventory items"
-                                        checked={
-                                            inventories.data.length > 0 &&
-                                            inventories.data.every((item) =>
-                                                selected.includes(item.id),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelected(
-                                                event.target.checked
-                                                    ? [
-                                                          ...new Set([
-                                                              ...selected,
-                                                              ...inventories.data.map(
-                                                                  (item) =>
-                                                                      item.id,
-                                                              ),
-                                                          ]),
-                                                      ]
-                                                    : selected.filter(
-                                                          (id) =>
-                                                              !inventories.data.some(
-                                                                  (item) =>
-                                                                      item.id ===
-                                                                      id,
-                                                              ),
-                                                      ),
-                                            )
-                                        }
-                                    />
-                                </TableHead>
-                                <TableHead>SKU</TableHead>
-                                <TableHead
-                                    className="cursor-pointer select-none"
-                                    onClick={() => {
-                                        const nextSort =
-                                            filters.sort === 'category_asc'
-                                                ? 'category_desc'
-                                                : 'category_asc';
-                                        applyFilters(1, filters.perPage, nextSort);
-                                    }}
-                                >
-                                    Category {filters.sort === 'category_asc' ? '↑' : filters.sort === 'category_desc' ? '↓' : ''}
-                                </TableHead>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Form</TableHead>
-                                <TableHead>Minimum</TableHead>
-                                <TableHead
-                                    className="cursor-pointer select-none"
-                                    onClick={() => {
-                                        const nextSort =
-                                            filters.sort === 'quantity_asc'
-                                                ? 'quantity_desc'
-                                                : 'quantity_asc';
-                                        applyFilters(1, filters.perPage, nextSort);
-                                    }}
-                                >
-                                    Quantity {filters.sort === 'quantity_asc' ? '↑' : filters.sort === 'quantity_desc' ? '↓' : ''}
-                                </TableHead>
-                                <TableHead>Cost</TableHead>
-                                <TableHead>Value</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {inventories.data.length === 0 ? (
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={10}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No inventory items found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                inventories.data.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <input
-                                                type="checkbox"
-                                                aria-label={`Select ${item.name}`}
-                                                checked={selected.includes(
-                                                    item.id,
-                                                )}
-                                                onChange={(event) =>
-                                                    setSelected(
-                                                        event.target.checked
-                                                            ? [
-                                                                  ...selected,
-                                                                  item.id,
-                                                              ]
-                                                            : selected.filter(
-                                                                  (id) =>
-                                                                      id !==
-                                                                      item.id,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell>{item.sku}</TableCell>
-                                        <TableCell className="break-words whitespace-normal">
-                                            {item.subCategory ?? '—'}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {item.name}
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.drugForm ?? '—'}
-                                        </TableCell>
-                                        <TableCell>{item.minQty}</TableCell>
-                                        <TableCell
-                                            className={
-                                                item.quantity <= item.minQty
-                                                    ? 'font-semibold text-destructive'
-                                                    : ''
+                                    <TableHead>
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Select all inventory items"
+                                            checked={
+                                                inventories.data.length > 0 &&
+                                                inventories.data.every((item) =>
+                                                    selected.includes(item.id),
+                                                )
                                             }
+                                            onChange={(event) =>
+                                                setSelected(
+                                                    event.target.checked
+                                                        ? [
+                                                              ...new Set([
+                                                                  ...selected,
+                                                                  ...inventories.data.map(
+                                                                      (item) =>
+                                                                          item.id,
+                                                                  ),
+                                                              ]),
+                                                          ]
+                                                        : selected.filter(
+                                                              (id) =>
+                                                                  !inventories.data.some(
+                                                                      (item) =>
+                                                                          item.id ===
+                                                                          id,
+                                                                  ),
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                    </TableHead>
+                                    <TableHead>SKU</TableHead>
+                                    <TableHead
+                                        aria-sort={
+                                            filters.sort === 'category_asc'
+                                                ? 'ascending'
+                                                : filters.sort ===
+                                                    'category_desc'
+                                                  ? 'descending'
+                                                  : 'none'
+                                        }
+                                    >
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center hover:underline"
+                                            onClick={() => {
+                                                const nextSort =
+                                                    filters.sort ===
+                                                    'category_asc'
+                                                        ? 'category_desc'
+                                                        : 'category_asc';
+                                                applyFilters(
+                                                    1,
+                                                    filters.perPage,
+                                                    nextSort,
+                                                );
+                                            }}
                                         >
-                                            {item.quantity.toLocaleString()}
+                                            Category{' '}
+                                            {filters.sort === 'category_asc'
+                                                ? '↑'
+                                                : filters.sort ===
+                                                    'category_desc'
+                                                  ? '↓'
+                                                  : ''}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Form</TableHead>
+                                    <TableHead>Minimum</TableHead>
+                                    <TableHead
+                                        aria-sort={
+                                            filters.sort === 'quantity_asc'
+                                                ? 'ascending'
+                                                : filters.sort ===
+                                                    'quantity_desc'
+                                                  ? 'descending'
+                                                  : 'none'
+                                        }
+                                    >
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center hover:underline"
+                                            onClick={() => {
+                                                const nextSort =
+                                                    filters.sort ===
+                                                    'quantity_asc'
+                                                        ? 'quantity_desc'
+                                                        : 'quantity_asc';
+                                                applyFilters(
+                                                    1,
+                                                    filters.perPage,
+                                                    nextSort,
+                                                );
+                                            }}
+                                        >
+                                            Quantity{' '}
+                                            {filters.sort === 'quantity_asc'
+                                                ? '↑'
+                                                : filters.sort ===
+                                                    'quantity_desc'
+                                                  ? '↓'
+                                                  : ''}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Cost</TableHead>
+                                    <TableHead>Value</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">
+                                        Actions
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {inventories.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={10}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No inventory items found.
                                         </TableCell>
-                                        <TableCell>
-                                            {currencySymbol}
-                                            {item.cost.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            {currencySymbol}
-                                            {item.value.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="capitalize">
-                                                {item.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
+                                    </TableRow>
+                                ) : (
+                                    inventories.data.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Select ${item.name}`}
+                                                    checked={selected.includes(
+                                                        item.id,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        setSelected(
+                                                            event.target.checked
+                                                                ? [
+                                                                      ...selected,
+                                                                      item.id,
+                                                                  ]
+                                                                : selected.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          item.id,
+                                                                  ),
+                                                        )
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>{item.sku}</TableCell>
+                                            <TableCell className="break-words whitespace-normal">
+                                                {item.subCategory ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                {item.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.drugForm ?? '—'}
+                                            </TableCell>
+                                            <TableCell>{item.minQty}</TableCell>
+                                            <TableCell
+                                                className={
+                                                    item.quantity <= item.minQty
+                                                        ? 'font-semibold text-destructive'
+                                                        : ''
+                                                }
+                                            >
+                                                {item.quantity.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                {currencySymbol}
+                                                {item.cost.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                {currencySymbol}
+                                                {item.value.toLocaleString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`capitalize ${getStatusBadgeClass(item.status)}`}
+                                                >
+                                                    {item.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
+                                                        asChild
                                                     >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={stockRoutes.show.url(
-                                                                {
-                                                                    current_team:
-                                                                        teamSlug,
-                                                                    inventory:
-                                                                        item.id,
-                                                                },
-                                                            )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            aria-label={`Actions for ${item.name}`}
                                                         >
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            View
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openEdit(item)
-                                                        }
-                                                    >
-                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    {can.canStockCount('inventory') && (
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={stockRoutes.show.url(
+                                                                    {
+                                                                        current_team:
+                                                                            teamSlug,
+                                                                        inventory:
+                                                                            item.id,
+                                                                    },
+                                                                )}
+                                                            >
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                View
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openEdit(item)
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        {can.canStockCount(
+                                                            'inventory',
+                                                        ) && (
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    openOperation(
+                                                                        'adjust',
+                                                                        [
+                                                                            item.id,
+                                                                        ],
+                                                                        true,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <ClipboardCheck className="mr-2 h-4 w-4" />
+                                                                Stock Count
+                                                            </DropdownMenuItem>
+                                                        )}
                                                         <DropdownMenuItem
                                                             onClick={() =>
                                                                 openOperation(
                                                                     'adjust',
                                                                     [item.id],
-                                                                    true,
                                                                 )
                                                             }
                                                         >
-                                                            <ClipboardCheck className="mr-2 h-4 w-4" />
-                                                            Stock Count
+                                                            <TrendingUp className="mr-2 h-4 w-4" />
+                                                            Adjust
                                                         </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openOperation(
-                                                                'adjust',
-                                                                [item.id],
-                                                            )
-                                                        }
-                                                    >
-                                                        <TrendingUp className="mr-2 h-4 w-4" />
-                                                        Adjust
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            openOperation(
-                                                                'transfer',
-                                                                [item.id],
-                                                            )
-                                                        }
-                                                    >
-                                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
-                                                        Transfer
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setDeleting(item)
-                                                        }
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openOperation(
+                                                                    'transfer',
+                                                                    [item.id],
+                                                                )
+                                                            }
+                                                        >
+                                                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                                            Transfer
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            variant="destructive"
+                                                            onClick={() => {
+                                                                setDeleteError(
+                                                                    null,
+                                                                );
+                                                                setDeleting(
+                                                                    item,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
                         </Table>
                     </CardContent>
                 </Card>
@@ -932,8 +1159,10 @@ export default function InventoryStockIndex({
                     </SheetHeader>
                     <div className="grid gap-4 px-4 py-5 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Product</Label>
+                            <Label htmlFor="inventory-product">Product</Label>
                             <SelectNative
+                                id="inventory-product"
+                                aria-invalid={!!formFieldErrors.price_list_id}
                                 value={form.price_list_id}
                                 onChange={(event) =>
                                     setForm({
@@ -949,10 +1178,17 @@ export default function InventoryStockIndex({
                                     </option>
                                 ))}
                             </SelectNative>
+                            <InputError
+                                message={formFieldErrors.price_list_id}
+                            />
                         </div>
                         <div className="space-y-2">
-                            <Label>Product form</Label>
+                            <Label htmlFor="inventory-product-form">
+                                Product form
+                            </Label>
                             <SelectNative
+                                id="inventory-product-form"
+                                aria-invalid={!!formFieldErrors.drug_form_id}
                                 value={form.drug_form_id}
                                 onChange={(event) =>
                                     setForm({
@@ -968,6 +1204,9 @@ export default function InventoryStockIndex({
                                     </option>
                                 ))}
                             </SelectNative>
+                            <InputError
+                                message={formFieldErrors.drug_form_id}
+                            />
                         </div>
                         {(
                             [
@@ -980,7 +1219,7 @@ export default function InventoryStockIndex({
                             ] as const
                         ).map((field) => (
                             <div key={field} className="space-y-2">
-                                <Label>
+                                <Label htmlFor={`inventory-${field}`}>
                                     {field === 'min_qty'
                                         ? 'Minimum quantity'
                                         : field
@@ -990,6 +1229,8 @@ export default function InventoryStockIndex({
                                               )}
                                 </Label>
                                 <Input
+                                    id={`inventory-${field}`}
+                                    aria-invalid={!!formFieldErrors[field]}
                                     type={
                                         field === 'expires_at'
                                             ? 'date'
@@ -1020,34 +1261,42 @@ export default function InventoryStockIndex({
                                         })
                                     }
                                 />
+                                <InputError message={formFieldErrors[field]} />
                             </div>
                         ))}
                         {formError ? (
-                            <p className="text-sm text-destructive sm:col-span-2">
-                                {formError}
-                            </p>
+                            <div className="sm:col-span-2">
+                                <AlertError
+                                    errors={[formError]}
+                                    title="Unable to save inventory item"
+                                />
+                            </div>
                         ) : null}
                     </div>
                     <SheetFooter>
                         <Button
                             variant="outline"
+                            disabled={formProcessing}
                             onClick={() => setFormOpen(false)}
                         >
                             Cancel
                         </Button>
-                        <Button disabled={processing} onClick={submitForm}>
-                            Save item
+                        <Button disabled={formProcessing} onClick={submitForm}>
+                            {formProcessing ? 'Saving...' : 'Save item'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
 
-            <Sheet open={adjustOpen} onOpenChange={(open) => {
-                if (!open) {
-                    setIsStockCount(false);
-                }
-                setAdjustOpen(open);
-            }}>
+            <Sheet
+                open={adjustOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setIsStockCount(false);
+                    }
+                    setAdjustOpen(open);
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
@@ -1061,15 +1310,22 @@ export default function InventoryStockIndex({
                     </SheetHeader>
                     <div className="space-y-4 px-4 py-5">
                         {isStockCount ? (
-                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                                 <p className="font-medium">Stock count mode</p>
-                                <p className="text-xs">Enter the exact quantity found for each item. The reason is set to "Stock count correction".</p>
+                                <p className="text-xs">
+                                    Enter the exact quantity found for each
+                                    item. The reason is set to "Stock count
+                                    correction".
+                                </p>
                             </div>
                         ) : (
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label>Adjustment</Label>
+                                    <Label htmlFor="stock-adjustment">
+                                        Adjustment
+                                    </Label>
                                     <SelectNative
+                                        id="stock-adjustment"
                                         value={operation}
                                         onChange={(event) =>
                                             setOperation(
@@ -1081,15 +1337,18 @@ export default function InventoryStockIndex({
                                         }
                                     >
                                         <option value="add">Add stock</option>
-                                        <option value="remove">Remove stock</option>
+                                        <option value="remove">
+                                            Remove stock
+                                        </option>
                                         <option value="set">
                                             Set exact quantity
                                         </option>
                                     </SelectNative>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Reason</Label>
+                                    <Label htmlFor="stock-reason">Reason</Label>
                                     <SelectNative
+                                        id="stock-reason"
                                         value={reason}
                                         onChange={(event) =>
                                             setReason(event.target.value)
@@ -1110,53 +1369,85 @@ export default function InventoryStockIndex({
                                 </div>
                             </div>
                         )}
-                        {selectedItems.length > 0 ? selectedItems.map((item) => (
-                            <div
-                                key={item.id}
-                                className="grid grid-cols-[1fr_120px] items-center gap-3"
-                            >
-                                <Label>
-                                    {item.name} ({item.quantity} current)
-                                </Label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    value={quantities[item.id] ?? ''}
-                                    onChange={(event) =>
-                                        setQuantities({
-                                            ...quantities,
-                                            [item.id]: event.target.value,
-                                        })
-                                    }
-                                    placeholder={isStockCount ? `Current: ${item.quantity}` : 'Quantity'}
-                                />
-                            </div>
-                        )) : (
+                        {selectedItems.length > 0 ? (
+                            selectedItems.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="grid grid-cols-[1fr_120px] items-center gap-3"
+                                >
+                                    <Label
+                                        htmlFor={`adjust-quantity-${item.id}`}
+                                    >
+                                        {item.name} ({item.quantity} current)
+                                    </Label>
+                                    <Input
+                                        id={`adjust-quantity-${item.id}`}
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        aria-invalid={
+                                            !!adjustmentFieldErrors[
+                                                String(item.id)
+                                            ]
+                                        }
+                                        value={quantities[item.id] ?? ''}
+                                        onChange={(event) =>
+                                            setQuantities({
+                                                ...quantities,
+                                                [item.id]: event.target.value,
+                                            })
+                                        }
+                                        placeholder={
+                                            isStockCount
+                                                ? `Current: ${item.quantity}`
+                                                : 'Quantity'
+                                        }
+                                    />
+                                    <InputError
+                                        className="col-span-2"
+                                        message={
+                                            adjustmentFieldErrors[
+                                                String(item.id)
+                                            ]
+                                        }
+                                    />
+                                </div>
+                            ))
+                        ) : (
                             <p className="text-sm text-muted-foreground">
                                 {isStockCount
                                     ? 'Select items from the table to count their stock, or use the checkbox to select multiple items.'
                                     : 'Select items to adjust.'}
                             </p>
                         )}
-                        {formError ? (
-                            <p className="text-sm text-destructive">
-                                {formError}
-                            </p>
+                        {adjustmentError ? (
+                            <AlertError
+                                errors={[adjustmentError]}
+                                title={
+                                    isStockCount
+                                        ? 'Unable to save stock count'
+                                        : 'Unable to adjust stock'
+                                }
+                            />
                         ) : null}
                     </div>
                     <SheetFooter>
                         <Button
                             variant="outline"
+                            disabled={adjustmentProcessing}
                             onClick={() => setAdjustOpen(false)}
                         >
                             Cancel
                         </Button>
                         <Button
-                            disabled={processing}
+                            disabled={adjustmentProcessing}
                             onClick={submitAdjustment}
                         >
-                            {isStockCount ? 'Save stock count' : 'Apply adjustment'}
+                            {adjustmentProcessing
+                                ? 'Saving...'
+                                : isStockCount
+                                  ? 'Save stock count'
+                                  : 'Apply adjustment'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -1174,8 +1465,11 @@ export default function InventoryStockIndex({
                     <div className="space-y-4 px-4 py-5">
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label>Transfer to</Label>
+                                <Label htmlFor="transfer-location">
+                                    Transfer to
+                                </Label>
                                 <SelectNative
+                                    id="transfer-location"
                                     value={location}
                                     onChange={(event) =>
                                         setLocation(
@@ -1192,8 +1486,14 @@ export default function InventoryStockIndex({
                                 </SelectNative>
                             </div>
                             <div className="space-y-2">
-                                <Label>Received by</Label>
+                                <Label htmlFor="transfer-receiver">
+                                    Received by
+                                </Label>
                                 <SelectNative
+                                    id="transfer-receiver"
+                                    aria-invalid={
+                                        !!transferFieldErrors.receiver
+                                    }
                                     value={receiver}
                                     onChange={(event) =>
                                         setReceiver(event.target.value)
@@ -1208,6 +1508,9 @@ export default function InventoryStockIndex({
                                         </option>
                                     ))}
                                 </SelectNative>
+                                <InputError
+                                    message={transferFieldErrors.receiver}
+                                />
                             </div>
                         </div>
                         {selectedItems.map((item) => (
@@ -1215,14 +1518,18 @@ export default function InventoryStockIndex({
                                 key={item.id}
                                 className="grid grid-cols-[1fr_120px] items-center gap-3"
                             >
-                                <Label>
+                                <Label htmlFor={`transfer-quantity-${item.id}`}>
                                     {item.name} ({item.quantity} available)
                                 </Label>
                                 <Input
+                                    id={`transfer-quantity-${item.id}`}
                                     type="number"
                                     min="0.01"
                                     max={item.quantity}
                                     step="any"
+                                    aria-invalid={
+                                        !!transferFieldErrors[String(item.id)]
+                                    }
                                     value={quantities[item.id] ?? ''}
                                     onChange={(event) =>
                                         setQuantities({
@@ -1231,58 +1538,99 @@ export default function InventoryStockIndex({
                                         })
                                     }
                                 />
+                                <InputError
+                                    className="col-span-2"
+                                    message={
+                                        transferFieldErrors[String(item.id)]
+                                    }
+                                />
                             </div>
                         ))}
-                        {formError ? (
-                            <p className="text-sm text-destructive">
-                                {formError}
-                            </p>
+                        {transferError ? (
+                            <AlertError
+                                errors={[transferError]}
+                                title="Unable to transfer stock"
+                            />
                         ) : null}
                     </div>
                     <SheetFooter>
                         <Button
                             variant="outline"
+                            disabled={transferProcessing}
                             onClick={() => setTransferOpen(false)}
                         >
                             Cancel
                         </Button>
                         <Button
-                            disabled={processing || receiver === ''}
+                            disabled={transferProcessing || receiver === ''}
                             onClick={submitTransfer}
                         >
-                            Transfer stock
+                            {transferProcessing
+                                ? 'Transferring...'
+                                : 'Transfer stock'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
+            {deleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete inventory item"
+                    />
+                </div>
+            ) : null}
+            {bulkDeleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[bulkDeleteError]}
+                        title="Unable to delete inventory items"
+                    />
+                </div>
+            ) : null}
             <ConfirmDialog
                 open={deleting !== null}
                 onOpenChange={(open) => {
-                    if (!open) setDeleting(null);
+                    if (!open && !deleteProcessing) {
+                        setDeleting(null);
+                        setDeleteError(null);
+                    }
                 }}
                 title="Delete inventory item?"
-                description="Inventory records with movement history cannot be deleted."
-                confirmLabel="Delete"
-                processing={processing}
+                description="Inventory records with movement history cannot be deleted. This cannot be undone."
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                processing={deleteProcessing}
+                destructive
                 onConfirm={deleteOne}
             />
             <ConfirmDialog
                 open={bulkDeleteOpen}
-                onOpenChange={setBulkDeleteOpen}
+                onOpenChange={(open) => {
+                    if (!open && !bulkDeleteProcessing) {
+                        setBulkDeleteOpen(false);
+                        setBulkDeleteError(null);
+                    }
+                }}
                 title="Delete selected inventory items?"
-                description="Items with stock movement history will be skipped."
-                confirmLabel="Delete selected"
-                processing={processing}
+                description="Items with stock movement history will be skipped. This cannot be undone."
+                confirmLabel={
+                    bulkDeleteProcessing ? 'Deleting...' : 'Delete selected'
+                }
+                processing={bulkDeleteProcessing}
+                destructive
                 onConfirm={deleteSelected}
             />
 
             {/* Import CSV Sheet */}
-            <Sheet open={importOpen} onOpenChange={(open) => {
-                if (!open) {
-                    resetImport();
-                }
-                setImportOpen(open);
-            }}>
+            <Sheet
+                open={importOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        resetImport();
+                    }
+                    setImportOpen(open);
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>Import inventory from CSV</SheetTitle>
@@ -1295,8 +1643,9 @@ export default function InventoryStockIndex({
                     <div className="space-y-4 px-4 py-5">
                         {/* Target selection */}
                         <div className="space-y-2">
-                            <Label>Import into</Label>
+                            <Label htmlFor="import-target">Import into</Label>
                             <SelectNative
+                                id="import-target"
                                 value={importTarget}
                                 onChange={(event) =>
                                     setImportTarget(
@@ -1307,9 +1656,7 @@ export default function InventoryStockIndex({
                                 <option value="stock">
                                     {TARGET_LABELS.stock}
                                 </option>
-                                <option value="lab">
-                                    {TARGET_LABELS.lab}
-                                </option>
+                                <option value="lab">{TARGET_LABELS.lab}</option>
                                 <option value="drug">
                                     {TARGET_LABELS.drug}
                                 </option>
@@ -1318,9 +1665,10 @@ export default function InventoryStockIndex({
 
                         {/* File upload */}
                         <div className="space-y-2">
-                            <Label>CSV file</Label>
+                            <Label htmlFor="import-csv-file">CSV file</Label>
                             <div className="flex gap-2">
                                 <Input
+                                    id="import-csv-file"
                                     type="file"
                                     accept=".csv,.txt"
                                     className="flex-1"
@@ -1336,24 +1684,38 @@ export default function InventoryStockIndex({
                                     Column mapping
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                    Map each CSV column header to the corresponding
-                                    inventory field. Required fields are marked
-                                    with *.
+                                    Map each CSV column header to the
+                                    corresponding inventory field. Required
+                                    fields are marked with *.
                                 </p>
                                 {MAPPABLE_FIELDS.map(({ key, label }) => {
-                                    const isRequired = ['name', 'drug_form', 'quantity', 'price', 'cost'].includes(key);
+                                    const isRequired = [
+                                        'name',
+                                        'drug_form',
+                                        'quantity',
+                                        'price',
+                                        'cost',
+                                    ].includes(key);
                                     return (
-                                        <div key={key} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                                            <Label className="text-sm">
+                                        <div
+                                            key={key}
+                                            className="grid grid-cols-[1fr_auto] items-center gap-3"
+                                        >
+                                            <Label
+                                                htmlFor={`import-mapping-${key}`}
+                                                className="text-sm"
+                                            >
                                                 {label}
                                                 {isRequired ? ' *' : ''}
                                             </Label>
                                             <SelectNative
+                                                id={`import-mapping-${key}`}
                                                 value={importMapping[key]}
                                                 onChange={(event) =>
                                                     setImportMapping({
                                                         ...importMapping,
-                                                        [key]: event.target.value,
+                                                        [key]: event.target
+                                                            .value,
                                                     })
                                                 }
                                                 className="w-full"
@@ -1362,7 +1724,10 @@ export default function InventoryStockIndex({
                                                     — Skip —
                                                 </option>
                                                 {importHeaders.map((header) => (
-                                                    <option key={header} value={header}>
+                                                    <option
+                                                        key={header}
+                                                        value={header}
+                                                    >
                                                         {header}
                                                     </option>
                                                 ))}
@@ -1374,9 +1739,10 @@ export default function InventoryStockIndex({
                         )}
 
                         {importError ? (
-                            <p className="text-sm text-destructive" role="alert">
-                                {importError}
-                            </p>
+                            <AlertError
+                                errors={[importError]}
+                                title="Unable to import inventory"
+                            />
                         ) : null}
                     </div>
                     <SheetFooter>
@@ -1390,7 +1756,9 @@ export default function InventoryStockIndex({
                             Cancel
                         </Button>
                         <Button
-                            disabled={importProcessing || importHeaders.length === 0}
+                            disabled={
+                                importProcessing || importHeaders.length === 0
+                            }
                             onClick={submitImport}
                         >
                             {importProcessing ? 'Importing...' : 'Import'}

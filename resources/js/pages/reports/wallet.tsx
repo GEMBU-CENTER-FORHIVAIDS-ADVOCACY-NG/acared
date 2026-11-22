@@ -8,7 +8,6 @@ import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
 import {
     Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -51,6 +50,16 @@ type Paginator = {
     total: number;
 };
 
+function formatReportDateLocal(value: string | null): string {
+    if (!value) {
+        return formatReportDate(null);
+    }
+
+    return formatReportDate(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+    );
+}
+
 export default function WalletReport({
     patients,
     summary,
@@ -77,11 +86,19 @@ export default function WalletReport({
     const [search, setSearch] = useState(filters.q);
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
+    const [isVisiting, setIsVisiting] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
     const balanceType = filters.balanceType;
+    const hasInvalidRange = Boolean(!balanceType && from && to && from > to);
     const visit = (patch: Partial<Filters>) => {
         const next = { ...filters, ...patch };
+        if (!next.balanceType && next.from && next.to && next.from > next.to) {
+            return;
+        }
+
+        setIsVisiting(true);
         router.get(
-            wallet.url(),
+            wallet.url({ current_team: team }),
             {
                 q: next.q || undefined,
                 from: next.from || undefined,
@@ -90,32 +107,59 @@ export default function WalletReport({
                 perPage: next.perPage,
                 page: next.page || undefined,
             },
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setIsVisiting(false),
+            },
         );
-    }
+    };
+    const printReport = () => {
+        setIsPrinting(true);
+        const finishPrint = () => {
+            setIsPrinting(false);
+            window.removeEventListener('afterprint', finishPrint);
+        };
+        window.addEventListener('afterprint', finishPrint);
+        handlePrint();
+    };
 
     return (
         <>
             <Head title="Wallet report" />
             <FinancialReportLayout active="wallet">
                 <div className="flex w-full flex-col space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                    <div className="no-print flex flex-wrap items-center justify-between gap-3">
                         <Heading
                             variant="small"
                             title="Wallet report"
-                            description={balanceType ? 'All patients with the selected balance type.' : 'Current patient wallet balances for patients updated in the selected period.'}
+                            description={
+                                balanceType
+                                    ? 'All patients with the selected balance type.'
+                                    : 'Current patient wallet balances for patients updated in the selected period.'
+                            }
                         />
                         <div className="flex gap-2">
                             <Button
                                 variant="outline"
-                                onClick={handlePrint}
+                                onClick={printReport}
+                                disabled={isPrinting}
                             >
-                                Print
+                                {isPrinting ? 'Printing…' : 'Print'}
                             </Button>
                             <Button variant="outline" asChild>
                                 <a
                                     href={exportReport.url(team, {
-                                        query: { ...filters, q: search, balanceType: filters.balanceType || undefined },
+                                        query: {
+                                            q: filters.q || undefined,
+                                            from: filters.from || undefined,
+                                            to: filters.to || undefined,
+                                            balanceType:
+                                                filters.balanceType ||
+                                                undefined,
+                                            perPage: filters.perPage,
+                                        },
                                     })}
                                 >
                                     Export CSV
@@ -123,177 +167,223 @@ export default function WalletReport({
                             </Button>
                         </div>
                     </div>
-                <div className="grid gap-3 sm:grid-cols-4 no-print">
-                    <StatCard
-                        title="Patients with balances"
-                        value={summary.patients.toLocaleString()}
-                    />
-                    <StatCard
-                        title="Positive balance patients"
-                        value={summary.positivePatients.toLocaleString()}
-                        color="text-emerald-600 dark:text-emerald-400"
-                    />
-                    <StatCard
-                        title="Negative balance patients"
-                        value={summary.negativePatients.toLocaleString()}
-                        color="text-destructive"
-                    />
-                    <StatCard
-                        title="Net wallet balance"
-                        value={`${currencySymbol} ${summary.walletBalance.toLocaleString()}`}
-                    />
-                </div>
-                <div className="flex flex-wrap items-end gap-2 no-print">
-                    <form
-                        className="flex items-end gap-2"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            visit({ q: search, page: 1 });
-                        }}
-                    >
-                        <div className="space-y-1">
-                            <Label htmlFor="wallet-report-search">
-                                Hospital No. or patient
-                            </Label>
-                            <Input
-                                id="wallet-report-search"
-                                value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                placeholder="Search patients"
-                            />
-                        </div>
-                        <Button type="submit">
-                            Search
-                        </Button>
-                    </form>
-                    <div className="space-y-1">
-                        <Label htmlFor="wallet-report-balance-type">Balance type</Label>
-                        <SelectNative
-                            id="wallet-report-balance-type"
-                            value={balanceType}
-                            onChange={(event) => visit({ balanceType: event.target.value, page: 1 })}
-                            searchable={false}
-                        >
-                            <option value="">All balances</option>
-                            <option value="positive">Positive only</option>
-                            <option value="negative">Negative only</option>
-                        </SelectNative>
+                    <div className="no-print grid gap-3 sm:grid-cols-4">
+                        <StatCard
+                            title="Patients with balances"
+                            value={summary.patients.toLocaleString()}
+                        />
+                        <StatCard
+                            title="Positive balance patients"
+                            value={summary.positivePatients.toLocaleString()}
+                            color="text-emerald-600 dark:text-emerald-400"
+                        />
+                        <StatCard
+                            title="Negative balance patients"
+                            value={summary.negativePatients.toLocaleString()}
+                            color="text-destructive"
+                        />
+                        <StatCard
+                            title="Net wallet balance"
+                            value={`${currencySymbol} ${summary.walletBalance.toLocaleString()}`}
+                        />
                     </div>
-                    {!balanceType && (
-                        <>
+                    <div className="no-print flex flex-wrap items-end gap-2">
+                        <form
+                            className="flex items-end gap-2"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                visit({ q: search, page: 1 });
+                            }}
+                        >
                             <div className="space-y-1">
-                                <Label htmlFor="wallet-report-from">From</Label>
+                                <Label htmlFor="wallet-report-search">
+                                    Hospital No. or patient
+                                </Label>
                                 <Input
-                                    id="wallet-report-from"
-                                    type="date"
-                                    value={from}
-                                    onChange={(event) => setFrom(event.target.value)}
+                                    id="wallet-report-search"
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Search patients"
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="wallet-report-to">To</Label>
-                                <Input
-                                    id="wallet-report-to"
-                                    type="date"
-                                    value={to}
-                                    onChange={(event) => setTo(event.target.value)}
-                                />
-                            </div>
-                            <Button
-                                variant="secondary"
-                                onClick={() => visit({ from, to, page: 1 })}
-                            >
-                                Apply dates
+                            <Button type="submit" disabled={isVisiting}>
+                                {isVisiting ? 'Searching…' : 'Search'}
                             </Button>
-                        </>
-                    )}
-                </div>
-                <div ref={printRef} className="report-print-container">
-                    <h2 className="mb-3 text-lg font-semibold">
-                        {balanceType ? 'Wallet Report - ' + (balanceType === 'positive' ? 'Positive Balances' : 'Negative Balances') : 'Wallet Report from ' + formatReportDate(from) + ' to ' + formatReportDate(to)}
-                    </h2>
-                    <div className="rounded-lg border bg-card">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Hospital No.</TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Wallet</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {patients.data.length ? (
-                                patients.data.map((patient) => (
-                                    <TableRow key={patient.id}>
+                        </form>
+                        <div className="space-y-1">
+                            <Label htmlFor="wallet-report-balance-type">
+                                Balance type
+                            </Label>
+                            <SelectNative
+                                id="wallet-report-balance-type"
+                                value={balanceType}
+                                onChange={(event) =>
+                                    visit({
+                                        balanceType: event.target.value,
+                                        page: 1,
+                                    })
+                                }
+                                searchable={false}
+                            >
+                                <option value="">All balances</option>
+                                <option value="positive">Positive only</option>
+                                <option value="negative">Negative only</option>
+                            </SelectNative>
+                        </div>
+                        {!balanceType && (
+                            <>
+                                <div className="space-y-1">
+                                    <Label htmlFor="wallet-report-from">
+                                        From
+                                    </Label>
+                                    <Input
+                                        id="wallet-report-from"
+                                        type="date"
+                                        value={from}
+                                        onChange={(event) =>
+                                            setFrom(event.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="wallet-report-to">To</Label>
+                                    <Input
+                                        id="wallet-report-to"
+                                        type="date"
+                                        value={to}
+                                        onChange={(event) =>
+                                            setTo(event.target.value)
+                                        }
+                                    />
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => visit({ from, to, page: 1 })}
+                                    disabled={isVisiting || hasInvalidRange}
+                                >
+                                    {isVisiting ? 'Applying…' : 'Apply dates'}
+                                </Button>
+                            </>
+                        )}
+                        {hasInvalidRange && (
+                            <p
+                                role="alert"
+                                className="w-full text-xs text-destructive"
+                            >
+                                From date must be on or before to date.
+                            </p>
+                        )}
+                    </div>
+                    <div ref={printRef} className="report-print-container">
+                        <h2 className="mb-3 text-lg font-semibold">
+                            {balanceType
+                                ? 'Wallet Report - ' +
+                                  (balanceType === 'positive'
+                                      ? 'Positive Balances'
+                                      : 'Negative Balances')
+                                : 'Wallet Report from ' +
+                                  formatReportDateLocal(from) +
+                                  ' to ' +
+                                  formatReportDateLocal(to)}
+                        </h2>
+                        <div className="rounded-lg border bg-card">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Hospital No.</TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Wallet</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {patients.data.length ? (
+                                        patients.data.map((patient) => (
+                                            <TableRow key={patient.id}>
+                                                <TableCell>
+                                                    {patient.patientId}
+                                                </TableCell>
+                                                <TableCell className="font-medium">
+                                                    {patient.name}
+                                                </TableCell>
+                                                <TableCell
+                                                    className={
+                                                        patient.wallet < 0
+                                                            ? 'font-semibold text-destructive'
+                                                            : 'font-semibold text-emerald-600 dark:text-emerald-400'
+                                                    }
+                                                >
+                                                    {currencySymbol}{' '}
+                                                    {Math.abs(
+                                                        patient.wallet,
+                                                    ).toLocaleString()}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={3}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No patient wallet balances
+                                                found.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                                <tfoot className="border-t bg-muted/50 font-semibold">
+                                    <TableRow className="hover:bg-muted/50">
+                                        <TableCell colSpan={2}>Total</TableCell>
                                         <TableCell>
-                                            {patient.patientId}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {patient.name}
-                                        </TableCell>
-                                        <TableCell
-                                            className={
-                                                patient.wallet < 0
-                                                    ? 'font-semibold text-destructive'
-                                                    : 'font-semibold text-emerald-600 dark:text-emerald-400'
-                                            }
-                                        >
                                             {currencySymbol}{' '}
-                                            {Math.abs(
-                                                patient.wallet,
-                                            ).toLocaleString()}
+                                            {summary.walletTotal.toLocaleString()}
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={3}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No patient wallet balances found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                        <tfoot className="border-t bg-muted/50 font-semibold">
-                            <TableRow className="hover:bg-muted/50">
-                                <TableCell colSpan={2}>Total</TableCell>
-                                <TableCell>
-                                    {currencySymbol}{' '}
-                                    {summary.walletTotal.toLocaleString()}
-                                </TableCell>
-                            </TableRow>
-                        </tfoot>
-                    </Table>
+                                </tfoot>
+                            </Table>
+                        </div>
                     </div>
-                </div>
-                <div className="no-print">
-                    <Pagination
-                        meta={{
-                            currentPage: patients.current_page,
-                            lastPage: patients.last_page,
-                            perPage: patients.per_page,
-                            total: patients.total,
-                        }}
-                        onPageChange={(page) => visit({ page })}
-                        onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
-                    />
-                </div>
+                    <div
+                        className={`no-print ${isVisiting ? 'pointer-events-none opacity-60' : ''}`}
+                        aria-busy={isVisiting}
+                    >
+                        <Pagination
+                            meta={{
+                                currentPage: patients.current_page,
+                                lastPage: patients.last_page,
+                                perPage: patients.per_page,
+                                total: patients.total,
+                            }}
+                            onPageChange={(page) => visit({ page })}
+                            onPerPageChange={(perPage) =>
+                                visit({ perPage, page: 1 })
+                            }
+                        />
+                    </div>
                 </div>
             </FinancialReportLayout>
         </>
     );
 }
 
-function StatCard({ title, value, color }: { title: string; value: string; color?: string }) {
+function StatCard({
+    title,
+    value,
+    color,
+}: {
+    title: string;
+    value: string;
+    color?: string;
+}) {
     return (
         <Card>
             <CardHeader className="pb-2">
                 <CardDescription>{title}</CardDescription>
-                <CardTitle className={`text-2xl ${color ?? ''}`}>{value}</CardTitle>
+                <CardTitle className={`text-2xl ${color ?? ''}`}>
+                    {value}
+                </CardTitle>
             </CardHeader>
         </Card>
     );

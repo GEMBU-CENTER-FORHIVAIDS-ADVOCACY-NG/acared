@@ -1,14 +1,14 @@
 import { Head, router } from '@inertiajs/react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Sheet,
     SheetContent,
@@ -72,8 +73,20 @@ export default function PermissionsIndex({
     const [deleting, setDeleting] = useState<Permission | null>(null);
     const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
-    const [processing, setProcessing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [deletingProcessing, setDeletingProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const visiblePermissionIds = permissions.data.map(
+        (permission) => permission.id,
+    );
+    const allVisiblePermissionsSelected =
+        visiblePermissionIds.length > 0 &&
+        visiblePermissionIds.every((id) => selected.includes(id));
+    const someVisiblePermissionsSelected = visiblePermissionIds.some((id) =>
+        selected.includes(id),
+    );
 
     function applyFilters(page = 1, perPage = filters.perPage) {
         router.get(
@@ -98,18 +111,24 @@ export default function PermissionsIndex({
     }
 
     function save() {
-        setProcessing(true);
+        setSaving(true);
         setError(null);
         const options = {
             preserveScroll: true,
             onSuccess: () => setFormOpen(false),
             onError: (errors: Record<string, string>) =>
-                setError(Object.values(errors)[0] ?? 'Unable to save permission.'),
-            onFinish: () => setProcessing(false),
+                setError(
+                    Object.values(errors)[0] ?? 'Unable to save permission.',
+                ),
+            onFinish: () => setSaving(false),
         };
 
         if (editing) {
-            router.patch(permissionsUpdate({ permission: editing.id }), { name }, options);
+            router.patch(
+                permissionsUpdate({ permission: editing.id }),
+                { name },
+                options,
+            );
         } else {
             router.post(permissionsStore(), { name }, options);
         }
@@ -117,16 +136,25 @@ export default function PermissionsIndex({
 
     function deleteOne() {
         if (!deleting) return;
-        setProcessing(true);
+        setDeletingProcessing(true);
+        setDeleteError(null);
         router.delete(permissionsDestroy({ permission: deleting.id }), {
             preserveScroll: true,
-            onSuccess: () => setDeleting(null),
-            onFinish: () => setProcessing(false),
+            onSuccess: () => {
+                setSelected((prev) => prev.filter((id) => id !== deleting.id));
+                setDeleting(null);
+            },
+            onError: (errors: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errors)[0] ?? 'Unable to delete permission.',
+                ),
+            onFinish: () => setDeletingProcessing(false),
         });
     }
 
     function deleteSelected() {
-        setProcessing(true);
+        setDeletingProcessing(true);
+        setDeleteError(null);
         router.delete(permissionsBulk.destroy(), {
             data: { ids: selected },
             preserveScroll: true,
@@ -134,7 +162,11 @@ export default function PermissionsIndex({
                 setSelected([]);
                 setBulkDeleteOpen(false);
             },
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errors)[0] ?? 'Unable to delete permissions.',
+                ),
+            onFinish: () => setDeletingProcessing(false),
         });
     }
 
@@ -159,14 +191,13 @@ export default function PermissionsIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search permissions"
                             className="max-w-sm"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search permissions..."
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                     {selected.length ? (
                         <>
@@ -183,42 +214,40 @@ export default function PermissionsIndex({
                         </>
                     ) : null}
                 </div>
+                {deleteError ? (
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete permission."
+                    />
+                ) : null}
                 <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
                                             aria-label="Select all permissions"
                                             checked={
-                                                permissions.data.length > 0 &&
-                                                permissions.data.every(
-                                                    (permission) =>
-                                                        selected.includes(
-                                                            permission.id,
-                                                        ),
-                                                )
+                                                allVisiblePermissionsSelected
+                                                    ? true
+                                                    : someVisiblePermissionsSelected
+                                                      ? 'indeterminate'
+                                                      : false
                                             }
-                                            onChange={(event) =>
-                                                setSelected(
-                                                    event.target.checked
+                                            onCheckedChange={(checked) =>
+                                                setSelected((prev) =>
+                                                    checked === true
                                                         ? [
                                                               ...new Set([
-                                                                  ...selected,
-                                                                  ...permissions.data.map(
-                                                                      (permission) =>
-                                                                          permission.id,
-                                                                  ),
+                                                                  ...prev,
+                                                                  ...visiblePermissionIds,
                                                               ]),
                                                           ]
-                                                        : selected.filter(
+                                                        : prev.filter(
                                                               (id) =>
-                                                                  !permissions.data.some(
-                                                                      (permission) =>
-                                                                          permission.id ===
-                                                                          id,
+                                                                  !visiblePermissionIds.includes(
+                                                                      id,
                                                                   ),
                                                           ),
                                                 )
@@ -248,20 +277,25 @@ export default function PermissionsIndex({
                                     permissions.data.map((permission) => (
                                         <TableRow key={permission.id}>
                                             <TableCell>
-                                                <input
-                                                    type="checkbox"
+                                                <Checkbox
                                                     aria-label={`Select ${permission.name}`}
                                                     checked={selected.includes(
                                                         permission.id,
                                                     )}
-                                                    onChange={(event) =>
-                                                        setSelected(
-                                                            event.target.checked
+                                                    onCheckedChange={(
+                                                        checked,
+                                                    ) =>
+                                                        setSelected((prev) =>
+                                                            checked === true
                                                                 ? [
-                                                                      ...selected,
-                                                                      permission.id,
+                                                                      ...new Set(
+                                                                          [
+                                                                              ...prev,
+                                                                              permission.id,
+                                                                          ],
+                                                                      ),
                                                                   ]
-                                                                : selected.filter(
+                                                                : prev.filter(
                                                                       (id) =>
                                                                           id !==
                                                                           permission.id,
@@ -292,7 +326,9 @@ export default function PermissionsIndex({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -303,7 +339,9 @@ export default function PermissionsIndex({
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                setViewing(permission)
+                                                                setViewing(
+                                                                    permission,
+                                                                )
                                                             }
                                                         >
                                                             <Eye className="mr-2 h-4 w-4" />
@@ -311,7 +349,9 @@ export default function PermissionsIndex({
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                openEdit(permission)
+                                                                openEdit(
+                                                                    permission,
+                                                                )
                                                             }
                                                         >
                                                             <Pencil className="mr-2 h-4 w-4" />
@@ -319,7 +359,9 @@ export default function PermissionsIndex({
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                setDeleting(permission)
+                                                                setDeleting(
+                                                                    permission,
+                                                                )
                                                             }
                                                         >
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -372,24 +414,31 @@ export default function PermissionsIndex({
                                     setName(event.target.value)
                                 }
                                 placeholder="e.g. edit articles"
+                                required
                             />
                         </div>
-                        {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
-                        ) : null}
+                        <InputError message={error ?? undefined} />
                     </div>
                     <SheetFooter>
                         <Button
+                            type="button"
                             variant="outline"
+                            disabled={saving}
                             onClick={() => setFormOpen(false)}
                         >
                             Cancel
                         </Button>
                         <Button
-                            disabled={processing || !name.trim()}
+                            type="button"
+                            disabled={saving || !name.trim()}
                             onClick={save}
                         >
-                            {editing ? 'Update permission' : 'Create permission'}
+                            {saving && <Spinner />}
+                            {saving
+                                ? 'Saving...'
+                                : editing
+                                  ? 'Update permission'
+                                  : 'Create permission'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -403,6 +452,9 @@ export default function PermissionsIndex({
                 <SheetContent className="w-full overflow-y-auto sm:max-w-sm">
                     <SheetHeader>
                         <SheetTitle>Permission details</SheetTitle>
+                        <SheetDescription>
+                            Review this permission and where it is used.
+                        </SheetDescription>
                     </SheetHeader>
                     <div className="space-y-3 px-4 py-5">
                         <p>
@@ -440,8 +492,9 @@ export default function PermissionsIndex({
                 onOpenChange={(open) => !open && setDeleting(null)}
                 title="Delete permission?"
                 description={`Delete "${deleting?.name}"? Roles with this permission will lose it.`}
-                confirmLabel="Delete"
-                processing={processing}
+                confirmLabel={deletingProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deletingProcessing}
                 onConfirm={deleteOne}
             />
             <ConfirmDialog
@@ -449,8 +502,11 @@ export default function PermissionsIndex({
                 onOpenChange={setBulkDeleteOpen}
                 title="Delete selected permissions?"
                 description="Roles with these permissions will lose them."
-                confirmLabel="Delete selected"
-                processing={processing}
+                confirmLabel={
+                    deletingProcessing ? 'Deleting...' : 'Delete selected'
+                }
+                destructive
+                processing={deletingProcessing}
                 onConfirm={deleteSelected}
             />
         </>

@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,19 +39,34 @@ type History = {
     createdAt: string | null;
 };
 
-export default function WalletHistoryShow({
-    history,
-}: {
-    history: History;
-}) {
+export default function WalletHistoryShow({ history }: { history: History }) {
     const { currentTeam } = usePage().props;
     const teamSlug = currentTeam?.slug;
 
-    function print() {
+    useEffect(() => {
         const cleanup = () =>
             document.body.classList.remove('printing-wallet-history');
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                cleanup();
+            }
+        };
+
+        window.addEventListener('afterprint', cleanup);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            cleanup();
+            window.removeEventListener('afterprint', cleanup);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange,
+            );
+        };
+    }, []);
+
+    function print() {
         document.body.classList.add('printing-wallet-history');
-        window.addEventListener('afterprint', cleanup, { once: true });
         window.print();
     }
 
@@ -78,10 +94,14 @@ export default function WalletHistoryShow({
                 <div className="wallet-history-receipt mx-auto w-full max-w-md rounded-lg border p-6 font-mono text-xs">
                     <div className="text-center">
                         <p className="text-sm font-bold">
-                            {history.teamName ?? currentTeam?.name ?? 'Facility'}
+                            {history.teamName ??
+                                currentTeam?.name ??
+                                'Facility'}
                         </p>
                         {history.teamAddress && (
-                            <p className="mt-1 text-[11px]">{history.teamAddress}</p>
+                            <p className="mt-1 text-[11px]">
+                                {history.teamAddress}
+                            </p>
                         )}
                         {(currentTeam?.mobile || currentTeam?.phone) && (
                             <p className="text-[11px]">
@@ -132,7 +152,9 @@ export default function WalletHistoryShow({
                             <TableBody>
                                 {history.lines.map((line, lineIndex) => (
                                     <TableRow key={lineIndex}>
-                                        <TableCell>{line.name ?? '—'}</TableCell>
+                                        <TableCell>
+                                            {line.name ?? '—'}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             {line.quantity}
                                         </TableCell>
@@ -157,8 +179,18 @@ export default function WalletHistoryShow({
                     <div className="my-3 border-t-2 border-double" />
 
                     <div className="flex justify-between">
-                        <span className="font-bold">Balance after transaction</span>
-                        <strong>₦{history.patientWallet.toLocaleString()}</strong>
+                        <span className="font-bold">
+                            Balance after transaction
+                        </span>
+                        <strong
+                            className={
+                                history.patientWallet < 0
+                                    ? 'text-destructive'
+                                    : 'text-emerald-700 dark:text-emerald-400'
+                            }
+                        >
+                            ₦{history.patientWallet.toLocaleString()}
+                        </strong>
                     </div>
 
                     <div className="flex justify-between">
@@ -178,7 +210,7 @@ WalletHistoryShow.layout = (props: LayoutProps) => ({
     breadcrumbs: [
         {
             title: 'Wallet history',
-            href: index(props.currentTeam?.slug),
+            href: index(props.currentTeam?.slug ?? '').url,
         },
     ],
 });

@@ -1,8 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Eye, FileText, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import ConfirmDialog from '@/components/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    destroy as destroyLaboratory,
+    history as laboratoryHistory,
+    index as laboratoriesIndex,
+    show as laboratoryShow,
+} from '@/routes/laboratories';
 import type {
     LaboratoryFilters,
     LaboratoryListItem,
@@ -54,17 +60,14 @@ export default function LaboratoryHistory({
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
     const [toDelete, setToDelete] = useState<LaboratoryListItem | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
-
-    function baseUrl(path = '') {
-        return `/${teamSlug}/laboratories${path}`;
-    }
 
     function applyFilters(patch: Partial<LaboratoryFilters>) {
         const next = { ...filters, page: 1, ...patch };
 
         router.get(
-            baseUrl('/history'),
+            laboratoryHistory.url(teamSlug),
             {
                 q: next.q || undefined,
                 patient_id: next.patientId || undefined,
@@ -96,25 +99,42 @@ export default function LaboratoryHistory({
         }
 
         return (
-            <span className="ml-1 text-xs">
+            <span aria-hidden="true" className="ml-1 text-xs">
                 {filters.direction === 'asc' ? '▲' : '▼'}
             </span>
         );
     }
 
+    function ariaSort(column: string): 'ascending' | 'descending' | 'none' {
+        if (filters.sort !== column) {
+            return 'none';
+        }
+
+        return filters.direction === 'asc' ? 'ascending' : 'descending';
+    }
+
     function deleteLaboratory() {
-        if (!toDelete) {
+        if (!toDelete || processing) {
             return;
         }
 
         setProcessing(true);
-        router.delete(baseUrl(`/${toDelete.id}`), {
-            preserveScroll: true,
-            onFinish: () => {
-                setProcessing(false);
-                setToDelete(null);
+        setDeleteError(null);
+        router.delete(
+            destroyLaboratory.url({
+                current_team: teamSlug,
+                laboratory: toDelete.id,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => setToDelete(null),
+                onError: (errors) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Unable to delete request.',
+                    ),
+                onFinish: () => setProcessing(false),
             },
-        });
+        );
     }
 
     return (
@@ -137,7 +157,9 @@ export default function LaboratoryHistory({
                         }
                     />
                     <Button asChild>
-                        <Link href={baseUrl()}>Result entry</Link>
+                        <Link href={laboratoriesIndex.url(teamSlug)}>
+                            Result entry
+                        </Link>
                     </Button>
                 </div>
 
@@ -151,10 +173,12 @@ export default function LaboratoryHistory({
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-semibold tabular-nums">
-                                {currencySymbol} {summary.total.toLocaleString()}
+                                {currencySymbol}{' '}
+                                {summary.total.toLocaleString()}
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">
-                                {summary.count} request{summary.count !== 1 ? 's' : ''}
+                                {summary.count} request
+                                {summary.count !== 1 ? 's' : ''}
                             </p>
                         </CardContent>
                     </Card>
@@ -165,20 +189,21 @@ export default function LaboratoryHistory({
                         className="flex flex-1 items-center gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
-                            setFrom('');
-                            setTo('');
-                            applyFilters({ q: search, from: null, to: null });
+                            applyFilters({
+                                q: search,
+                                from: from || null,
+                                to: to || null,
+                            });
                         }}
                     >
                         <Input
+                            aria-label="Search laboratory history"
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Search patient, doctor..."
                             className="max-w-sm"
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
 
                     <div className="space-y-2">
@@ -236,126 +261,180 @@ export default function LaboratoryHistory({
 
                 <Card>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSort('patient_id')}
-                                    >
-                                        Hosp No.
-                                        {sortIndicator('patient_id')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Request by</TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSort('total')}
-                                    >
-                                        Total
-                                        {sortIndicator('total')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSort('status')}
-                                    >
-                                        Status
-                                        {sortIndicator('status')}
-                                    </button>
-                                </TableHead>
-                                <TableHead>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSort('created_at')}
-                                    >
-                                        Created
-                                        {sortIndicator('created_at')}
-                                    </button>
-                                </TableHead>
-                                <TableHead className="text-right">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {laboratories.data.length === 0 ? (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={7}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No laboratory requests found.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                laboratories.data.map((lab) => (
-                                    <TableRow key={lab.id}>
-                                        <TableCell>{lab.patientId}</TableCell>
-                                        <TableCell>
-                                            {lab.patientName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {lab.doctorName ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {currencySymbol}{' '}
-                                            {lab.total.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="capitalize">
-                                                {lab.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {lab.createdAt
-                                                ? new Date(
-                                                      lab.createdAt,
-                                                  ).toLocaleString()
-                                                : '—'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={baseUrl(
-                                                                `/${lab.id}`,
-                                                            )}
-                                                        >
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            View
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        disabled={lab.status ? ['paid', 'submitted', 'dispensed', 'completed', 'cancelled'].includes(lab.status) : false}
-                                                        onClick={() =>
-                                                            setToDelete(lab)
-                                                        }
-                                                    >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                        <div className="w-full overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead
+                                            aria-sort={ariaSort('patient_id')}
+                                        >
+                                            <button
+                                                type="button"
+                                                className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                onClick={() =>
+                                                    toggleSort('patient_id')
+                                                }
+                                            >
+                                                Hosp No.
+                                                {sortIndicator('patient_id')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Request by</TableHead>
+                                        <TableHead
+                                            aria-sort={ariaSort('total')}
+                                        >
+                                            <button
+                                                type="button"
+                                                className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                onClick={() =>
+                                                    toggleSort('total')
+                                                }
+                                            >
+                                                Total
+                                                {sortIndicator('total')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead
+                                            aria-sort={ariaSort('status')}
+                                        >
+                                            <button
+                                                type="button"
+                                                className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                onClick={() =>
+                                                    toggleSort('status')
+                                                }
+                                            >
+                                                Status
+                                                {sortIndicator('status')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead
+                                            aria-sort={ariaSort('created_at')}
+                                        >
+                                            <button
+                                                type="button"
+                                                className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                onClick={() =>
+                                                    toggleSort('created_at')
+                                                }
+                                            >
+                                                Created
+                                                {sortIndicator('created_at')}
+                                            </button>
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {laboratories.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={7}
+                                                className="py-8 text-center text-muted-foreground"
+                                            >
+                                                No laboratory requests found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        laboratories.data.map((lab) => (
+                                            <TableRow key={lab.id}>
+                                                <TableCell>
+                                                    {lab.patientId}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {lab.patientName ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {lab.doctorName ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {currencySymbol}{' '}
+                                                    {lab.total.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="capitalize"
+                                                    >
+                                                        {lab.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {lab.createdAt
+                                                        ? new Date(
+                                                              lab.createdAt,
+                                                          ).toLocaleString()
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                aria-label={`Actions for ${lab.patientName ?? lab.patientId}`}
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={laboratoryShow.url(
+                                                                        {
+                                                                            current_team:
+                                                                                teamSlug,
+                                                                            laboratory:
+                                                                                lab.id,
+                                                                        },
+                                                                    )}
+                                                                >
+                                                                    <Eye className="mr-2 h-4 w-4" />
+                                                                    View
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                disabled={
+                                                                    lab.status
+                                                                        ? [
+                                                                              'paid',
+                                                                              'submitted',
+                                                                              'dispensed',
+                                                                              'completed',
+                                                                              'cancelled',
+                                                                          ].includes(
+                                                                              lab.status,
+                                                                          )
+                                                                        : false
+                                                                }
+                                                                onClick={() => {
+                                                                    setDeleteError(
+                                                                        null,
+                                                                    );
+                                                                    setToDelete(
+                                                                        lab,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -374,13 +453,21 @@ export default function LaboratoryHistory({
             <ConfirmDialog
                 open={toDelete !== null}
                 onOpenChange={(open) => {
+                    if (processing) {
+                        return;
+                    }
                     if (!open) {
                         setToDelete(null);
+                        setDeleteError(null);
                     }
                 }}
                 title="Delete laboratory request?"
-                description="This removes the request, its lines, and linked billings."
-                confirmLabel="Delete"
+                description={
+                    deleteError ??
+                    'This removes the request, its lines, and linked billings.'
+                }
+                confirmLabel={processing ? 'Deleting…' : 'Delete'}
+                destructive
                 processing={processing}
                 onConfirm={deleteLaboratory}
             />

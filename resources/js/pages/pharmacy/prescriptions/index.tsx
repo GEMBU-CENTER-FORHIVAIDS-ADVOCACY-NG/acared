@@ -14,6 +14,7 @@ import {
     X,
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
@@ -76,12 +77,15 @@ function todayDate(): string {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    paid: 'bg-sky-100 text-sky-700',
-    billed: 'bg-orange-100 text-orange-700',
-    dispensed: 'bg-emerald-100 text-emerald-700',
-    refunded: 'bg-red-100 text-red-700',
-    cancelled: 'bg-slate-100 text-slate-600',
+    pending:
+        'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+    paid: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+    billed: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300',
+    dispensed:
+        'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+    refunded: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+    cancelled:
+        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export default function PrescriptionsIndex({
@@ -111,26 +115,33 @@ export default function PrescriptionsIndex({
     const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
     const teamSlug = currentTeam?.slug ?? '';
     const [search, setSearch] = useState(filters.q);
-    const [startDate, setStartDate] = useState(filters.startDate || todayDate());
+    const [startDate, setStartDate] = useState(
+        filters.startDate || todayDate(),
+    );
     const [endDate, setEndDate] = useState(filters.endDate || todayDate());
     const [deleting, setDeleting] = useState<Prescription | null>(null);
+    const [showBulkDelete, setShowBulkDelete] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
-    const [processing, setProcessing] = useState(false);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [bulkProcessing, setBulkProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const applyFilters = useCallback((options?: { page?: number; perPage?: number }) => {
-        router.get(
-            prescriptionsIndex.url(teamSlug),
-            {
-                q: search || undefined,
-                start_date: startDate || undefined,
-                end_date: endDate || undefined,
-                page: options?.page ?? 1,
-                perPage: options?.perPage || undefined,
-            },
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
-    }, [search, startDate, endDate, teamSlug]);
+    const applyFilters = useCallback(
+        (options?: { page?: number; perPage?: number }) => {
+            router.get(
+                prescriptionsIndex.url(teamSlug),
+                {
+                    q: search || undefined,
+                    start_date: startDate || undefined,
+                    end_date: endDate || undefined,
+                    page: options?.page ?? 1,
+                    perPage: options?.perPage || undefined,
+                },
+                { preserveState: true, preserveScroll: true, replace: true },
+            );
+        },
+        [search, startDate, endDate, teamSlug],
+    );
 
     const resetFilters = useCallback(() => {
         setSearch('');
@@ -148,10 +159,11 @@ export default function PrescriptionsIndex({
     }, [teamSlug]);
 
     function deletePrescription() {
-        if (!deleting) {
+        if (!deleting || deleteProcessing) {
             return;
         }
-        setProcessing(true);
+        setDeleteProcessing(true);
+        setError(null);
         router.delete(
             destroyRoute.url({
                 current_team: teamSlug,
@@ -165,9 +177,31 @@ export default function PrescriptionsIndex({
                         Object.values(errors)[0] ??
                             'Prescription could not be deleted.',
                     ),
-                onFinish: () => setProcessing(false),
+                onFinish: () => setDeleteProcessing(false),
             },
         );
+    }
+
+    function deleteSelected() {
+        if (bulkProcessing || selected.length === 0) {
+            return;
+        }
+
+        setBulkProcessing(true);
+        setError(null);
+        router.delete(bulkDestroyRoute.url(teamSlug), {
+            data: { ids: selected },
+            preserveScroll: true,
+            onSuccess: () => {
+                setSelected([]);
+                setShowBulkDelete(false);
+            },
+            onError: (errors) =>
+                setError(
+                    Object.values(errors)[0] ?? 'Records could not be deleted.',
+                ),
+            onFinish: () => setBulkProcessing(false),
+        });
     }
 
     const cards = [
@@ -227,8 +261,6 @@ export default function PrescriptionsIndex({
                     ))}
                 </div>
 
-
-
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <form
                         className="flex items-center gap-2"
@@ -238,12 +270,15 @@ export default function PrescriptionsIndex({
                         }}
                     >
                         <div className="relative w-72">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
+                                aria-label="Search prescriptions"
                                 className="pl-10"
                                 value={search}
                                 placeholder="Search prescriptions..."
-                                onChange={(event) => setSearch(event.target.value)}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
                             />
                         </div>
                         <Button type="submit" size="sm" className="shrink-0">
@@ -253,26 +288,43 @@ export default function PrescriptionsIndex({
                     </form>
                     <div className="flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-1">
-                            <label htmlFor="start-date" className="text-sm text-muted-foreground">From</label>
+                            <label
+                                htmlFor="start-date"
+                                className="text-sm text-muted-foreground"
+                            >
+                                From
+                            </label>
                             <Input
                                 id="start-date"
                                 type="date"
                                 className="w-36 shrink-0"
                                 value={startDate}
-                                onChange={(event) => setStartDate(event.target.value)}
+                                onChange={(event) =>
+                                    setStartDate(event.target.value)
+                                }
                             />
                         </div>
                         <div className="flex items-center gap-1">
-                            <label htmlFor="end-date" className="text-sm text-muted-foreground">To</label>
+                            <label
+                                htmlFor="end-date"
+                                className="text-sm text-muted-foreground"
+                            >
+                                To
+                            </label>
                             <Input
                                 id="end-date"
                                 type="date"
                                 className="w-36 shrink-0"
                                 value={endDate}
-                                onChange={(event) => setEndDate(event.target.value)}
+                                onChange={(event) =>
+                                    setEndDate(event.target.value)
+                                }
                             />
                         </div>
-                        <Button onClick={applyFilters} className="shrink-0">
+                        <Button
+                            onClick={() => applyFilters()}
+                            className="shrink-0"
+                        >
                             <Filter className="mr-2 h-4 w-4" />
                             Filter
                         </Button>
@@ -301,22 +353,8 @@ export default function PrescriptionsIndex({
                                 size="sm"
                                 variant="destructive"
                                 onClick={() => {
-                                    setProcessing(true);
-                                    router.delete(
-                                        bulkDestroyRoute.url(teamSlug),
-                                        {
-                                            data: { ids: selected },
-                                            preserveScroll: true,
-                                            onSuccess: () => setSelected([]),
-                                            onError: (errors) =>
-                                                setError(
-                                                    Object.values(errors)[0] ??
-                                                        'Records could not be deleted.',
-                                                ),
-                                            onFinish: () =>
-                                                setProcessing(false),
-                                        },
-                                    );
+                                    setError(null);
+                                    setShowBulkDelete(true);
                                 }}
                             >
                                 Delete selected
@@ -380,6 +418,7 @@ export default function PrescriptionsIndex({
                                                 <TableCell>
                                                     <input
                                                         type="checkbox"
+                                                        aria-label={`Select prescription for ${item.patientName ?? item.patientSlug}`}
                                                         checked={selected.includes(
                                                             item.id,
                                                         )}
@@ -412,8 +451,16 @@ export default function PrescriptionsIndex({
                                                     {item.doctorName ?? '—'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={item.isAdmitted ? 'default' : 'secondary'}>
-                                                        {item.isAdmitted ? 'On Admission' : 'OPD'}
+                                                    <Badge
+                                                        variant={
+                                                            item.isAdmitted
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                        }
+                                                    >
+                                                        {item.isAdmitted
+                                                            ? 'On Admission'
+                                                            : 'OPD'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -425,7 +472,7 @@ export default function PrescriptionsIndex({
                                                 </TableCell>
                                                 <TableCell>
                                                     <span
-                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[item.status] ?? 'bg-slate-100 text-slate-600'}`}
+                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[item.status] ?? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}
                                                     >
                                                         {item.status}
                                                     </span>
@@ -439,16 +486,21 @@ export default function PrescriptionsIndex({
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
+                                                                aria-label={`Actions for prescription ${item.id}`}
                                                             >
                                                                 <MoreHorizontal className="size-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem asChild>
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
                                                                 <Link
                                                                     href={showRoute.url(
                                                                         {
@@ -463,7 +515,9 @@ export default function PrescriptionsIndex({
                                                                     View
                                                                 </Link>
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem asChild>
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
                                                                 <Link
                                                                     href={editRoute.url(
                                                                         {
@@ -487,7 +541,9 @@ export default function PrescriptionsIndex({
                                                                     item.status,
                                                                 )}
                                                                 onClick={() => {
-                                                                    setError(null);
+                                                                    setError(
+                                                                        null,
+                                                                    );
                                                                     setDeleting(
                                                                         item,
                                                                     );
@@ -526,21 +582,48 @@ export default function PrescriptionsIndex({
             <ConfirmDialog
                 open={deleting !== null}
                 onOpenChange={(open) => {
+                    if (deleteProcessing) {
+                        return;
+                    }
                     if (!open) {
                         setDeleting(null);
+                        setError(null);
                     }
                 }}
                 title="Delete prescription?"
-                description="Lines and billing attached to this prescription will also be removed."
-                confirmLabel="Delete"
-                processing={processing}
+                description={
+                    error ??
+                    'Lines and billing attached to this prescription will also be removed.'
+                }
+                confirmLabel={deleteProcessing ? 'Deleting…' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
                 onConfirm={deletePrescription}
             />
-            {error ? (
-                <div className="flex w-full flex-col px-4 pb-6 md:px-6 lg:px-8">
-                    <p className="text-sm text-red-600">{error}</p>
-                </div>
-            ) : null}
+
+            <ConfirmDialog
+                open={showBulkDelete}
+                onOpenChange={(open) => {
+                    if (bulkProcessing) {
+                        return;
+                    }
+                    setShowBulkDelete(open);
+                    if (!open) {
+                        setError(null);
+                    }
+                }}
+                title="Delete selected prescriptions?"
+                description={
+                    error ??
+                    `This will permanently delete ${selected.length} selected prescription${selected.length === 1 ? '' : 's'}.`
+                }
+                confirmLabel={bulkProcessing ? 'Deleting…' : 'Delete selected'}
+                destructive
+                processing={bulkProcessing}
+                onConfirm={deleteSelected}
+            />
+
+            <AlertError errors={error ? [error] : []} />
         </>
     );
 }

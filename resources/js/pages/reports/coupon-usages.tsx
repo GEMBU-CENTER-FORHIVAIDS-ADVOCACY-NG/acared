@@ -8,7 +8,6 @@ import { formatReportDate } from '@/hooks/use-format-report-date';
 import { Button } from '@/components/ui/button';
 import {
     Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -24,7 +23,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { exportMethod as exportReport, index } from '@/routes/reports/coupon-usages';
+import {
+    exportMethod as exportReport,
+    index,
+} from '@/routes/reports/coupon-usages';
 
 type Usage = {
     id: number;
@@ -45,6 +47,16 @@ type Paginator = {
     total: number;
 };
 
+function formatReportDateLocal(value: string | null): string {
+    if (!value) {
+        return formatReportDate(null);
+    }
+
+    return formatReportDate(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+    );
+}
+
 export default function CouponUsages({
     usages,
     summary,
@@ -58,39 +70,69 @@ export default function CouponUsages({
     const { printRef, handlePrint } = useReportPrint();
     const [from, setFrom] = useState(filters.from);
     const [to, setTo] = useState(filters.to);
+    const [isVisiting, setIsVisiting] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const hasInvalidRange = Boolean(from && to && from > to);
     const visit = (patch: Partial<Filters>) => {
         const next = { ...filters, ...patch };
+        if (next.from && next.to && next.from > next.to) {
+            return;
+        }
+
+        setIsVisiting(true);
         router.get(
-            index.url(),
+            index.url({ current_team: team }),
             {
                 from: next.from || undefined,
                 to: next.to || undefined,
                 perPage: next.perPage,
                 page: next.page || undefined,
             },
-            { preserveState: true, preserveScroll: true, replace: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setIsVisiting(false),
+            },
         );
-    }
+    };
+    const printReport = () => {
+        setIsPrinting(true);
+        const finishPrint = () => {
+            setIsPrinting(false);
+            window.removeEventListener('afterprint', finishPrint);
+        };
+        window.addEventListener('afterprint', finishPrint);
+        handlePrint();
+    };
 
     return (
         <>
             <Head title="Coupon usage report" />
             <FinancialReportLayout active="coupon-usages">
                 <div className="flex w-full flex-col space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                    <div className="no-print flex flex-wrap items-center justify-between gap-3">
                         <Heading
                             variant="small"
                             title="Coupon usage report"
                             description="Coupon redemptions and discounts applied to patient payments."
                         />
                         <div className="flex gap-2">
-                            <Button variant="outline" onClick={handlePrint}>
-                                Print
+                            <Button
+                                variant="outline"
+                                onClick={printReport}
+                                disabled={isPrinting}
+                            >
+                                {isPrinting ? 'Printing…' : 'Print'}
                             </Button>
                             <Button variant="outline" asChild>
                                 <a
                                     href={exportReport.url(team, {
-                                        query: { ...filters, from, to },
+                                        query: {
+                                            from: filters.from || undefined,
+                                            to: filters.to || undefined,
+                                            perPage: filters.perPage,
+                                        },
                                     })}
                                 >
                                     Export CSV
@@ -98,117 +140,141 @@ export default function CouponUsages({
                             </Button>
                         </div>
                     </div>
-                <div className="grid gap-3 sm:grid-cols-2 no-print">
-                    <StatCard
-                        title="Coupon uses"
-                        value={summary.usages.toLocaleString()}
-                    />
-                    <StatCard
-                        title="Discounts applied"
-                        value={summary.discounts.toLocaleString()}
-                    />
-                </div>
-                <div className="flex flex-wrap items-end gap-2 no-print">
-                    <div className="space-y-1">
-                        <Label htmlFor="coupon-from">From</Label>
-                        <Input
-                            id="coupon-from"
-                            type="date"
-                            value={from}
-                            onChange={(event) => setFrom(event.target.value)}
+                    <div className="no-print grid gap-3 sm:grid-cols-2">
+                        <StatCard
+                            title="Coupon uses"
+                            value={summary.usages.toLocaleString()}
+                        />
+                        <StatCard
+                            title="Discounts applied"
+                            value={summary.discounts.toLocaleString()}
                         />
                     </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="coupon-to">To</Label>
-                        <Input
-                            id="coupon-to"
-                            type="date"
-                            value={to}
-                            onChange={(event) => setTo(event.target.value)}
-                        />
+                    <div className="no-print flex flex-wrap items-end gap-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="coupon-from">From</Label>
+                            <Input
+                                id="coupon-from"
+                                type="date"
+                                value={from}
+                                onChange={(event) =>
+                                    setFrom(event.target.value)
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="coupon-to">To</Label>
+                            <Input
+                                id="coupon-to"
+                                type="date"
+                                value={to}
+                                onChange={(event) => setTo(event.target.value)}
+                            />
+                        </div>
+                        <Button
+                            onClick={() => visit({ from, to, page: 1 })}
+                            disabled={isVisiting || hasInvalidRange}
+                        >
+                            {isVisiting ? 'Applying…' : 'Apply'}
+                        </Button>
+                        {hasInvalidRange && (
+                            <p
+                                role="alert"
+                                className="w-full text-xs text-destructive"
+                            >
+                                From date must be on or before to date.
+                            </p>
+                        )}
                     </div>
-                    <Button
-                        onClick={() => visit({ from, to, page: 1 })}
-                    >
-                        Apply
-                    </Button>
-                </div>
-                <div ref={printRef} className="report-print-container">
-                    <h2 className="mb-3 text-lg font-semibold">
-                        Coupon Usage Report from {formatReportDate(from)} to {formatReportDate(to)}
-                    </h2>
-                    <div className="rounded-lg border bg-card">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Coupon</TableHead>
-                                <TableHead>Hospital No.</TableHead>
-                                <TableHead>Patient</TableHead>
-                                <TableHead>Method</TableHead>
-                                <TableHead>User</TableHead>
-                                <TableHead>Discount</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {usages.data.length ? (
-                                usages.data.map((usage) => (
-                                    <TableRow key={usage.id}>
+                    <div ref={printRef} className="report-print-container">
+                        <h2 className="mb-3 text-lg font-semibold">
+                            Coupon Usage Report from{' '}
+                            {formatReportDateLocal(from)} to{' '}
+                            {formatReportDateLocal(to)}
+                        </h2>
+                        <div className="rounded-lg border bg-card">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Coupon</TableHead>
+                                        <TableHead>Hospital No.</TableHead>
+                                        <TableHead>Patient</TableHead>
+                                        <TableHead>Method</TableHead>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Discount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {usages.data.length ? (
+                                        usages.data.map((usage) => (
+                                            <TableRow key={usage.id}>
+                                                <TableCell className="font-medium">
+                                                    {usage.code ??
+                                                        'Deleted coupon'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {usage.patientHospitalNo ??
+                                                        '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {usage.patient ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {usage.paymentMethod ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {usage.user ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {usage.discountAmount.toLocaleString()}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No coupon uses found for this
+                                                period.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="font-medium"
+                                        >
+                                            Total
+                                        </TableCell>
                                         <TableCell className="font-medium">
-                                            {usage.code ?? 'Deleted coupon'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {usage.patientHospitalNo ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {usage.patient ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {usage.paymentMethod ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {usage.user ?? '—'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {usage.discountAmount.toLocaleString()}
+                                            {summary.discounts.toLocaleString()}
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={6}
-                                        className="py-10 text-center text-muted-foreground"
-                                    >
-                                        No coupon uses found for this period.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={4} className="font-medium">
-                                    Total
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                    {summary.discounts.toLocaleString()}
-                                </TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
+                                </TableFooter>
+                            </Table>
+                        </div>
                     </div>
-                </div>
-                <div className="no-print">
-                    <Pagination
-                        meta={{
-                            currentPage: usages.current_page,
-                            lastPage: usages.last_page,
-                            perPage: usages.per_page,
-                            total: usages.total,
-                        }}
-                        onPageChange={(page) => visit({ page })}
-                        onPerPageChange={(perPage) => visit({ perPage, page: 1 })}
-                    />
-                </div>
+                    <div
+                        className={`no-print ${isVisiting ? 'pointer-events-none opacity-60' : ''}`}
+                        aria-busy={isVisiting}
+                    >
+                        <Pagination
+                            meta={{
+                                currentPage: usages.current_page,
+                                lastPage: usages.last_page,
+                                perPage: usages.per_page,
+                                total: usages.total,
+                            }}
+                            onPageChange={(page) => visit({ page })}
+                            onPerPageChange={(perPage) =>
+                                visit({ perPage, page: 1 })
+                            }
+                        />
+                    </div>
                 </div>
             </FinancialReportLayout>
         </>

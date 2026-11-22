@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     ChevronDown,
     ChevronRight,
@@ -8,8 +8,10 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Sheet,
     SheetContent,
@@ -46,7 +49,6 @@ import {
     destroy as rolesDestroy,
 } from '@/routes/roles';
 import rolesBulk from '@/routes/roles/bulk';
-import type { Team } from '@/types';
 
 type Permission = {
     id: number;
@@ -88,20 +90,32 @@ export default function RolesIndex({
     groupedPermissions: PermissionGroup[];
     filters: { q: string; perPage: number };
 }) {
-    const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
-
     const [query, setQuery] = useState(filters.q);
     const [name, setName] = useState('');
-    const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
+    const [selectedPermissions, setSelectedPermissions] = useState<number[]>(
+        [],
+    );
     const [editing, setEditing] = useState<Role | null>(null);
     const [viewing, setViewing] = useState<Role | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [deleting, setDeleting] = useState<Role | null>(null);
     const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
-    const [processing, setProcessing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [deletingProcessing, setDeletingProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+        new Set(),
+    );
+
+    const visibleRoleIds = roles.data.map((role) => role.id);
+    const allVisibleRolesSelected =
+        visibleRoleIds.length > 0 &&
+        visibleRoleIds.every((id) => selected.includes(id));
+    const someVisibleRolesSelected = visibleRoleIds.some((id) =>
+        selected.includes(id),
+    );
 
     function applyFilters(page = 1, perPage = filters.perPage) {
         router.get(
@@ -128,41 +142,58 @@ export default function RolesIndex({
     }
 
     function save() {
-        setProcessing(true);
+        setSaving(true);
         setError(null);
         const options = {
             preserveScroll: true,
             onSuccess: () => setFormOpen(false),
             onError: (errors: Record<string, string>) =>
                 setError(Object.values(errors)[0] ?? 'Unable to save role.'),
-            onFinish: () => setProcessing(false),
+            onFinish: () => setSaving(false),
         };
 
         if (editing) {
-            router.patch(rolesUpdate({ role: editing.id }), {
-                name,
-                permissions: selectedPermissions,
-            }, options);
+            router.patch(
+                rolesUpdate({ role: editing.id }),
+                {
+                    name,
+                    permissions: selectedPermissions,
+                },
+                options,
+            );
         } else {
-            router.post(rolesStore(), {
-                name,
-                permissions: selectedPermissions,
-            }, options);
+            router.post(
+                rolesStore(),
+                {
+                    name,
+                    permissions: selectedPermissions,
+                },
+                options,
+            );
         }
     }
 
     function deleteOne() {
         if (!deleting) return;
-        setProcessing(true);
+        setDeletingProcessing(true);
+        setDeleteError(null);
         router.delete(rolesDestroy({ role: deleting.id }), {
             preserveScroll: true,
-            onSuccess: () => setDeleting(null),
-            onFinish: () => setProcessing(false),
+            onSuccess: () => {
+                setSelected((prev) => prev.filter((id) => id !== deleting.id));
+                setDeleting(null);
+            },
+            onError: (errors: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errors)[0] ?? 'Unable to delete role.',
+                ),
+            onFinish: () => setDeletingProcessing(false),
         });
     }
 
     function deleteSelected() {
-        setProcessing(true);
+        setDeletingProcessing(true);
+        setDeleteError(null);
         router.delete(rolesBulk.destroy(), {
             data: { ids: selected },
             preserveScroll: true,
@@ -170,7 +201,11 @@ export default function RolesIndex({
                 setSelected([]);
                 setBulkDeleteOpen(false);
             },
-            onFinish: () => setProcessing(false),
+            onError: (errors: Record<string, string>) =>
+                setDeleteError(
+                    Object.values(errors)[0] ?? 'Unable to delete roles.',
+                ),
+            onFinish: () => setDeletingProcessing(false),
         });
     }
 
@@ -210,12 +245,19 @@ export default function RolesIndex({
         setCollapsedGroups(new Set(groupedPermissions.map((g) => g.resource)));
     }
 
-    function selectGroupPermissions(resource: string, groupPermissions: Permission[]) {
+    function selectGroupPermissions(
+        resource: string,
+        groupPermissions: Permission[],
+    ) {
         const groupIds = groupPermissions.map((p) => p.id);
-        const allSelected = groupIds.every((id) => selectedPermissions.includes(id));
+        const allSelected = groupIds.every((id) =>
+            selectedPermissions.includes(id),
+        );
 
         if (allSelected) {
-            setSelectedPermissions((prev) => prev.filter((id) => !groupIds.includes(id)));
+            setSelectedPermissions((prev) =>
+                prev.filter((id) => !groupIds.includes(id)),
+            );
         } else {
             setSelectedPermissions((prev) => {
                 const next = [...prev];
@@ -227,15 +269,18 @@ export default function RolesIndex({
         }
     }
 
-    function getGroupSelectedCount(resource: string, groupPermissions: Permission[]): number {
-        return groupPermissions.filter((p) => selectedPermissions.includes(p.id)).length;
+    function getGroupSelectedCount(
+        resource: string,
+        groupPermissions: Permission[],
+    ): number {
+        return groupPermissions.filter((p) =>
+            selectedPermissions.includes(p.id),
+        ).length;
     }
 
     function formatPermissionLabel(name: string): string {
         // Convert "view patients" to "View patients", "view_any" to "View any"
-        return name
-            .replace(/_/g, ' ')
-            .replace(/^./, (c) => c.toUpperCase());
+        return name.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
     }
 
     return (
@@ -259,14 +304,13 @@ export default function RolesIndex({
                         }}
                     >
                         <Input
+                            aria-label="Search roles"
                             className="max-w-sm"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search roles..."
                         />
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
                     {selected.length ? (
                         <>
@@ -283,45 +327,46 @@ export default function RolesIndex({
                         </>
                     ) : null}
                 </div>
+                {deleteError ? (
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete role."
+                    />
+                ) : null}
                 <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
                                             aria-label="Select all roles"
-                                        checked={
-                                            roles.data.length > 0 &&
-                                            roles.data.every((role) =>
-                                                selected.includes(role.id),
-                                            )
-                                        }
-                                        onChange={(event) =>
-                                            setSelected(
-                                                event.target.checked
-                                                    ? [
-                                                          ...new Set([
-                                                              ...selected,
-                                                              ...roles.data.map(
-                                                                  (role) =>
-                                                                      role.id,
-                                                              ),
-                                                          ]),
-                                                      ]
-                                                    : selected.filter(
-                                                          (id) =>
-                                                              !roles.data.some(
-                                                                  (role) =>
-                                                                      role.id ===
+                                            checked={
+                                                allVisibleRolesSelected
+                                                    ? true
+                                                    : someVisibleRolesSelected
+                                                      ? 'indeterminate'
+                                                      : false
+                                            }
+                                            onCheckedChange={(checked) =>
+                                                setSelected((prev) =>
+                                                    checked === true
+                                                        ? [
+                                                              ...new Set([
+                                                                  ...prev,
+                                                                  ...visibleRoleIds,
+                                                              ]),
+                                                          ]
+                                                        : prev.filter(
+                                                              (id) =>
+                                                                  !visibleRoleIds.includes(
                                                                       id,
-                                                              ),
-                                                      ),
-                                            )
-                                        }
-                                    />
-                                </TableHead>
+                                                                  ),
+                                                          ),
+                                                )
+                                            }
+                                        />
+                                    </TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Guard</TableHead>
                                     <TableHead>Permissions</TableHead>
@@ -345,20 +390,25 @@ export default function RolesIndex({
                                     roles.data.map((role) => (
                                         <TableRow key={role.id}>
                                             <TableCell>
-                                                <input
-                                                    type="checkbox"
+                                                <Checkbox
                                                     aria-label={`Select ${role.name}`}
                                                     checked={selected.includes(
                                                         role.id,
                                                     )}
-                                                    onChange={(event) =>
-                                                        setSelected(
-                                                            event.target.checked
+                                                    onCheckedChange={(
+                                                        checked,
+                                                    ) =>
+                                                        setSelected((prev) =>
+                                                            checked === true
                                                                 ? [
-                                                                      ...selected,
-                                                                      role.id,
+                                                                      ...new Set(
+                                                                          [
+                                                                              ...prev,
+                                                                              role.id,
+                                                                          ],
+                                                                      ),
                                                                   ]
-                                                                : selected.filter(
+                                                                : prev.filter(
                                                                       (id) =>
                                                                           id !==
                                                                           role.id,
@@ -374,7 +424,8 @@ export default function RolesIndex({
                                                 {role.guardName}
                                             </TableCell>
                                             <TableCell>
-                                                {role.permissions.length} assigned
+                                                {role.permissions.length}{' '}
+                                                assigned
                                             </TableCell>
                                             <TableCell>
                                                 {role.createdAt
@@ -385,20 +436,22 @@ export default function RolesIndex({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        onClick={() =>
-                                                            setViewing(role)
-                                                        }
-                                                    >
+                                                        >
+                                                            <MoreHorizontal className="size-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setViewing(role)
+                                                            }
+                                                        >
                                                             <Eye className="mr-2 h-4 w-4" />
                                                             View
                                                         </DropdownMenuItem>
@@ -412,7 +465,9 @@ export default function RolesIndex({
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
-                                                                setDeleting(role)
+                                                                setDeleting(
+                                                                    role,
+                                                                )
                                                             }
                                                         >
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -463,6 +518,7 @@ export default function RolesIndex({
                                     setName(event.target.value)
                                 }
                                 placeholder="e.g. Administrator"
+                                required
                             />
                         </div>
 
@@ -504,74 +560,121 @@ export default function RolesIndex({
                                 </div>
                                 <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-3">
                                     {groupedPermissions.map((group) => {
-                                        const isCollapsed = collapsedGroups.has(group.resource);
-                                        const selectedCount = getGroupSelectedCount(group.resource, group.permissions);
-                                        const totalCount = group.permissions.length;
-                                        const allSelected = selectedCount === totalCount && totalCount > 0;
+                                        const isCollapsed = collapsedGroups.has(
+                                            group.resource,
+                                        );
+                                        const selectedCount =
+                                            getGroupSelectedCount(
+                                                group.resource,
+                                                group.permissions,
+                                            );
+                                        const totalCount =
+                                            group.permissions.length;
+                                        const allSelected =
+                                            selectedCount === totalCount &&
+                                            totalCount > 0;
+
+                                        const groupId = `permission-group-${group.resource.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
                                         return (
                                             <div
                                                 key={group.resource}
                                                 className="rounded-md border"
                                             >
-                                                <button
-                                                    type="button"
-                                                    className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted/50"
-                                                    onClick={() => toggleGroup(group.resource)}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        {isCollapsed ? (
-                                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                                        ) : (
-                                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                        )}
-                                                        <span className="text-sm font-medium">
-                                                            {group.label}
-                                                        </span>
-                                                        <Badge variant="secondary" className="ml-1">
-                                                            {totalCount}
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
+                                                <div className="flex w-full items-center justify-between gap-2 px-3 py-2">
+                                                    <button
+                                                        type="button"
+                                                        className="flex min-w-0 items-center gap-2 text-left hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                                        onClick={() =>
+                                                            toggleGroup(
+                                                                group.resource,
+                                                            )
+                                                        }
+                                                        aria-expanded={
+                                                            !isCollapsed
+                                                        }
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            {isCollapsed ? (
+                                                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                                            ) : (
+                                                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                                            )}
+                                                            <span className="text-sm font-medium">
+                                                                {group.label}
+                                                            </span>
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className="ml-1"
+                                                            >
+                                                                {totalCount}
+                                                            </Badge>
+                                                        </div>
+                                                    </button>
+                                                    <div className="flex shrink-0 items-center gap-2">
                                                         {selectedCount > 0 && (
-                                                            <Badge variant="default" className="text-xs">
-                                                                {selectedCount}/{totalCount}
+                                                            <Badge
+                                                                variant="default"
+                                                                className="text-xs"
+                                                            >
+                                                                {selectedCount}/
+                                                                {totalCount}
                                                             </Badge>
                                                         )}
                                                         <Checkbox
-                                                            checked={allSelected}
+                                                            aria-label={`Select all ${group.label} permissions`}
+                                                            checked={
+                                                                allSelected
+                                                                    ? true
+                                                                    : selectedCount >
+                                                                        0
+                                                                      ? 'indeterminate'
+                                                                      : false
+                                                            }
                                                             onCheckedChange={() =>
-                                                                selectGroupPermissions(group.resource, group.permissions)
+                                                                selectGroupPermissions(
+                                                                    group.resource,
+                                                                    group.permissions,
+                                                                )
                                                             }
                                                         />
                                                     </div>
-                                                </button>
+                                                </div>
                                                 {!isCollapsed && (
-                                                    <div className="px-3 pb-2 space-y-1">
-                                                        {group.permissions.map((permission) => (
-                                                            <div
-                                                                key={permission.id}
-                                                                className="flex items-center space-x-2 pl-6"
-                                                            >
-                                                                <Checkbox
-                                                                    id={`perm-${group.resource}-${permission.id}`}
-                                                                    checked={selectedPermissions.includes(
-                                                                        permission.id,
-                                                                    )}
-                                                                    onCheckedChange={() =>
-                                                                        togglePermission(
-                                                                            permission.id,
-                                                                        )
+                                                    <div
+                                                        id={groupId}
+                                                        className="space-y-1 px-3 pb-2"
+                                                    >
+                                                        {group.permissions.map(
+                                                            (permission) => (
+                                                                <div
+                                                                    key={
+                                                                        permission.id
                                                                     }
-                                                                />
-                                                                <Label
-                                                                    htmlFor={`perm-${group.resource}-${permission.id}`}
-                                                                    className="text-sm font-normal flex-1 cursor-pointer"
+                                                                    className="flex items-center space-x-2 pl-6"
                                                                 >
-                                                                    {formatPermissionLabel(permission.name)}
-                                                                </Label>
-                                                            </div>
-                                                        ))}
+                                                                    <Checkbox
+                                                                        id={`perm-${group.resource}-${permission.id}`}
+                                                                        checked={selectedPermissions.includes(
+                                                                            permission.id,
+                                                                        )}
+                                                                        onCheckedChange={() =>
+                                                                            togglePermission(
+                                                                                permission.id,
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                    <Label
+                                                                        htmlFor={`perm-${group.resource}-${permission.id}`}
+                                                                        className="flex-1 cursor-pointer text-sm font-normal"
+                                                                    >
+                                                                        {formatPermissionLabel(
+                                                                            permission.name,
+                                                                        )}
+                                                                    </Label>
+                                                                </div>
+                                                            ),
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -585,19 +688,28 @@ export default function RolesIndex({
                             </div>
                         )}
 
-                        {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
-                        ) : null}
+                        <InputError message={error ?? undefined} />
                     </div>
                     <SheetFooter>
                         <Button
+                            type="button"
                             variant="outline"
+                            disabled={saving}
                             onClick={() => setFormOpen(false)}
                         >
                             Cancel
                         </Button>
-                        <Button disabled={processing || !name.trim()} onClick={save}>
-                            {editing ? 'Update role' : 'Create role'}
+                        <Button
+                            type="button"
+                            disabled={saving || !name.trim()}
+                            onClick={save}
+                        >
+                            {saving && <Spinner />}
+                            {saving
+                                ? 'Saving...'
+                                : editing
+                                  ? 'Update role'
+                                  : 'Create role'}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -611,6 +723,9 @@ export default function RolesIndex({
                 <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
                     <SheetHeader>
                         <SheetTitle>Role details</SheetTitle>
+                        <SheetDescription>
+                            Review this role and its assigned permissions.
+                        </SheetDescription>
                     </SheetHeader>
                     <div className="space-y-3 px-4 py-5">
                         <p>
@@ -646,12 +761,9 @@ export default function RolesIndex({
                                 </span>
                                 <div className="flex flex-wrap gap-2">
                                     {viewing.permissions.map((p) => (
-                                        <span
-                                            key={p.id}
-                                            className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium"
-                                        >
+                                        <Badge key={p.id} variant="outline">
                                             {p.name}
-                                        </span>
+                                        </Badge>
                                     ))}
                                 </div>
                             </div>
@@ -665,8 +777,9 @@ export default function RolesIndex({
                 onOpenChange={(open) => !open && setDeleting(null)}
                 title="Delete role?"
                 description={`Delete "${deleting?.name}"? Users with this role will lose those permissions.`}
-                confirmLabel="Delete"
-                processing={processing}
+                confirmLabel={deletingProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deletingProcessing}
                 onConfirm={deleteOne}
             />
             <ConfirmDialog
@@ -674,8 +787,11 @@ export default function RolesIndex({
                 onOpenChange={setBulkDeleteOpen}
                 title="Delete selected roles?"
                 description="Users with these roles will lose those permissions."
-                confirmLabel="Delete selected"
-                processing={processing}
+                confirmLabel={
+                    deletingProcessing ? 'Deleting...' : 'Delete selected'
+                }
+                destructive
+                processing={deletingProcessing}
                 onConfirm={deleteSelected}
             />
         </>

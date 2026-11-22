@@ -1,13 +1,15 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import PatientController from '@/actions/App/Http/Controllers/PatientController';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import PatientFormFields from '@/components/patient-form-fields';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     patientConfirmLabels,
-    usePatientActions,
+    type ConfirmAction,
 } from '@/hooks/use-patient-actions';
 import { edit, index, show } from '@/routes/patients';
 import type { PatientDetail, PatientFormOptions, Team } from '@/types';
@@ -24,8 +26,51 @@ export default function PatientEdit({
     patient: PatientDetail;
     options: PatientFormOptions;
 }) {
-    const { teamSlug, confirm, setConfirm, processing, runConfirm } =
-        usePatientActions(patient.id);
+    const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
+    const teamSlug = currentTeam?.slug ?? '';
+    const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    function openConfirm(action: ConfirmAction) {
+        setActionError(null);
+        setConfirm(action);
+    }
+
+    function runConfirm() {
+        if (!confirm) {
+            return;
+        }
+
+        setProcessing(true);
+        setActionError(null);
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => setConfirm(null),
+            onError: (errors: Record<string, string>) =>
+                setActionError(
+                    Object.values(errors)[0] ?? 'Unable to complete action.',
+                ),
+            onFinish: () => setProcessing(false),
+        };
+
+        if (confirm === 'restore') {
+            router.patch(
+                PatientController.restore.url([teamSlug, patient.id]),
+                {},
+                options,
+            );
+            return;
+        }
+
+        const url =
+            confirm === 'delete'
+                ? PatientController.destroy.url([teamSlug, patient.id])
+                : PatientController.forceDelete.url([teamSlug, patient.id]);
+
+        router.delete(url, options);
+    }
 
     const [gender, setGender] = useState(patient.gender ?? '');
     const [stateId, setStateId] = useState(
@@ -43,9 +88,15 @@ export default function PatientEdit({
                         title={`Edit ${patient.fullName}`}
                         description={`Hospital No ${patient.slug}`}
                     />
+                    {patient.deletedAt ? (
+                        <Badge variant="destructive">Trashed</Badge>
+                    ) : null}
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" asChild>
-                            <Link href={show([teamSlug, patient.id])}>
+                            <Link
+                                href={show([teamSlug, patient.id])}
+                                aria-label={`View ${patient.fullName}`}
+                            >
                                 View
                             </Link>
                         </Button>
@@ -53,27 +104,35 @@ export default function PatientEdit({
                             <>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setConfirm('restore')}
+                                    disabled={processing}
+                                    onClick={() => openConfirm('restore')}
                                 >
-                                    Restore
+                                    {processing ? 'Working...' : 'Restore'}
                                 </Button>
                                 <Button
                                     variant="destructive"
-                                    onClick={() => setConfirm('force-delete')}
+                                    disabled={processing}
+                                    onClick={() => openConfirm('force-delete')}
                                 >
-                                    Force delete
+                                    {processing ? 'Working...' : 'Force delete'}
                                 </Button>
                             </>
                         ) : (
                             <Button
                                 variant="destructive"
-                                onClick={() => setConfirm('delete')}
+                                disabled={processing}
+                                onClick={() => openConfirm('delete')}
                             >
-                                Delete
+                                {processing ? 'Working...' : 'Delete'}
                             </Button>
                         )}
                         <Button variant="secondary" asChild>
-                            <Link href={index(teamSlug)}>Back to patients</Link>
+                            <Link
+                                href={index(teamSlug)}
+                                aria-label="Back to patients"
+                            >
+                                Back to patients
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -133,16 +192,24 @@ export default function PatientEdit({
                 </Form>
             </div>
 
+            {actionError ? (
+                <AlertError errors={[actionError]} title="Action failed" />
+            ) : null}
             <ConfirmDialog
                 open={confirm !== null}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !processing) {
                         setConfirm(null);
                     }
                 }}
                 processing={processing}
                 destructive={confirm !== 'restore'}
                 {...patientConfirmLabels(confirm ?? 'delete')}
+                confirmLabel={
+                    processing
+                        ? 'Working...'
+                        : patientConfirmLabels(confirm ?? 'delete').confirmLabel
+                }
                 onConfirm={runConfirm}
             />
         </>
@@ -153,16 +220,14 @@ PatientEdit.layout = (props: LayoutProps) => ({
     breadcrumbs: [
         {
             title: 'Patients',
-            href: props.currentTeam
-                ? index(props.currentTeam.slug)
-                : '/patients',
+            href: index(props.currentTeam?.slug),
         },
         {
             title: 'Edit',
             href:
                 props.currentTeam && props.patient
                     ? edit([props.currentTeam.slug, props.patient.id])
-                    : '/patients',
+                    : index(props.currentTeam?.slug),
         },
     ],
 });

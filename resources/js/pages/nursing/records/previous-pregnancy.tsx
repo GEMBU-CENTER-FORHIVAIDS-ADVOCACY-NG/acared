@@ -1,5 +1,7 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertError from '@/components/alert-error';
+import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,8 +31,13 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { home } from '@/routes';
 import { index as recordsIndex } from '@/routes/nursing/records';
-import { destroy, store, update } from '@/routes/nursing/records/previous-pregnancy';
+import {
+    destroy,
+    store,
+    update,
+} from '@/routes/nursing/records/previous-pregnancy';
 import type { Team } from '@/types';
 
 type PreviousPregnancyRecord = {
@@ -106,6 +113,10 @@ export default function PreviousPregnancyIndex({
     const [form, setForm] = useState<PreviousPregnancyForm>(emptyForm);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [recordToDelete, setRecordToDelete] =
+        useState<PreviousPregnancyRecord | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     function startCreate() {
         setEditId(null);
@@ -121,8 +132,18 @@ export default function PreviousPregnancyIndex({
             ga: record.ga ?? '',
             durationOfPregnancy: record.durationOfPregnancy ?? '',
             durationOfLabour: record.durationOfLabour ?? '',
-            abortion: record.abortion === true ? 'yes' : record.abortion === false ? 'no' : '',
-            iufd: record.iufd === true ? 'yes' : record.iufd === false ? 'no' : '',
+            abortion:
+                record.abortion === true
+                    ? 'yes'
+                    : record.abortion === false
+                      ? 'no'
+                      : '',
+            iufd:
+                record.iufd === true
+                    ? 'yes'
+                    : record.iufd === false
+                      ? 'no'
+                      : '',
             aph: record.aph === true ? 'yes' : record.aph === false ? 'no' : '',
             pph: record.pph === true ? 'yes' : record.pph === false ? 'no' : '',
             sex: record.sex ?? '',
@@ -145,8 +166,14 @@ export default function PreviousPregnancyIndex({
             ga: form.ga || null,
             duration_of_pregnancy: form.durationOfPregnancy || null,
             duration_of_labour: form.durationOfLabour || null,
-            abortion: form.abortion === 'yes' ? true : form.abortion === 'no' ? false : null,
-            iufd: form.iufd === 'yes' ? true : form.iufd === 'no' ? false : null,
+            abortion:
+                form.abortion === 'yes'
+                    ? true
+                    : form.abortion === 'no'
+                      ? false
+                      : null,
+            iufd:
+                form.iufd === 'yes' ? true : form.iufd === 'no' ? false : null,
             aph: form.aph === 'yes' ? true : form.aph === 'no' ? false : null,
             pph: form.pph === 'yes' ? true : form.pph === 'no' ? false : null,
             sex: form.sex || null,
@@ -189,14 +216,34 @@ export default function PreviousPregnancyIndex({
         }
     }
 
-    function deleteRecord(id: number) {
+    function deleteRecord(record: PreviousPregnancyRecord) {
+        setDeleteError(null);
+        setRecordToDelete(record);
+    }
+
+    function confirmDeleteRecord() {
+        if (!recordToDelete) {
+            return;
+        }
+
+        setDeleteProcessing(true);
+        setDeleteError(null);
+
         router.delete(
             destroy.url({
                 current_team: teamSlug,
                 nursing: nursing.id,
-                previousPregnancy: id,
+                previousPregnancy: recordToDelete.id,
             }),
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    ),
+                onSuccess: () => setRecordToDelete(null),
+                onFinish: () => setDeleteProcessing(false),
+            },
         );
     }
 
@@ -206,7 +253,12 @@ export default function PreviousPregnancyIndex({
 
     function renderYesNoBadge(value: boolean | null) {
         if (value === null) return '—';
-        if (value) return <Badge className="bg-emerald-100 text-emerald-800">Yes</Badge>;
+        if (value)
+            return (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    Yes
+                </Badge>
+            );
         return <Badge className="bg-muted text-muted-foreground">No</Badge>;
     }
 
@@ -215,6 +267,8 @@ export default function PreviousPregnancyIndex({
             <Head title={`${nursing.patientId} — Previous Pregnancy`} />
 
             <div className="flex w-full flex-col space-y-6 p-4 md:p-6 lg:p-8">
+                {deleteError ? <AlertError errors={[deleteError]} /> : null}
+
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <Heading
@@ -225,9 +279,9 @@ export default function PreviousPregnancyIndex({
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild>
-                            <a href={recordsIndex.url(teamSlug)}>
+                            <Link href={recordsIndex.url(teamSlug)}>
                                 Back to maternity
-                            </a>
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -251,15 +305,21 @@ export default function PreviousPregnancyIndex({
                                         <TableRow>
                                             <TableHead>Year</TableHead>
                                             <TableHead>GA</TableHead>
-                                            <TableHead>Duration of Pregnancy</TableHead>
-                                            <TableHead>Duration of Labour</TableHead>
+                                            <TableHead>
+                                                Duration of Pregnancy
+                                            </TableHead>
+                                            <TableHead>
+                                                Duration of Labour
+                                            </TableHead>
                                             <TableHead>Abortion</TableHead>
                                             <TableHead>IUFD</TableHead>
                                             <TableHead>APH</TableHead>
                                             <TableHead>PPH</TableHead>
                                             <TableHead>Sex</TableHead>
                                             <TableHead>Weight</TableHead>
-                                            <TableHead>Mode of Delivery</TableHead>
+                                            <TableHead>
+                                                Mode of Delivery
+                                            </TableHead>
                                             <TableHead>Age (Life)</TableHead>
                                             <TableHead>Age (Death)</TableHead>
                                             <TableHead>Nurse</TableHead>
@@ -269,40 +329,90 @@ export default function PreviousPregnancyIndex({
                                     <TableBody>
                                         {records.map((record) => (
                                             <TableRow key={record.id}>
-                                                <TableCell>{record.year ?? '—'}</TableCell>
-                                                <TableCell>{record.ga ?? '—'}</TableCell>
-                                                <TableCell>{record.durationOfPregnancy ?? '—'}</TableCell>
-                                                <TableCell>{record.durationOfLabour ?? '—'}</TableCell>
-                                                <TableCell>{renderYesNoBadge(record.abortion)}</TableCell>
-                                                <TableCell>{renderYesNoBadge(record.iufd)}</TableCell>
-                                                <TableCell>{renderYesNoBadge(record.aph)}</TableCell>
-                                                <TableCell>{renderYesNoBadge(record.pph)}</TableCell>
+                                                <TableCell>
+                                                    {record.year ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.ga ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.durationOfPregnancy ??
+                                                        '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.durationOfLabour ??
+                                                        '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {renderYesNoBadge(
+                                                        record.abortion,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {renderYesNoBadge(
+                                                        record.iufd,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {renderYesNoBadge(
+                                                        record.aph,
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {renderYesNoBadge(
+                                                        record.pph,
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>
                                                     {record.sex ? (
-                                                        <span className="capitalize">{record.sex}</span>
+                                                        <span className="capitalize">
+                                                            {record.sex}
+                                                        </span>
                                                     ) : (
                                                         '—'
                                                     )}
                                                 </TableCell>
-                                                <TableCell>{record.weight ?? '—'}</TableCell>
-                                                <TableCell>{record.modeOfDelivery ?? '—'}</TableCell>
-                                                <TableCell>{record.ageLife ?? '—'}</TableCell>
-                                                <TableCell>{record.ageDeath ?? '—'}</TableCell>
-                                                <TableCell>{record.nurseName ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    {record.weight ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.modeOfDelivery ??
+                                                        '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.ageLife ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.ageDeath ?? '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.nurseName ?? '—'}
+                                                </TableCell>
                                                 <TableCell>
                                                     {record.canEdit ? (
                                                         <div className="flex items-center gap-2">
                                                             <Button
                                                                 size="sm"
                                                                 variant="secondary"
-                                                                onClick={() => startEdit(record)}
+                                                                onClick={() =>
+                                                                    startEdit(
+                                                                        record,
+                                                                    )
+                                                                }
                                                             >
                                                                 Edit
                                                             </Button>
                                                             <Button
                                                                 size="sm"
-                                                                variant="outline"
-                                                                onClick={() => deleteRecord(record.id)}
+                                                                variant="destructive"
+                                                                disabled={
+                                                                    deleteProcessing
+                                                                }
+                                                                onClick={() =>
+                                                                    deleteRecord(
+                                                                        record,
+                                                                    )
+                                                                }
                                                             >
                                                                 Delete
                                                             </Button>
@@ -322,7 +432,7 @@ export default function PreviousPregnancyIndex({
             <Sheet
                 open={formOpen}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !processing) {
                         setFormOpen(false);
                         setEditId(null);
                     }
@@ -340,11 +450,7 @@ export default function PreviousPregnancyIndex({
 
                     <form onSubmit={submit}>
                         <div className="space-y-4 px-4 pb-4">
-                            {error && (
-                                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                    {error}
-                                </p>
-                            )}
+                            {error ? <AlertError errors={[error]} /> : null}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -354,7 +460,9 @@ export default function PreviousPregnancyIndex({
                                         type="number"
                                         placeholder="e.g. 2020"
                                         value={form.year}
-                                        onChange={(e) => updateField('year', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('year', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -364,41 +472,63 @@ export default function PreviousPregnancyIndex({
                                         type="text"
                                         placeholder="e.g. 40 weeks"
                                         value={form.ga}
-                                        onChange={(e) => updateField('ga', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField('ga', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="durationOfPregnancy">Duration of Pregnancy</Label>
+                                    <Label htmlFor="durationOfPregnancy">
+                                        Duration of Pregnancy
+                                    </Label>
                                     <Input
                                         id="durationOfPregnancy"
                                         type="text"
                                         placeholder="e.g. 9 months"
                                         value={form.durationOfPregnancy}
-                                        onChange={(e) => updateField('durationOfPregnancy', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'durationOfPregnancy',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="durationOfLabour">Duration of Labour</Label>
+                                    <Label htmlFor="durationOfLabour">
+                                        Duration of Labour
+                                    </Label>
                                     <Input
                                         id="durationOfLabour"
                                         type="text"
                                         placeholder="e.g. 12 hours"
                                         value={form.durationOfLabour}
-                                        onChange={(e) => updateField('durationOfLabour', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'durationOfLabour',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="abortion">Abortion</Label>
                                     <Select
                                         value={form.abortion}
-                                        onValueChange={(value) => updateField('abortion', value)}
+                                        onValueChange={(value) =>
+                                            updateField('abortion', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="abortion">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -406,14 +536,20 @@ export default function PreviousPregnancyIndex({
                                     <Label htmlFor="iufd">IUFD</Label>
                                     <Select
                                         value={form.iufd}
-                                        onValueChange={(value) => updateField('iufd', value)}
+                                        onValueChange={(value) =>
+                                            updateField('iufd', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="iufd">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -421,14 +557,20 @@ export default function PreviousPregnancyIndex({
                                     <Label htmlFor="aph">APH</Label>
                                     <Select
                                         value={form.aph}
-                                        onValueChange={(value) => updateField('aph', value)}
+                                        onValueChange={(value) =>
+                                            updateField('aph', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="aph">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -436,14 +578,20 @@ export default function PreviousPregnancyIndex({
                                     <Label htmlFor="pph">PPH</Label>
                                     <Select
                                         value={form.pph}
-                                        onValueChange={(value) => updateField('pph', value)}
+                                        onValueChange={(value) =>
+                                            updateField('pph', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="pph">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="yes">Yes</SelectItem>
-                                            <SelectItem value="no">No</SelectItem>
+                                            <SelectItem value="yes">
+                                                Yes
+                                            </SelectItem>
+                                            <SelectItem value="no">
+                                                No
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -451,14 +599,20 @@ export default function PreviousPregnancyIndex({
                                     <Label htmlFor="sex">Sex</Label>
                                     <Select
                                         value={form.sex}
-                                        onValueChange={(value) => updateField('sex', value)}
+                                        onValueChange={(value) =>
+                                            updateField('sex', value)
+                                        }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="sex">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="male">Male</SelectItem>
-                                            <SelectItem value="female">Female</SelectItem>
+                                            <SelectItem value="male">
+                                                Male
+                                            </SelectItem>
+                                            <SelectItem value="female">
+                                                Female
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -470,17 +624,29 @@ export default function PreviousPregnancyIndex({
                                         step="0.01"
                                         placeholder="e.g. 3.2"
                                         value={form.weight}
-                                        onChange={(e) => updateField('weight', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'weight',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="modeOfDelivery">Mode of Delivery</Label>
+                                    <Label htmlFor="modeOfDelivery">
+                                        Mode of Delivery
+                                    </Label>
                                     <Input
                                         id="modeOfDelivery"
                                         type="text"
                                         placeholder="e.g. Normal, C-section"
                                         value={form.modeOfDelivery}
-                                        onChange={(e) => updateField('modeOfDelivery', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'modeOfDelivery',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -490,17 +656,29 @@ export default function PreviousPregnancyIndex({
                                         type="text"
                                         placeholder="e.g. 2 years"
                                         value={form.ageLife}
-                                        onChange={(e) => updateField('ageLife', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'ageLife',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="ageDeath">Age (Death)</Label>
+                                    <Label htmlFor="ageDeath">
+                                        Age (Death)
+                                    </Label>
                                     <Input
                                         id="ageDeath"
                                         type="text"
                                         placeholder="e.g. 5 days"
                                         value={form.ageDeath}
-                                        onChange={(e) => updateField('ageDeath', e.target.value)}
+                                        onChange={(e) =>
+                                            updateField(
+                                                'ageDeath',
+                                                e.target.value,
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -525,19 +703,32 @@ export default function PreviousPregnancyIndex({
                     </form>
                 </SheetContent>
             </Sheet>
+
+            <ConfirmDialog
+                open={recordToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) {
+                        setRecordToDelete(null);
+                    }
+                }}
+                title="Delete previous pregnancy record"
+                description={`Delete the record from ${recordToDelete?.year ?? 'an unknown year'}? This cannot be undone.`}
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                destructive
+                processing={deleteProcessing}
+                onConfirm={confirmDeleteRecord}
+            />
         </>
     );
 }
 
-PreviousPregnancyIndex.layout = (props: {
-    currentTeam?: Team | null;
-}) => ({
+PreviousPregnancyIndex.layout = (props: { currentTeam?: Team | null }) => ({
     breadcrumbs: [
         {
             title: 'Maternity',
             href: props.currentTeam
                 ? recordsIndex.url(props.currentTeam.slug)
-                : '/',
+                : home.url(),
         },
     ],
 });

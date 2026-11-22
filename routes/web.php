@@ -149,6 +149,9 @@ Route::prefix('{current_team}')
             Route::get('reports/wallet/export', [OperationalReportController::class, 'exportWallet'])->name('reports.wallet.export');
             Route::get('reports/employee-deduction', [OperationalReportController::class, 'employeeDeduction'])->name('reports.employee-deduction');
             Route::get('reports/employee-deduction/export', [OperationalReportController::class, 'exportEmployeeDeduction'])->name('reports.employee-deduction.export');
+            Route::post('reports/employee-deduction/import', [OperationalReportController::class, 'importEmployeeDeduction'])
+                ->middleware('permission:view finance')
+                ->name('reports.employee-deduction.import');
             Route::get('reports/price-list', [OperationalReportController::class, 'priceList'])->name('reports.price-list');
             Route::get('reports/price-list/export', [OperationalReportController::class, 'exportPriceList'])->name('reports.price-list.export');
             Route::get('reports/laboratory', [FinanceController::class, 'laboratory'])->name('reports.laboratory');

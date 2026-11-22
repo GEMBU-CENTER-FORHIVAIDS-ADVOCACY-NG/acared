@@ -2,13 +2,18 @@ import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import PatientController from '@/actions/App/Http/Controllers/PatientController';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import PatientFormFields from '@/components/patient-form-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
 import { index } from '@/routes/patients';
-import type { BillingLine, PatientFormOptions, PriceListItem, Team } from '@/types';
+import type {
+    PatientBillingLine,
+    PatientFormOptions,
+    PriceListItem,
+    Team,
+} from '@/types';
 
 export default function PatientCreate({
     options,
@@ -24,7 +29,7 @@ export default function PatientCreate({
 
     const [gender, setGender] = useState('');
     const [stateId, setStateId] = useState('');
-    const [lines, setLines] = useState<BillingLine[]>([
+    const [lines, setLines] = useState<PatientBillingLine[]>([
         { price_list_id: '', unitPrice: '' },
     ]);
 
@@ -40,7 +45,12 @@ export default function PatientCreate({
                         description="Add a new patient to this team."
                     />
                     <Button variant="outline" asChild>
-                        <Link href={index(teamSlug)}>Back to patients</Link>
+                        <Link
+                            href={index(teamSlug)}
+                            aria-label="Back to patients"
+                        >
+                            Back to patients
+                        </Link>
                     </Button>
                 </div>
 
@@ -48,7 +58,7 @@ export default function PatientCreate({
                     {...PatientController.store.form(teamSlug)}
                     className="space-y-6"
                     data-test="patient-form"
-                    onSubmit={(data) => {
+                    transform={(data) => {
                         const linePayload = lines
                             .filter((line) => line.price_list_id !== '')
                             .map((line) => ({
@@ -56,14 +66,28 @@ export default function PatientCreate({
                                 unitPrice: Number(line.unitPrice) || 0,
                             }));
 
-                        if (linePayload.length > 0) {
-                            data.billings = [{ lines: linePayload, total: linePayload.reduce((sum, l) => sum + l.unitPrice, 0) }];
+                        if (linePayload.length === 0) {
+                            return data;
                         }
+
+                        return {
+                            ...data,
+                            billings: [
+                                {
+                                    lines: linePayload,
+                                    total: linePayload.reduce(
+                                        (sum, line) => sum + line.unitPrice,
+                                        0,
+                                    ),
+                                },
+                            ],
+                        };
                     }}
                 >
                     {({ processing, errors }) => {
                         const total = lines.reduce(
-                            (sum, line) => sum + (parseFloat(line.unitPrice) || 0),
+                            (sum, line) =>
+                                sum + (parseFloat(line.unitPrice) || 0),
                             0,
                         );
 
@@ -98,81 +122,144 @@ export default function PatientCreate({
 
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <Label>Billing lines</Label>
+                                        <h3
+                                            id="billing-lines"
+                                            className="text-sm font-medium"
+                                        >
+                                            Billing lines
+                                        </h3>
                                         <Button
                                             type="button"
                                             variant="secondary"
                                             size="sm"
+                                            disabled={processing}
                                             onClick={() =>
                                                 setLines([
                                                     ...lines,
-                                                    { price_list_id: '', unitPrice: '' },
+                                                    {
+                                                        price_list_id: '',
+                                                        unitPrice: '',
+                                                    },
                                                 ])
                                             }
                                         >
                                             Add line
                                         </Button>
                                     </div>
+                                    <InputError message={errors.billings} />
+                                    <InputError
+                                        message={errors['billings.0.lines']}
+                                    />
 
                                     {lines.map((line, index) => (
-                                        <div
-                                            key={index}
-                                            className="grid gap-2 sm:grid-cols-[1fr_120px_auto]"
-                                        >
-                                            <SelectNative
-                                                value={line.price_list_id}
-                                                onChange={(event) => {
-                                                    const newLines = [...lines];
-                                                    newLines[index] = {
-                                                        ...newLines[index],
-                                                        price_list_id: event.target.value,
-                                                    };
-                                                    const priceList = priceLists.find(
-                                                        (pl) => pl.id.toString() === event.target.value,
-                                                    );
-                                                    if (priceList) {
-                                                        newLines[index].unitPrice = priceList.price.toString();
-                                                    }
-                                                    setLines(newLines);
-                                                }}
-                                            >
-                                                <option value="">Select item…</option>
-                                                {priceLists.map((priceList) => (
-                                                    <option
-                                                        key={priceList.id}
-                                                        value={priceList.id}
-                                                    >
-                                                        {priceList.name}
+                                        <div key={index} className="space-y-1">
+                                            <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
+                                                <SelectNative
+                                                    id={`billing-item-${index}`}
+                                                    aria-label={`Billing item ${index + 1}`}
+                                                    disabled={processing}
+                                                    value={line.price_list_id}
+                                                    onChange={(event) => {
+                                                        const newLines = [
+                                                            ...lines,
+                                                        ];
+                                                        newLines[index] = {
+                                                            ...newLines[index],
+                                                            price_list_id:
+                                                                event.target
+                                                                    .value,
+                                                        };
+                                                        const priceList =
+                                                            priceLists.find(
+                                                                (pl) =>
+                                                                    pl.id.toString() ===
+                                                                    event.target
+                                                                        .value,
+                                                            );
+                                                        if (priceList) {
+                                                            newLines[
+                                                                index
+                                                            ].unitPrice =
+                                                                priceList.price.toString();
+                                                        }
+                                                        setLines(newLines);
+                                                    }}
+                                                >
+                                                    <option value="">
+                                                        Select item…
                                                     </option>
-                                                ))}
-                                            </SelectNative>
-                                            <Input
-                                                type="number"
-                                                value={line.unitPrice}
-                                                onChange={(event) => {
-                                                    const newLines = [...lines];
-                                                    newLines[index] = {
-                                                        ...newLines[index],
-                                                        unitPrice: event.target.value,
-                                                    };
-                                                    setLines(newLines);
-                                                }}
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                disabled={lines.length === 1}
-                                                onClick={() =>
-                                                    setLines((current) =>
-                                                        current.filter(
-                                                            (_, rowIndex) => rowIndex !== index,
+                                                    {priceLists.map(
+                                                        (priceList) => (
+                                                            <option
+                                                                key={
+                                                                    priceList.id
+                                                                }
+                                                                value={
+                                                                    priceList.id
+                                                                }
+                                                            >
+                                                                {priceList.name}
+                                                            </option>
                                                         ),
-                                                    )
+                                                    )}
+                                                </SelectNative>
+                                                <Input
+                                                    id={`billing-unit-price-${index}`}
+                                                    aria-label={`Unit price for billing item ${index + 1}`}
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.01"
+                                                    disabled={processing}
+                                                    value={line.unitPrice}
+                                                    onChange={(event) => {
+                                                        const newLines = [
+                                                            ...lines,
+                                                        ];
+                                                        newLines[index] = {
+                                                            ...newLines[index],
+                                                            unitPrice:
+                                                                event.target
+                                                                    .value,
+                                                        };
+                                                        setLines(newLines);
+                                                    }}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    aria-label={`Remove billing item ${index + 1}`}
+                                                    disabled={
+                                                        processing ||
+                                                        lines.length === 1
+                                                    }
+                                                    onClick={() =>
+                                                        setLines((current) =>
+                                                            current.filter(
+                                                                (_, rowIndex) =>
+                                                                    rowIndex !==
+                                                                    index,
+                                                            ),
+                                                        )
+                                                    }
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                            <InputError
+                                                message={
+                                                    errors[
+                                                        `billings.0.lines.${index}.price_list_id`
+                                                    ]
                                                 }
-                                            >
-                                                Remove
-                                            </Button>
+                                            />
+                                            <InputError
+                                                message={
+                                                    errors[
+                                                        `billings.0.lines.${index}.unitPrice`
+                                                    ]
+                                                }
+                                            />
                                         </div>
                                     ))}
 

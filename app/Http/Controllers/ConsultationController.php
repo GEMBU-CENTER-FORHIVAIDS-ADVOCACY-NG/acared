@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admission;
 use App\Models\Category;
 use App\Models\Consultation;
 use App\Models\Country;
@@ -454,19 +455,17 @@ class ConsultationController extends Controller
                 'started' => $monthConsultations->where('status', 'started')->count(),
                 'completed' => $monthConsultations->where('status', 'completed')->count(),
             ],
-            'upcoming' => Consultation::query()
-                ->when($user->hasRole('Consultant'), fn (Builder $query) => $query->where('doctor_id', $user->getKey()))
-                ->whereIn('status', ['scheduled', 'started'])
-                ->with(['patient', 'doctor'])
-                ->where('starts_at', '>=', $now->startOfDay())
-                ->orderBy('starts_at')
-                ->limit(5)
+            'admittedPatients' => Admission::query()
+                ->where('status', 'admitted')
+                ->whereHas('patient')
+                ->with(['patient', 'ward', 'bed'])
+                ->orderByDesc('created_at')
                 ->get()
-                ->map(fn (Consultation $consultation) => [
-                    'id' => $consultation->getKey(),
-                    'name' => $consultation->patient_id.' - '.($consultation->patient->fullName ?? 'Unknown patient'),
-                    'meta' => ($consultation->starts_at?->format('D M j, g:i A') ?? '').' — '.($consultation->doctor->name ?? 'Unassigned'),
-                    'status' => $consultation->status,
+                ->map(fn (Admission $admission) => [
+                    'id' => $admission->getKey(),
+                    'name' => $admission->patient?->fullName ?? 'Unknown patient',
+                    'meta' => 'Hospital No: '.$admission->patient_id,
+                    'wardBed' => ($admission->ward?->name ?? 'No ward').' · '.($admission->bed?->name ?? 'No bed'),
                 ])
                 ->values()
                 ->all(),

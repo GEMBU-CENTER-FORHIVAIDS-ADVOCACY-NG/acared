@@ -7,6 +7,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 export function NavMain({
@@ -30,7 +31,11 @@ export function NavMain({
                             tooltip={{ children: item.title }}
                         >
                             {item.external ? (
-                                <a href={item.href} target="_blank" rel="noopener noreferrer">
+                                <a
+                                    href={toUrl(item.href)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </a>

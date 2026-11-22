@@ -35,25 +35,25 @@ export default function AdmissionsOverview({
             title: 'Awaiting admission',
             value: counts.pending,
             description: `Pending admission ${periodLabel.toLowerCase()}`,
-            tone: 'text-rose-600',
+            tone: 'text-rose-600 dark:text-rose-400',
         },
         {
             title: 'Admitted patients',
             value: counts.admitted,
             description: `Admitted ${periodLabel.toLowerCase()}`,
-            tone: 'text-emerald-600',
+            tone: 'text-emerald-600 dark:text-emerald-400',
         },
         {
             title: 'Total requests',
             value: counts.total,
             description: `Total ${periodLabel.toLowerCase()}`,
-            tone: 'text-indigo-600',
+            tone: 'text-indigo-600 dark:text-indigo-400',
         },
         {
             title: 'Discharged patients',
             value: counts.discharged,
             description: `Discharged ${periodLabel.toLowerCase()}`,
-            tone: 'text-sky-600',
+            tone: 'text-sky-600 dark:text-sky-400',
         },
     ];
 

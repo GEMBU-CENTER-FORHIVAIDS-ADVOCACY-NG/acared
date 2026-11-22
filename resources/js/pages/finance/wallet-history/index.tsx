@@ -1,8 +1,20 @@
-import { Head, router, usePage } from '@inertiajs/react';
-import { ArrowRightLeft, FileText, MoreHorizontal, WalletCards, TrendingUp, TrendingDown, Calculator, X } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ArrowRightLeft,
+    FileText,
+    MoreHorizontal,
+    Trash2,
+    WalletCards,
+    TrendingUp,
+    TrendingDown,
+    Calculator,
+    X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import Pagination from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +22,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -31,7 +44,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import WalletHistory, { show as showReceipt } from '@/routes/finance/wallet-history';
+import WalletHistory, {
+    show as showReceipt,
+} from '@/routes/finance/wallet-history';
 
 type PatientOption = { slug: string; label: string; wallet: number };
 type Method = { id: number; name: string };
@@ -139,10 +154,21 @@ export default function WalletHistoryIndex({
     const [open, setOpen] = useState(false);
     const [viewing, setViewing] = useState<History | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [transferError, setTransferError] = useState<string | null>(null);
+    const [transferFieldErrors, setTransferFieldErrors] = useState<
+        Record<string, string>
+    >({});
+    const [processing, setProcessing] = useState(false);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [transferProcessing, setTransferProcessing] = useState(false);
 
     // Server-side patient search state
     const [patientSearchQuery, setPatientSearchQuery] = useState('');
-    const [patientSearchResults, setPatientSearchResults] = useState<PatientOption[]>([]);
+    const [patientSearchResults, setPatientSearchResults] = useState<
+        PatientOption[]
+    >([]);
     const [patientSearchOpen, setPatientSearchOpen] = useState(false);
     const [patientSearchLoading, setPatientSearchLoading] = useState(false);
     const patientSearchInputRef = useRef<HTMLInputElement>(null);
@@ -150,33 +176,48 @@ export default function WalletHistoryIndex({
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Wallet patient search state
-    const [walletPatientSearchQuery, setWalletPatientSearchQuery] = useState('');
-    const [walletPatientSearchResults, setWalletPatientSearchResults] = useState<PatientOption[]>([]);
-    const [walletPatientSearchOpen, setWalletPatientSearchOpen] = useState(false);
-    const [walletPatientSearchLoading, setWalletPatientSearchLoading] = useState(false);
+    const [walletPatientSearchQuery, setWalletPatientSearchQuery] =
+        useState('');
+    const [walletPatientSearchResults, setWalletPatientSearchResults] =
+        useState<PatientOption[]>([]);
+    const [walletPatientSearchOpen, setWalletPatientSearchOpen] =
+        useState(false);
+    const [walletPatientSearchLoading, setWalletPatientSearchLoading] =
+        useState(false);
     const walletPatientSearchInputRef = useRef<HTMLInputElement>(null);
     const walletPatientSearchContainerRef = useRef<HTMLDivElement>(null);
-    const walletDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const walletDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    );
 
     // Transfer modal state
     const [transferOpen, setTransferOpen] = useState(false);
     const [transferFromPatient, setTransferFromPatient] = useState<string>('');
     const [transferToPatient, setTransferToPatient] = useState<string>('');
     const [transferFromSearchQuery, setTransferFromSearchQuery] = useState('');
-    const [transferFromSearchResults, setTransferFromSearchResults] = useState<PatientOption[]>([]);
+    const [transferFromSearchResults, setTransferFromSearchResults] = useState<
+        PatientOption[]
+    >([]);
     const [transferFromSearchOpen, setTransferFromSearchOpen] = useState(false);
-    const [transferFromSearchLoading, setTransferFromSearchLoading] = useState(false);
+    const [transferFromSearchLoading, setTransferFromSearchLoading] =
+        useState(false);
     const [transferToSearchQuery, setTransferToSearchQuery] = useState('');
-    const [transferToSearchResults, setTransferToSearchResults] = useState<PatientOption[]>([]);
+    const [transferToSearchResults, setTransferToSearchResults] = useState<
+        PatientOption[]
+    >([]);
     const [transferToSearchOpen, setTransferToSearchOpen] = useState(false);
-    const [transferToSearchLoading, setTransferToSearchLoading] = useState(false);
-    const [transferError, setTransferError] = useState<string | null>(null);
+    const [transferToSearchLoading, setTransferToSearchLoading] =
+        useState(false);
     const transferFromInputRef = useRef<HTMLInputElement>(null);
     const transferFromContainerRef = useRef<HTMLDivElement>(null);
     const transferToInputRef = useRef<HTMLInputElement>(null);
     const transferToContainerRef = useRef<HTMLDivElement>(null);
-    const transferFromDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const transferToDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const transferFromDebounceRef = useRef<ReturnType<
+        typeof setTimeout
+    > | null>(null);
+    const transferToDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    );
 
     const visit = (patch: Partial<Filters>) =>
         router.get(
@@ -195,90 +236,112 @@ export default function WalletHistoryIndex({
     // Patient balance from search results
     const patientBalance = useMemo(() => {
         if (!form.patient_id) return 0;
-        const found = patientSearchResults.find((p) => p.slug === form.patient_id);
+        const found = patientSearchResults.find(
+            (p) => p.slug === form.patient_id,
+        );
         return found?.wallet ?? 0;
     }, [form.patient_id, patientSearchResults]);
 
     // Wallet patient balance
     const walletPatientBalance = useMemo(() => {
         if (!form.wallet_patient_id) return 0;
-        const found = walletPatientSearchResults.find((p) => p.slug === form.wallet_patient_id);
+        const found = walletPatientSearchResults.find(
+            (p) => p.slug === form.wallet_patient_id,
+        );
         return found?.wallet ?? 0;
     }, [form.wallet_patient_id, walletPatientSearchResults]);
 
     // Get label for selected patient
-    const getPatientLabel = useCallback((slug: string) => {
-        if (!slug) return '';
-        const found = patientSearchResults.find((p) => p.slug === slug);
-        return found?.label ?? slug;
-    }, [patientSearchResults]);
+    const getPatientLabel = useCallback(
+        (slug: string) => {
+            if (!slug) return '';
+            const found = patientSearchResults.find((p) => p.slug === slug);
+            return found?.label ?? slug;
+        },
+        [patientSearchResults],
+    );
 
     // Get label for selected wallet patient
-    const getWalletPatientLabel = useCallback((slug: string) => {
-        if (!slug) return '';
-        const found = walletPatientSearchResults.find((p) => p.slug === slug);
-        return found?.label ?? slug;
-    }, [walletPatientSearchResults]);
+    const getWalletPatientLabel = useCallback(
+        (slug: string) => {
+            if (!slug) return '';
+            const found = walletPatientSearchResults.find(
+                (p) => p.slug === slug,
+            );
+            return found?.label ?? slug;
+        },
+        [walletPatientSearchResults],
+    );
 
     // Debounced search for patients
-    const searchPatients = useCallback((query: string) => {
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-        }
+    const searchPatients = useCallback(
+        (query: string) => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
 
-        if (!query.trim()) {
-            setPatientSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setPatientSearchResults([]);
+                return;
+            }
 
-        setPatientSearchLoading(true);
-        debounceTimerRef.current = setTimeout(() => {
-            const url = WalletHistory.patients.search.url(team, { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setPatientSearchResults(results);
-                    setPatientSearchLoading(false);
-                })
-                .catch(() => {
-                    setPatientSearchLoading(false);
+            setPatientSearchLoading(true);
+            debounceTimerRef.current = setTimeout(() => {
+                const url = WalletHistory.patients.search.url(team, {
+                    query: { q: query },
                 });
-        }, 300);
-    }, [team]);
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then((res) => res.json())
+                    .then((results) => {
+                        setPatientSearchResults(results);
+                        setPatientSearchLoading(false);
+                    })
+                    .catch(() => {
+                        setPatientSearchLoading(false);
+                    });
+            }, 300);
+        },
+        [team],
+    );
 
     // Debounced search for wallet patients
-    const searchWalletPatients = useCallback((query: string) => {
-        if (walletDebounceTimerRef.current) {
-            clearTimeout(walletDebounceTimerRef.current);
-        }
+    const searchWalletPatients = useCallback(
+        (query: string) => {
+            if (walletDebounceTimerRef.current) {
+                clearTimeout(walletDebounceTimerRef.current);
+            }
 
-        if (!query.trim()) {
-            setWalletPatientSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setWalletPatientSearchResults([]);
+                return;
+            }
 
-        setWalletPatientSearchLoading(true);
-        walletDebounceTimerRef.current = setTimeout(() => {
-            const url = WalletHistory.patients.search.url(team, { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setWalletPatientSearchResults(results);
-                    setWalletPatientSearchLoading(false);
-                })
-                .catch(() => {
-                    setWalletPatientSearchLoading(false);
+            setWalletPatientSearchLoading(true);
+            walletDebounceTimerRef.current = setTimeout(() => {
+                const url = WalletHistory.patients.search.url(team, {
+                    query: { q: query },
                 });
-        }, 300);
-    }, [team]);
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then((res) => res.json())
+                    .then((results) => {
+                        setWalletPatientSearchResults(results);
+                        setWalletPatientSearchLoading(false);
+                    })
+                    .catch(() => {
+                        setWalletPatientSearchLoading(false);
+                    });
+            }, 300);
+        },
+        [team],
+    );
 
     // Close patient dropdown on outside click
     useEffect(() => {
@@ -287,7 +350,9 @@ export default function WalletHistoryIndex({
         const handleClick = (event: MouseEvent) => {
             if (
                 patientSearchContainerRef.current &&
-                !patientSearchContainerRef.current.contains(event.target as Node)
+                !patientSearchContainerRef.current.contains(
+                    event.target as Node,
+                )
             ) {
                 setPatientSearchOpen(false);
             }
@@ -304,7 +369,9 @@ export default function WalletHistoryIndex({
         const handleClick = (event: MouseEvent) => {
             if (
                 walletPatientSearchContainerRef.current &&
-                !walletPatientSearchContainerRef.current.contains(event.target as Node)
+                !walletPatientSearchContainerRef.current.contains(
+                    event.target as Node,
+                )
             ) {
                 setWalletPatientSearchOpen(false);
             }
@@ -317,72 +384,87 @@ export default function WalletHistoryIndex({
     // Cleanup debounce timers
     useEffect(() => {
         return () => {
-            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-            if (walletDebounceTimerRef.current) clearTimeout(walletDebounceTimerRef.current);
-            if (transferFromDebounceRef.current) clearTimeout(transferFromDebounceRef.current);
-            if (transferToDebounceRef.current) clearTimeout(transferToDebounceRef.current);
+            if (debounceTimerRef.current)
+                clearTimeout(debounceTimerRef.current);
+            if (walletDebounceTimerRef.current)
+                clearTimeout(walletDebounceTimerRef.current);
+            if (transferFromDebounceRef.current)
+                clearTimeout(transferFromDebounceRef.current);
+            if (transferToDebounceRef.current)
+                clearTimeout(transferToDebounceRef.current);
         };
     }, []);
 
     // Debounced search for negative balance patients (transfer from)
-    const searchTransferFromPatients = useCallback((query: string) => {
-        if (transferFromDebounceRef.current) {
-            clearTimeout(transferFromDebounceRef.current);
-        }
+    const searchTransferFromPatients = useCallback(
+        (query: string) => {
+            if (transferFromDebounceRef.current) {
+                clearTimeout(transferFromDebounceRef.current);
+            }
 
-        if (!query.trim()) {
-            setTransferFromSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setTransferFromSearchResults([]);
+                return;
+            }
 
-        setTransferFromSearchLoading(true);
-        transferFromDebounceRef.current = setTimeout(() => {
-            const url = WalletHistory.patients.negativeBalance.search.url(team, { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setTransferFromSearchResults(results);
-                    setTransferFromSearchLoading(false);
+            setTransferFromSearchLoading(true);
+            transferFromDebounceRef.current = setTimeout(() => {
+                const url = WalletHistory.patients.negativeBalance.search.url(
+                    team,
+                    { query: { q: query } },
+                );
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                 })
-                .catch(() => {
-                    setTransferFromSearchLoading(false);
-                });
-        }, 300);
-    }, [team]);
+                    .then((res) => res.json())
+                    .then((results) => {
+                        setTransferFromSearchResults(results);
+                        setTransferFromSearchLoading(false);
+                    })
+                    .catch(() => {
+                        setTransferFromSearchLoading(false);
+                    });
+            }, 300);
+        },
+        [team],
+    );
 
     // Debounced search for all patients (transfer to)
-    const searchTransferToPatients = useCallback((query: string) => {
-        if (transferToDebounceRef.current) {
-            clearTimeout(transferToDebounceRef.current);
-        }
+    const searchTransferToPatients = useCallback(
+        (query: string) => {
+            if (transferToDebounceRef.current) {
+                clearTimeout(transferToDebounceRef.current);
+            }
 
-        if (!query.trim()) {
-            setTransferToSearchResults([]);
-            return;
-        }
+            if (!query.trim()) {
+                setTransferToSearchResults([]);
+                return;
+            }
 
-        setTransferToSearchLoading(true);
-        transferToDebounceRef.current = setTimeout(() => {
-            const url = WalletHistory.patients.search.url(team, { query: { q: query } });
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then((res) => res.json())
-                .then((results) => {
-                    setTransferToSearchResults(results);
-                    setTransferToSearchLoading(false);
-                })
-                .catch(() => {
-                    setTransferToSearchLoading(false);
+            setTransferToSearchLoading(true);
+            transferToDebounceRef.current = setTimeout(() => {
+                const url = WalletHistory.patients.search.url(team, {
+                    query: { q: query },
                 });
-        }, 300);
-    }, [team]);
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then((res) => res.json())
+                    .then((results) => {
+                        setTransferToSearchResults(results);
+                        setTransferToSearchLoading(false);
+                    })
+                    .catch(() => {
+                        setTransferToSearchLoading(false);
+                    });
+            }, 300);
+        },
+        [team],
+    );
 
     // Close transfer from dropdown on outside click
     useEffect(() => {
@@ -419,46 +501,77 @@ export default function WalletHistoryIndex({
     }, [transferToSearchOpen]);
 
     // Get label for selected transfer from patient
-    const getTransferFromLabel = useCallback((slug: string) => {
-        if (!slug) return '';
-        const found = transferFromSearchResults.find((p) => p.slug === slug);
-        return found?.label ?? slug;
-    }, [transferFromSearchResults]);
+    const getTransferFromLabel = useCallback(
+        (slug: string) => {
+            if (!slug) return '';
+            const found = transferFromSearchResults.find(
+                (p) => p.slug === slug,
+            );
+            return found?.label ?? slug;
+        },
+        [transferFromSearchResults],
+    );
 
     // Get label for selected transfer to patient
-    const getTransferToLabel = useCallback((slug: string) => {
-        if (!slug) return '';
-        const found = transferToSearchResults.find((p) => p.slug === slug);
-        return found?.label ?? slug;
-    }, [transferToSearchResults]);
+    const getTransferToLabel = useCallback(
+        (slug: string) => {
+            if (!slug) return '';
+            const found = transferToSearchResults.find((p) => p.slug === slug);
+            return found?.label ?? slug;
+        },
+        [transferToSearchResults],
+    );
 
     // Transfer from patient balance
     const transferFromBalance = useMemo(() => {
         if (!transferFromPatient) return 0;
-        const found = transferFromSearchResults.find((p) => p.slug === transferFromPatient);
+        const found = transferFromSearchResults.find(
+            (p) => p.slug === transferFromPatient,
+        );
         return found?.wallet ?? 0;
     }, [transferFromPatient, transferFromSearchResults]);
 
     // Transfer to patient balance
     const transferToBalance = useMemo(() => {
         if (!transferToPatient) return 0;
-        const found = transferToSearchResults.find((p) => p.slug === transferToPatient);
+        const found = transferToSearchResults.find(
+            (p) => p.slug === transferToPatient,
+        );
         return found?.wallet ?? 0;
     }, [transferToPatient, transferToSearchResults]);
 
     const submitTransfer = () => {
+        if (transferProcessing) return;
+
         setTransferError(null);
+        setTransferFieldErrors({});
 
         if (!transferFromPatient || !transferToPatient) {
-            setTransferError('Please select both source and destination patients.');
+            setTransferError(
+                'Please select both source and destination patients.',
+            );
+            setTransferFieldErrors({
+                from_patient_id: !transferFromPatient
+                    ? 'Select a source patient.'
+                    : '',
+                to_patient_id: !transferToPatient
+                    ? 'Select a destination patient.'
+                    : '',
+            });
             return;
         }
 
         if (transferFromPatient === transferToPatient) {
-            setTransferError('Source and destination patients must be different.');
+            setTransferError(
+                'Source and destination patients must be different.',
+            );
+            setTransferFieldErrors({
+                to_patient_id: 'Choose a different destination patient.',
+            });
             return;
         }
 
+        setTransferProcessing(true);
         router.post(
             WalletHistory.transfer.url(team),
             {
@@ -467,12 +580,17 @@ export default function WalletHistoryIndex({
             },
             {
                 preserveScroll: true,
-                onError: (errors) => {
-                    setTransferError(Object.values(errors)[0] ?? 'Something went wrong.');
+                onError: (errors: Record<string, string>) => {
+                    setTransferFieldErrors(errors);
+                    setTransferError(
+                        Object.values(errors)[0] ?? 'Something went wrong.',
+                    );
                 },
                 onSuccess: () => {
+                    setTransferFieldErrors({});
                     setTransferOpen(false);
                 },
+                onFinish: () => setTransferProcessing(false),
             },
         );
     };
@@ -485,39 +603,21 @@ export default function WalletHistoryIndex({
         setWalletPatientSearchQuery('');
         setWalletPatientSearchResults([]);
         setError(null);
-        setOpen(true);
-    };
-
-    const startEdit = (history: History) => {
-        setEditing(history);
-        setForm({
-            patient_id: history.patientId,
-            method_id: String(
-                methods.find((method) => method.name === history.methodName)?.id ?? '',
-            ),
-            credit: history.credit > 0 ? String(history.credit) : '',
-            debit: history.debit > 0 ? String(history.debit) : '',
-            discount_amount: '',
-            coupon_id: '',
-            coupon_discount_amount: '',
-            wallet_patient_id: '',
-        });
-        setPatientSearchQuery('');
-        setPatientSearchResults([]);
-        setWalletPatientSearchQuery('');
-        setWalletPatientSearchResults([]);
-        setError(null);
+        setFieldErrors({});
         setOpen(true);
     };
 
     const submit = (event?: React.FormEvent) => {
         event?.preventDefault();
+        if (processing) return;
+
         setError(null);
+        setFieldErrors({});
 
         const payload = {
             patient_id: form.patient_id,
             method_id: form.method_id,
-            credit: isWalletMethod ? '0' : (form.credit || '0'),
+            credit: isWalletMethod ? '0' : form.credit || '0',
             debit: isWalletMethod ? form.debit : '0',
             discount_amount: form.discount_amount || '0',
             coupon_id: form.coupon_id || null,
@@ -528,9 +628,14 @@ export default function WalletHistoryIndex({
         const options = {
             preserveScroll: true,
             onError: (errors: Record<string, string>) => {
+                setFieldErrors(errors);
                 setError(Object.values(errors)[0] ?? 'Something went wrong.');
             },
+            onSuccess: () => setOpen(false),
+            onFinish: () => setProcessing(false),
         };
+
+        setProcessing(true);
 
         if (editing) {
             router.patch(
@@ -547,44 +652,52 @@ export default function WalletHistoryIndex({
     };
 
     const remove = () => {
-        if (deleting)
-            router.delete(
-                WalletHistory.destroy.url({
-                    current_team: team,
-                    wallet_history: deleting.id,
-                }),
-                {
-                    preserveScroll: true,
-                    onFinish: () => setDeleting(null),
-                },
-            );
-    };
+        if (!deleting || deleteProcessing) return;
 
+        setDeleteProcessing(true);
+        setDeleteError(null);
+        router.delete(
+            WalletHistory.destroy.url({
+                current_team: team,
+                wallet_history: deleting.id,
+            }),
+            {
+                preserveScroll: true,
+                onSuccess: () => setDeleting(null),
+                onError: (errors: Record<string, string>) =>
+                    setDeleteError(
+                        Object.values(errors)[0] ??
+                            'Unable to delete transaction.',
+                    ),
+                onFinish: () => setDeleteProcessing(false),
+            },
+        );
+    };
 
     const statCards = [
         {
             label: 'Total Deposits',
             value: stats.total_credit,
             icon: TrendingUp,
-            color: 'text-emerald-600',
+            color: 'text-emerald-600 dark:text-emerald-400',
         },
         {
             label: 'Total Withdrawals',
             value: stats.total_debit,
             icon: TrendingDown,
-            color: 'text-rose-600',
+            color: 'text-rose-600 dark:text-rose-400',
         },
         {
             label: 'Transactions',
             value: stats.total_count,
             icon: WalletCards,
-            color: 'text-blue-600',
+            color: 'text-blue-600 dark:text-blue-400',
         },
         {
             label: 'Net Balance',
             value: stats.net_balance,
             icon: Calculator,
-            color: 'text-amber-600',
+            color: 'text-amber-600 dark:text-amber-400',
         },
     ];
 
@@ -599,16 +712,19 @@ export default function WalletHistoryIndex({
                         description="Review deposits, withdrawals, payment methods, and patient balances."
                     />
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => {
-                            setTransferFromPatient('');
-                            setTransferToPatient('');
-                            setTransferFromSearchQuery('');
-                            setTransferFromSearchResults([]);
-                            setTransferToSearchQuery('');
-                            setTransferToSearchResults([]);
-                            setTransferError(null);
-                            setTransferOpen(true);
-                        }}>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setTransferFromPatient('');
+                                setTransferToPatient('');
+                                setTransferFromSearchQuery('');
+                                setTransferFromSearchResults([]);
+                                setTransferToSearchQuery('');
+                                setTransferToSearchResults([]);
+                                setTransferError(null);
+                                setTransferOpen(true);
+                            }}
+                        >
                             <ArrowRightLeft className="mr-2 h-4 w-4" />
                             Transfer wallet
                         </Button>
@@ -619,7 +735,7 @@ export default function WalletHistoryIndex({
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
                     <form
-                        className="flex flex-1 items-end gap-2"
+                        className="flex flex-1 flex-wrap items-end gap-2"
                         onSubmit={(event) => {
                             event.preventDefault();
                             setFrom(today);
@@ -641,12 +757,10 @@ export default function WalletHistoryIndex({
                                 className="max-w-sm"
                             />
                         </div>
-                        <Button type="submit">
-                            Search
-                        </Button>
+                        <Button type="submit">Search</Button>
                     </form>
 
-                    <div className="flex items-end gap-2">
+                    <div className="flex flex-wrap items-end gap-2">
                         <div className="space-y-1">
                             <Label htmlFor="wallet-from">From</Label>
                             <Input
@@ -701,8 +815,12 @@ export default function WalletHistoryIndex({
                             <Card key={card.label}>
                                 <CardHeader className="pb-2">
                                     <div className="flex items-center gap-2">
-                                        <div className={`rounded-lg p-2 bg-muted`}>
-                                            <Icon className={`h-4 w-4 ${card.color}`} />
+                                        <div
+                                            className={`rounded-lg bg-muted p-2`}
+                                        >
+                                            <Icon
+                                                className={`h-4 w-4 ${card.color}`}
+                                            />
                                         </div>
                                         <CardTitle className="text-sm font-medium text-muted-foreground">
                                             {card.label}
@@ -744,7 +862,9 @@ export default function WalletHistoryIndex({
                                 {histories.data.length ? (
                                     histories.data.map((row) => (
                                         <TableRow key={row.id}>
-                                            <TableCell>{row.patientId}</TableCell>
+                                            <TableCell>
+                                                {row.patientId}
+                                            </TableCell>
                                             <TableCell>
                                                 {row.patientName ?? '—'}
                                             </TableCell>
@@ -767,7 +887,7 @@ export default function WalletHistoryIndex({
                                                 className={
                                                     row.balance < 0
                                                         ? 'font-semibold text-destructive'
-                                                        : 'font-semibold text-emerald-600'
+                                                        : 'font-semibold text-emerald-700 dark:text-emerald-400'
                                                 }
                                             >
                                                 ₦
@@ -778,16 +898,19 @@ export default function WalletHistoryIndex({
                                             <TableCell>
                                                 {row.createdAt
                                                     ? new Date(
-                                                        row.createdAt,
-                                                    ).toLocaleString()
+                                                          row.createdAt,
+                                                      ).toLocaleString()
                                                     : '—'}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
+                                                            aria-label={`Actions for transaction ${row.id}`}
                                                         >
                                                             <MoreHorizontal className="size-4" />
                                                         </Button>
@@ -796,10 +919,32 @@ export default function WalletHistoryIndex({
                                                         <DropdownMenuItem
                                                             asChild
                                                         >
-                                                            <a href={showReceipt({ wallet_history: row.id }).url}>
+                                                            <Link
+                                                                href={showReceipt(
+                                                                    {
+                                                                        wallet_history:
+                                                                            row.id,
+                                                                    },
+                                                                )}
+                                                            >
                                                                 <FileText className="mr-2 h-4 w-4" />
                                                                 Receipt
-                                                            </a>
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            variant="destructive"
+                                                            onClick={() => {
+                                                                setDeleteError(
+                                                                    null,
+                                                                );
+                                                                setDeleting(
+                                                                    row,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -818,30 +963,43 @@ export default function WalletHistoryIndex({
                                 )}
                                 {histories.data.length > 0 && (
                                     <TableRow className="font-semibold">
-                                        <TableCell colSpan={5} className="text-right">
+                                        <TableCell
+                                            colSpan={5}
+                                            className="text-right"
+                                        >
                                             Totals
                                         </TableCell>
                                         <TableCell>
                                             ₦
                                             {histories.data
-                                                .reduce((sum, row) => sum + row.credit, 0)
+                                                .reduce(
+                                                    (sum, row) =>
+                                                        sum + row.credit,
+                                                    0,
+                                                )
                                                 .toLocaleString()}
                                         </TableCell>
                                         <TableCell>
                                             ₦
                                             {histories.data
-                                                .reduce((sum, row) => sum + row.debit, 0)
+                                                .reduce(
+                                                    (sum, row) =>
+                                                        sum + row.debit,
+                                                    0,
+                                                )
                                                 .toLocaleString()}
                                         </TableCell>
                                         <TableCell
                                             className={
                                                 stats.net_balance < 0
                                                     ? 'font-semibold text-destructive'
-                                                    : 'font-semibold text-emerald-600'
+                                                    : 'font-semibold text-emerald-700 dark:text-emerald-400'
                                             }
                                         >
                                             ₦
-                                            {Math.abs(stats.net_balance).toLocaleString()}
+                                            {Math.abs(
+                                                stats.net_balance,
+                                            ).toLocaleString()}
                                         </TableCell>
                                         <TableCell colSpan={2} />
                                     </TableRow>
@@ -863,9 +1021,12 @@ export default function WalletHistoryIndex({
             </div>
 
             {/* Slide-over Sheet for new/edit wallet transaction */}
-            <Sheet open={open} onOpenChange={(isOpen) => {
-                if (!isOpen) setOpen(false);
-            }}>
+            <Sheet
+                open={open}
+                onOpenChange={(isOpen) => {
+                    if (!isOpen) setOpen(false);
+                }}
+            >
                 <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>
@@ -880,15 +1041,24 @@ export default function WalletHistoryIndex({
                     </SheetHeader>
                     <form onSubmit={submit} className="space-y-4 px-4 py-5">
                         {/* Patient search */}
-                        <div className="space-y-2" ref={(el) => {
-                            patientSearchContainerRef.current = el;
-                        }}>
-                            <Label>Patient <span className="text-destructive">*</span></Label>
+                        <div
+                            className="space-y-2"
+                            ref={(el) => {
+                                patientSearchContainerRef.current = el;
+                            }}
+                        >
+                            <Label htmlFor="wallet-patient-search">
+                                Patient{' '}
+                                <span className="text-destructive">*</span>
+                            </Label>
                             <div className="relative">
                                 {form.patient_id ? (
                                     <div className="flex items-center gap-2">
                                         <Input
-                                            value={getPatientLabel(form.patient_id)}
+                                            id="wallet-patient-search"
+                                            value={getPatientLabel(
+                                                form.patient_id,
+                                            )}
                                             readOnly
                                             className="flex-1 bg-muted/50"
                                         />
@@ -897,8 +1067,12 @@ export default function WalletHistoryIndex({
                                             variant="outline"
                                             size="icon"
                                             className="shrink-0"
+                                            aria-label="Clear selected patient"
                                             onClick={() => {
-                                                setForm({ ...form, patient_id: '' });
+                                                setForm({
+                                                    ...form,
+                                                    patient_id: '',
+                                                });
                                                 setPatientSearchQuery('');
                                                 setPatientSearchResults([]);
                                             }}
@@ -908,6 +1082,7 @@ export default function WalletHistoryIndex({
                                     </div>
                                 ) : (
                                     <Input
+                                        id="wallet-patient-search"
                                         ref={(el) => {
                                             patientSearchInputRef.current = el;
                                         }}
@@ -925,26 +1100,30 @@ export default function WalletHistoryIndex({
                                     />
                                 )}
                                 {patientSearchOpen && !form.patient_id && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                    <div className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                         {patientSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
                                             </div>
                                         )}
                                         {!patientSearchLoading &&
-                                         patientSearchResults.length === 0 &&
-                                         patientSearchQuery?.trim() && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                No patients found.
-                                            </div>
-                                        )}
+                                            patientSearchResults.length === 0 &&
+                                            patientSearchQuery?.trim() && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    No patients found.
+                                                </div>
+                                            )}
                                         {patientSearchResults.map((patient) => (
                                             <button
                                                 key={patient.slug}
                                                 type="button"
                                                 className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
                                                 onClick={() => {
-                                                    setForm({ ...form, patient_id: patient.slug });
+                                                    setForm({
+                                                        ...form,
+                                                        patient_id:
+                                                            patient.slug,
+                                                    });
                                                     setPatientSearchQuery('');
                                                     setPatientSearchOpen(false);
                                                 }}
@@ -957,16 +1136,24 @@ export default function WalletHistoryIndex({
                             </div>
                             {form.patient_id && (
                                 <p className="text-sm text-muted-foreground">
-                                    Current wallet balance: <span className="font-medium text-foreground">₦{patientBalance.toLocaleString()}</span>
+                                    Current wallet balance:{' '}
+                                    <span className="font-medium text-foreground">
+                                        ₦{patientBalance.toLocaleString()}
+                                    </span>
                                 </p>
                             )}
+                            <InputError message={fieldErrors.patient_id} />
                         </div>
 
                         <div className="border-t pt-4">
                             {/* Method selection */}
                             <div className="space-y-2">
-                                <Label>Method <span className="text-destructive">*</span></Label>
+                                <Label htmlFor="wallet-method">
+                                    Method{' '}
+                                    <span className="text-destructive">*</span>
+                                </Label>
                                 <SelectNative
+                                    id="wallet-method"
                                     value={form.method_id}
                                     onChange={(event) =>
                                         setForm({
@@ -986,14 +1173,19 @@ export default function WalletHistoryIndex({
                                         </option>
                                     ))}
                                 </SelectNative>
+                                <InputError message={fieldErrors.method_id} />
                             </div>
                         </div>
 
                         {/* Amount input for non-special methods */}
                         {!isSpecialMethod && form.method_id && (
                             <div className="space-y-2">
-                                <Label>Deposit amount <span className="text-destructive">*</span></Label>
+                                <Label htmlFor="wallet-deposit-amount">
+                                    Deposit amount{' '}
+                                    <span className="text-destructive">*</span>
+                                </Label>
                                 <Input
+                                    id="wallet-deposit-amount"
                                     type="number"
                                     min="0.01"
                                     step="1"
@@ -1006,6 +1198,11 @@ export default function WalletHistoryIndex({
                                         })
                                     }
                                 />
+                                <InputError
+                                    message={
+                                        fieldErrors.credit ?? fieldErrors.amount
+                                    }
+                                />
                             </div>
                         )}
 
@@ -1013,8 +1210,14 @@ export default function WalletHistoryIndex({
                         {isWalletMethod && (
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Withdrawal amount <span className="text-destructive">*</span></Label>
+                                    <Label htmlFor="wallet-withdrawal-amount">
+                                        Withdrawal amount{' '}
+                                        <span className="text-destructive">
+                                            *
+                                        </span>
+                                    </Label>
                                     <Input
+                                        id="wallet-withdrawal-amount"
                                         type="number"
                                         min="0.01"
                                         step="1"
@@ -1027,14 +1230,24 @@ export default function WalletHistoryIndex({
                                             })
                                         }
                                     />
+                                    <InputError
+                                        message={
+                                            fieldErrors.debit ??
+                                            fieldErrors.amount
+                                        }
+                                    />
                                 </div>
                                 {/* Wallet patient selection (optional - who to debit from) */}
-                                <div className="space-y-2" ref={(el) => {
-                                    walletPatientSearchContainerRef.current = el;
-                                }}>
-                                    <Label>
+                                <div
+                                    className="space-y-2"
+                                    ref={(el) => {
+                                        walletPatientSearchContainerRef.current =
+                                            el;
+                                    }}
+                                >
+                                    <Label htmlFor="wallet-debit-patient">
                                         Debit from patient
-                                        <span className="text-muted-foreground ml-1 font-normal">
+                                        <span className="ml-1 font-normal text-muted-foreground">
                                             (default: {form.patient_id})
                                         </span>
                                     </Label>
@@ -1042,7 +1255,10 @@ export default function WalletHistoryIndex({
                                         {form.wallet_patient_id ? (
                                             <div className="flex items-center gap-2">
                                                 <Input
-                                                    value={getWalletPatientLabel(form.wallet_patient_id)}
+                                                    id="wallet-debit-patient"
+                                                    value={getWalletPatientLabel(
+                                                        form.wallet_patient_id,
+                                                    )}
                                                     readOnly
                                                     className="flex-1 bg-muted/50"
                                                 />
@@ -1051,10 +1267,19 @@ export default function WalletHistoryIndex({
                                                     variant="outline"
                                                     size="icon"
                                                     className="shrink-0"
+                                                    aria-label="Clear debit patient"
                                                     onClick={() => {
-                                                        setForm({ ...form, wallet_patient_id: '' });
-                                                        setWalletPatientSearchQuery('');
-                                                        setWalletPatientSearchResults([]);
+                                                        setForm({
+                                                            ...form,
+                                                            wallet_patient_id:
+                                                                '',
+                                                        });
+                                                        setWalletPatientSearchQuery(
+                                                            '',
+                                                        );
+                                                        setWalletPatientSearchResults(
+                                                            [],
+                                                        );
                                                     }}
                                                 >
                                                     <X className="h-4 w-4" />
@@ -1062,59 +1287,93 @@ export default function WalletHistoryIndex({
                                             </div>
                                         ) : (
                                             <Input
+                                                id="wallet-debit-patient"
                                                 ref={(el) => {
-                                                    walletPatientSearchInputRef.current = el;
+                                                    walletPatientSearchInputRef.current =
+                                                        el;
                                                 }}
                                                 placeholder="Search patient to debit..."
                                                 value={walletPatientSearchQuery}
                                                 onClick={() => {
-                                                    setWalletPatientSearchOpen(true);
+                                                    setWalletPatientSearchOpen(
+                                                        true,
+                                                    );
                                                 }}
                                                 onChange={(event) => {
-                                                    const value = event.target.value;
-                                                    setForm({ ...form, wallet_patient_id: '' });
-                                                    setWalletPatientSearchQuery(value);
+                                                    const value =
+                                                        event.target.value;
+                                                    setForm({
+                                                        ...form,
+                                                        wallet_patient_id: '',
+                                                    });
+                                                    setWalletPatientSearchQuery(
+                                                        value,
+                                                    );
                                                     searchWalletPatients(value);
-                                                    setWalletPatientSearchOpen(true);
+                                                    setWalletPatientSearchOpen(
+                                                        true,
+                                                    );
                                                 }}
                                             />
                                         )}
-                                        {walletPatientSearchOpen && !form.wallet_patient_id && (
-                                            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
-                                                {walletPatientSearchLoading && (
-                                                    <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                        Searching…
-                                                    </div>
-                                                )}
-                                                {!walletPatientSearchLoading &&
-                                                 walletPatientSearchResults.length === 0 &&
-                                                 walletPatientSearchQuery?.trim() && (
-                                                    <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                        No patients found.
-                                                    </div>
-                                                )}
-                                                {walletPatientSearchResults.map((patient) => (
-                                                    <button
-                                                        key={patient.slug}
-                                                        type="button"
-                                                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                        onClick={() => {
-                                                            setForm({ ...form, wallet_patient_id: patient.slug });
-                                                            setWalletPatientSearchQuery('');
-                                                            setWalletPatientSearchOpen(false);
-                                                        }}
-                                                    >
-                                                        {patient.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
+                                        {walletPatientSearchOpen &&
+                                            !form.wallet_patient_id && (
+                                                <div className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                                    {walletPatientSearchLoading && (
+                                                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                            Searching…
+                                                        </div>
+                                                    )}
+                                                    {!walletPatientSearchLoading &&
+                                                        walletPatientSearchResults.length ===
+                                                            0 &&
+                                                        walletPatientSearchQuery?.trim() && (
+                                                            <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                                No patients
+                                                                found.
+                                                            </div>
+                                                        )}
+                                                    {walletPatientSearchResults.map(
+                                                        (patient) => (
+                                                            <button
+                                                                key={
+                                                                    patient.slug
+                                                                }
+                                                                type="button"
+                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                                onClick={() => {
+                                                                    setForm({
+                                                                        ...form,
+                                                                        wallet_patient_id:
+                                                                            patient.slug,
+                                                                    });
+                                                                    setWalletPatientSearchQuery(
+                                                                        '',
+                                                                    );
+                                                                    setWalletPatientSearchOpen(
+                                                                        false,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                {patient.label}
+                                                            </button>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            )}
                                     </div>
                                     {form.wallet_patient_id && (
                                         <p className="text-sm text-muted-foreground">
-                                            Wallet balance: <span className="font-medium text-foreground">₦{walletPatientBalance.toLocaleString()}</span>
+                                            Wallet balance:{' '}
+                                            <span className="font-medium text-foreground">
+                                                ₦
+                                                {walletPatientBalance.toLocaleString()}
+                                            </span>
                                         </p>
                                     )}
+                                    <InputError
+                                        message={fieldErrors.wallet_patient_id}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -1122,8 +1381,11 @@ export default function WalletHistoryIndex({
                         {/* Discount method */}
                         {methodName === 'Discount' && (
                             <div className="space-y-2">
-                                <Label>Discount amount</Label>
+                                <Label htmlFor="wallet-discount-amount">
+                                    Discount amount
+                                </Label>
                                 <Input
+                                    id="wallet-discount-amount"
                                     type="number"
                                     min="0.01"
                                     step="1"
@@ -1136,51 +1398,82 @@ export default function WalletHistoryIndex({
                                         })
                                     }
                                 />
+                                <InputError
+                                    message={fieldErrors.discount_amount}
+                                />
                             </div>
                         )}
 
                         {/* Mercy Fund / Infant Formula */}
-                        {(methodName === 'Mercy Fund' || methodName === 'Infant Formula') && (
+                        {(methodName === 'Mercy Fund' ||
+                            methodName === 'Infant Formula') && (
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Coupon</Label>
+                                    <Label htmlFor="wallet-coupon">
+                                        Coupon
+                                    </Label>
                                     <SelectNative
+                                        id="wallet-coupon"
                                         value={form.coupon_id}
                                         onChange={(event) => {
                                             const selectedCoupon = coupons.find(
-                                                (c) => String(c.id) === event.target.value && c.patientId === form.patient_id,
+                                                (c) =>
+                                                    String(c.id) ===
+                                                        event.target.value &&
+                                                    c.patientId ===
+                                                        form.patient_id,
                                             );
                                             setForm({
                                                 ...form,
                                                 coupon_id: event.target.value,
-                                                coupon_discount_amount: selectedCoupon
-                                                    ? String(selectedCoupon.value)
-                                                    : form.coupon_discount_amount,
+                                                coupon_discount_amount:
+                                                    selectedCoupon
+                                                        ? String(
+                                                              selectedCoupon.value,
+                                                          )
+                                                        : form.coupon_discount_amount,
                                             });
                                         }}
                                     >
-                                        <option value="">Select coupon...</option>
+                                        <option value="">
+                                            Select coupon...
+                                        </option>
                                         {coupons
                                             .filter(
                                                 (c) =>
-                                                    c.patientId === form.patient_id &&
+                                                    c.patientId ===
+                                                        form.patient_id &&
                                                     (methodName === 'Mercy Fund'
-                                                        ? c.fundType === 'mercy_fund'
-                                                        : c.fundType === 'infant_formula'),
+                                                        ? c.fundType ===
+                                                          'mercy_fund'
+                                                        : c.fundType ===
+                                                          'infant_formula'),
                                             )
                                             .map((coupon) => (
                                                 <option
                                                     key={coupon.id}
                                                     value={String(coupon.id)}
                                                 >
-                                                    {coupon.code} - {coupon.type === 'percentage' ? `${coupon.value}%` : `₦ ${coupon.value}`} (Balance: ₦ {coupon.balance})
+                                                    {coupon.code} -{' '}
+                                                    {coupon.type ===
+                                                    'percentage'
+                                                        ? `${coupon.value}%`
+                                                        : `₦ ${coupon.value}`}{' '}
+                                                    (Balance: ₦ {coupon.balance}
+                                                    )
                                                 </option>
                                             ))}
                                     </SelectNative>
+                                    <InputError
+                                        message={fieldErrors.coupon_id}
+                                    />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Amount</Label>
+                                    <Label htmlFor="wallet-coupon-amount">
+                                        Amount
+                                    </Label>
                                     <Input
+                                        id="wallet-coupon-amount"
                                         type="number"
                                         min="0.01"
                                         step="1"
@@ -1188,9 +1481,15 @@ export default function WalletHistoryIndex({
                                         onChange={(event) =>
                                             setForm({
                                                 ...form,
-                                                coupon_discount_amount: event.target.value,
+                                                coupon_discount_amount:
+                                                    event.target.value,
                                                 credit: event.target.value,
                                             })
+                                        }
+                                    />
+                                    <InputError
+                                        message={
+                                            fieldErrors.coupon_discount_amount
                                         }
                                     />
                                 </div>
@@ -1198,20 +1497,29 @@ export default function WalletHistoryIndex({
                         )}
 
                         {error ? (
-                            <p className="text-sm text-destructive">{error}</p>
+                            <AlertError
+                                errors={[error]}
+                                title="Unable to save transaction"
+                            />
                         ) : null}
-
                     </form>
                     <SheetFooter>
                         <Button
                             type="button"
                             variant="outline"
+                            disabled={processing}
                             onClick={() => setOpen(false)}
                         >
                             Cancel
                         </Button>
-                        <Button type="button" onClick={submit}>
-                            {editing ? 'Update' : 'Save'} transaction
+                        <Button
+                            type="button"
+                            onClick={submit}
+                            disabled={processing}
+                        >
+                            {processing
+                                ? 'Saving...'
+                                : `${editing ? 'Update' : 'Save'} transaction`}
                         </Button>
                     </SheetFooter>
                 </SheetContent>
@@ -1256,8 +1564,8 @@ export default function WalletHistoryIndex({
                                 <strong>Date:</strong>{' '}
                                 {viewing.createdAt
                                     ? new Date(
-                                        viewing.createdAt,
-                                    ).toLocaleString()
+                                          viewing.createdAt,
+                                      ).toLocaleString()
                                     : '—'}
                             </p>
                             <p>
@@ -1334,7 +1642,9 @@ export default function WalletHistoryIndex({
                 >
                     <div className="w-full max-w-lg rounded-lg bg-background p-6 shadow-xl">
                         <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold">Transfer wallet balance</h2>
+                            <h2 className="text-lg font-semibold">
+                                Transfer wallet balance
+                            </h2>
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -1344,22 +1654,33 @@ export default function WalletHistoryIndex({
                             </Button>
                         </div>
                         <p className="mb-4 text-sm text-muted-foreground">
-                            Transfer the entire negative balance from one patient to another. The source patient&apos;s balance will be set to zero.
+                            Transfer the entire negative balance from one
+                            patient to another. The source patient&apos;s
+                            balance will be set to zero.
                         </p>
 
                         {/* Transfer from patient */}
-                        <div className="space-y-2" ref={(el) => {
-                            transferFromContainerRef.current = el;
-                        }}>
-                            <Label>
-                                From patient <span className="text-destructive">*</span>
-                                <span className="text-muted-foreground ml-1 font-normal">(negative balance only)</span>
+                        <div
+                            className="space-y-2"
+                            ref={(el) => {
+                                transferFromContainerRef.current = el;
+                            }}
+                        >
+                            <Label htmlFor="transfer-from-patient">
+                                From patient{' '}
+                                <span className="text-destructive">*</span>
+                                <span className="ml-1 font-normal text-muted-foreground">
+                                    (negative balance only)
+                                </span>
                             </Label>
                             <div className="relative">
                                 {transferFromPatient ? (
                                     <div className="flex items-center gap-2">
                                         <Input
-                                            value={getTransferFromLabel(transferFromPatient)}
+                                            id="transfer-from-patient"
+                                            value={getTransferFromLabel(
+                                                transferFromPatient,
+                                            )}
                                             readOnly
                                             className="flex-1 bg-muted/50"
                                         />
@@ -1368,10 +1689,13 @@ export default function WalletHistoryIndex({
                                             variant="outline"
                                             size="icon"
                                             className="shrink-0"
+                                            aria-label="Clear source patient"
                                             onClick={() => {
                                                 setTransferFromPatient('');
                                                 setTransferFromSearchQuery('');
-                                                setTransferFromSearchResults([]);
+                                                setTransferFromSearchResults(
+                                                    [],
+                                                );
                                             }}
                                         >
                                             <X className="h-4 w-4" />
@@ -1379,6 +1703,7 @@ export default function WalletHistoryIndex({
                                     </div>
                                 ) : (
                                     <Input
+                                        id="transfer-from-patient"
                                         ref={(el) => {
                                             transferFromInputRef.current = el;
                                         }}
@@ -1395,43 +1720,60 @@ export default function WalletHistoryIndex({
                                         }}
                                     />
                                 )}
-                                {transferFromSearchOpen && !transferFromPatient && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
-                                        {transferFromSearchLoading && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                Searching…
-                                            </div>
-                                        )}
-                                        {!transferFromSearchLoading &&
-                                         transferFromSearchResults.length === 0 &&
-                                         transferFromSearchQuery?.trim() && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                No patients with negative balance found.
-                                            </div>
-                                        )}
-                                        {transferFromSearchResults.map((patient) => (
-                                            <button
-                                                key={patient.slug}
-                                                type="button"
-                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                onClick={() => {
-                                                    setTransferFromPatient(patient.slug);
-                                                    setTransferFromSearchQuery('');
-                                                    setTransferFromSearchOpen(false);
-                                                }}
-                                            >
-                                                {patient.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                {transferFromSearchOpen &&
+                                    !transferFromPatient && (
+                                        <div className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                            {transferFromSearchLoading && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    Searching…
+                                                </div>
+                                            )}
+                                            {!transferFromSearchLoading &&
+                                                transferFromSearchResults.length ===
+                                                    0 &&
+                                                transferFromSearchQuery?.trim() && (
+                                                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                        No patients with
+                                                        negative balance found.
+                                                    </div>
+                                                )}
+                                            {transferFromSearchResults.map(
+                                                (patient) => (
+                                                    <button
+                                                        key={patient.slug}
+                                                        type="button"
+                                                        className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                        onClick={() => {
+                                                            setTransferFromPatient(
+                                                                patient.slug,
+                                                            );
+                                                            setTransferFromSearchQuery(
+                                                                '',
+                                                            );
+                                                            setTransferFromSearchOpen(
+                                                                false,
+                                                            );
+                                                        }}
+                                                    >
+                                                        {patient.label}
+                                                    </button>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
                             </div>
                             {transferFromPatient && (
                                 <p className="text-sm text-destructive">
-                                    Current balance: <span className="font-medium">₦{transferFromBalance.toLocaleString()}</span>
-                                    {' '}→ will be set to ₦0
+                                    Current balance:{' '}
+                                    <span className="font-medium">
+                                        ₦{transferFromBalance.toLocaleString()}
+                                    </span>{' '}
+                                    → will be set to ₦0
                                 </p>
                             )}
+                            <InputError
+                                message={transferFieldErrors.from_patient_id}
+                            />
                         </div>
 
                         {/* Arrow indicator */}
@@ -1440,17 +1782,24 @@ export default function WalletHistoryIndex({
                         </div>
 
                         {/* Transfer to patient */}
-                        <div className="space-y-2" ref={(el) => {
-                            transferToContainerRef.current = el;
-                        }}>
-                            <Label>
-                                To patient <span className="text-destructive">*</span>
+                        <div
+                            className="space-y-2"
+                            ref={(el) => {
+                                transferToContainerRef.current = el;
+                            }}
+                        >
+                            <Label htmlFor="transfer-to-patient">
+                                To patient{' '}
+                                <span className="text-destructive">*</span>
                             </Label>
                             <div className="relative">
                                 {transferToPatient ? (
                                     <div className="flex items-center gap-2">
                                         <Input
-                                            value={getTransferToLabel(transferToPatient)}
+                                            id="transfer-to-patient"
+                                            value={getTransferToLabel(
+                                                transferToPatient,
+                                            )}
                                             readOnly
                                             className="flex-1 bg-muted/50"
                                         />
@@ -1459,6 +1808,7 @@ export default function WalletHistoryIndex({
                                             variant="outline"
                                             size="icon"
                                             className="shrink-0"
+                                            aria-label="Clear destination patient"
                                             onClick={() => {
                                                 setTransferToPatient('');
                                                 setTransferToSearchQuery('');
@@ -1470,6 +1820,7 @@ export default function WalletHistoryIndex({
                                     </div>
                                 ) : (
                                     <Input
+                                        id="transfer-to-patient"
                                         ref={(el) => {
                                             transferToInputRef.current = el;
                                         }}
@@ -1487,58 +1838,81 @@ export default function WalletHistoryIndex({
                                     />
                                 )}
                                 {transferToSearchOpen && !transferToPatient && (
-                                    <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+                                    <div className="absolute right-0 left-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
                                         {transferToSearchLoading && (
                                             <div className="px-3 py-2 text-xs text-muted-foreground">
                                                 Searching…
                                             </div>
                                         )}
                                         {!transferToSearchLoading &&
-                                         transferToSearchResults.length === 0 &&
-                                         transferToSearchQuery?.trim() && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                                No patients found.
-                                            </div>
+                                            transferToSearchResults.length ===
+                                                0 &&
+                                            transferToSearchQuery?.trim() && (
+                                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                    No patients found.
+                                                </div>
+                                            )}
+                                        {transferToSearchResults.map(
+                                            (patient) => (
+                                                <button
+                                                    key={patient.slug}
+                                                    type="button"
+                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                                                    onClick={() => {
+                                                        setTransferToPatient(
+                                                            patient.slug,
+                                                        );
+                                                        setTransferToSearchQuery(
+                                                            '',
+                                                        );
+                                                        setTransferToSearchOpen(
+                                                            false,
+                                                        );
+                                                    }}
+                                                >
+                                                    {patient.label}
+                                                </button>
+                                            ),
                                         )}
-                                        {transferToSearchResults.map((patient) => (
-                                            <button
-                                                key={patient.slug}
-                                                type="button"
-                                                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                onClick={() => {
-                                                    setTransferToPatient(patient.slug);
-                                                    setTransferToSearchQuery('');
-                                                    setTransferToSearchOpen(false);
-                                                }}
-                                            >
-                                                {patient.label}
-                                            </button>
-                                        ))}
                                     </div>
                                 )}
                             </div>
                             {transferToPatient && (
                                 <p className="text-sm text-muted-foreground">
-                                    Current balance: <span className="font-medium text-foreground">₦{transferToBalance.toLocaleString()}</span>
+                                    Current balance:{' '}
+                                    <span className="font-medium text-foreground">
+                                        ₦{transferToBalance.toLocaleString()}
+                                    </span>
                                 </p>
                             )}
+                            <InputError
+                                message={transferFieldErrors.to_patient_id}
+                            />
                         </div>
 
                         {/* Transfer amount summary */}
                         {transferFromPatient && transferToPatient && (
-                            <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3">
-                                <p className="text-sm font-medium text-emerald-800">
-                                    Transfer amount: ₦{Math.abs(transferFromBalance).toLocaleString()}
+                            <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/40">
+                                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                                    Transfer amount: ₦
+                                    {Math.abs(
+                                        transferFromBalance,
+                                    ).toLocaleString()}
                                 </p>
-                                <p className="text-xs text-emerald-700">
-                                    {getTransferFromLabel(transferFromPatient)}
-                                    {' '}→ {getTransferToLabel(transferToPatient)}
+                                <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                                    {getTransferFromLabel(transferFromPatient)}{' '}
+                                    → {getTransferToLabel(transferToPatient)}
                                 </p>
                             </div>
                         )}
 
                         {transferError && (
-                            <p className="mt-3 text-sm text-destructive">{transferError}</p>
+                            <div className="mt-3">
+                                <AlertError
+                                    errors={[transferError]}
+                                    title="Unable to transfer balance"
+                                />
+                            </div>
                         )}
 
                         {/* Actions */}
@@ -1546,6 +1920,7 @@ export default function WalletHistoryIndex({
                             <Button
                                 type="button"
                                 variant="outline"
+                                disabled={transferProcessing}
                                 onClick={() => setTransferOpen(false)}
                             >
                                 Cancel
@@ -1553,23 +1928,42 @@ export default function WalletHistoryIndex({
                             <Button
                                 type="button"
                                 onClick={submitTransfer}
-                                disabled={!transferFromPatient || !transferToPatient}
+                                disabled={
+                                    transferProcessing ||
+                                    !transferFromPatient ||
+                                    !transferToPatient
+                                }
                             >
-                                Confirm transfer
+                                {transferProcessing
+                                    ? 'Transferring...'
+                                    : 'Confirm transfer'}
                             </Button>
                         </div>
                     </div>
                 </div>
             )}
 
+            {deleteError ? (
+                <div className="px-4 pb-4">
+                    <AlertError
+                        errors={[deleteError]}
+                        title="Unable to delete transaction"
+                    />
+                </div>
+            ) : null}
             <ConfirmDialog
                 open={deleting !== null}
                 onOpenChange={(isOpen) => {
-                    if (!isOpen) setDeleting(null);
+                    if (!isOpen && !deleteProcessing) {
+                        setDeleting(null);
+                        setDeleteError(null);
+                    }
                 }}
                 title="Delete wallet transaction?"
-                description="The transaction record will be removed from the history."
-                confirmLabel="Delete"
+                description="The transaction record will be removed from the history. This cannot be undone."
+                confirmLabel={deleteProcessing ? 'Deleting...' : 'Delete'}
+                processing={deleteProcessing}
+                destructive
                 onConfirm={remove}
             />
         </>

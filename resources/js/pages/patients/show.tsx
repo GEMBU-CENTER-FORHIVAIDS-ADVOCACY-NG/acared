@@ -1,4 +1,7 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import PatientController from '@/actions/App/Http/Controllers/PatientController';
+import AlertError from '@/components/alert-error';
 import ConfirmDialog from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     patientConfirmLabels,
-    usePatientActions,
+    type ConfirmAction,
 } from '@/hooks/use-patient-actions';
 import { edit, index, show } from '@/routes/patients';
 import type { PatientDetail, Team } from '@/types';
@@ -38,8 +41,51 @@ function Row({
 }
 
 export default function PatientShow({ patient }: { patient: PatientDetail }) {
-    const { teamSlug, confirm, setConfirm, processing, runConfirm } =
-        usePatientActions(patient.id);
+    const { currentTeam } = usePage<{ currentTeam?: Team | null }>().props;
+    const teamSlug = currentTeam?.slug ?? '';
+    const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    function openConfirm(action: ConfirmAction) {
+        setActionError(null);
+        setConfirm(action);
+    }
+
+    function runConfirm() {
+        if (!confirm) {
+            return;
+        }
+
+        setProcessing(true);
+        setActionError(null);
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => setConfirm(null),
+            onError: (errors: Record<string, string>) =>
+                setActionError(
+                    Object.values(errors)[0] ?? 'Unable to complete action.',
+                ),
+            onFinish: () => setProcessing(false),
+        };
+
+        if (confirm === 'restore') {
+            router.patch(
+                PatientController.restore.url([teamSlug, patient.id]),
+                {},
+                options,
+            );
+            return;
+        }
+
+        const url =
+            confirm === 'delete'
+                ? PatientController.destroy.url([teamSlug, patient.id])
+                : PatientController.forceDelete.url([teamSlug, patient.id]);
+
+        router.delete(url, options);
+    }
 
     return (
         <>
@@ -59,7 +105,10 @@ export default function PatientShow({ patient }: { patient: PatientDetail }) {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" asChild>
-                            <Link href={edit([teamSlug, patient.id])}>
+                            <Link
+                                href={edit([teamSlug, patient.id])}
+                                aria-label={`Edit ${patient.fullName}`}
+                            >
                                 Edit
                             </Link>
                         </Button>
@@ -67,27 +116,35 @@ export default function PatientShow({ patient }: { patient: PatientDetail }) {
                             <>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setConfirm('restore')}
+                                    disabled={processing}
+                                    onClick={() => openConfirm('restore')}
                                 >
-                                    Restore
+                                    {processing ? 'Working...' : 'Restore'}
                                 </Button>
                                 <Button
                                     variant="destructive"
-                                    onClick={() => setConfirm('force-delete')}
+                                    disabled={processing}
+                                    onClick={() => openConfirm('force-delete')}
                                 >
-                                    Force delete
+                                    {processing ? 'Working...' : 'Force delete'}
                                 </Button>
                             </>
                         ) : (
                             <Button
                                 variant="destructive"
-                                onClick={() => setConfirm('delete')}
+                                disabled={processing}
+                                onClick={() => openConfirm('delete')}
                             >
-                                Delete
+                                {processing ? 'Working...' : 'Delete'}
                             </Button>
                         )}
                         <Button variant="secondary" asChild>
-                            <Link href={index(teamSlug)}>Back to patients</Link>
+                            <Link
+                                href={index(teamSlug)}
+                                aria-label="Back to patients"
+                            >
+                                Back to patients
+                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -97,15 +154,20 @@ export default function PatientShow({ patient }: { patient: PatientDetail }) {
                         <CardHeader>
                             <CardTitle>Identification</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Row label="Hospital No" value={patient.slug} />
-                            <Row label="ART No" value={patient.art} />
-                            <Row label="NHIS/Other" value={patient.slugOther} />
-                            <Row
-                                label="Category"
-                                value={patient.category?.name}
-                            />
-                            <Row label="Wallet" value={patient.wallet} />
+                        <CardContent>
+                            <dl className="space-y-3">
+                                <Row label="Hospital No" value={patient.slug} />
+                                <Row label="ART No" value={patient.art} />
+                                <Row
+                                    label="NHIS/Other"
+                                    value={patient.slugOther}
+                                />
+                                <Row
+                                    label="Category"
+                                    value={patient.category?.name}
+                                />
+                                <Row label="Wallet" value={patient.wallet} />
+                            </dl>
                         </CardContent>
                     </Card>
 
@@ -113,17 +175,25 @@ export default function PatientShow({ patient }: { patient: PatientDetail }) {
                         <CardHeader>
                             <CardTitle>Personal details</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Row label="Full name" value={patient.fullName} />
-                            <Row label="Gender" value={patient.gender} />
-                            <Row
-                                label="Date of birth"
-                                value={patient.birthDate}
-                            />
-                            <Row label="Age" value={patient.age} />
-                            <Row label="Email address" value={patient.email} />
-                            <Row label="Phone" value={patient.phone} />
-                            <Row label="Mobile" value={patient.mobile} />
+                        <CardContent>
+                            <dl className="space-y-3">
+                                <Row
+                                    label="Full name"
+                                    value={patient.fullName}
+                                />
+                                <Row label="Gender" value={patient.gender} />
+                                <Row
+                                    label="Date of birth"
+                                    value={patient.birthDate}
+                                />
+                                <Row label="Age" value={patient.age} />
+                                <Row
+                                    label="Email address"
+                                    value={patient.email}
+                                />
+                                <Row label="Phone" value={patient.phone} />
+                                <Row label="Mobile" value={patient.mobile} />
+                            </dl>
                         </CardContent>
                     </Card>
 
@@ -131,14 +201,19 @@ export default function PatientShow({ patient }: { patient: PatientDetail }) {
                         <CardHeader>
                             <CardTitle>Location</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Row
-                                label="Country"
-                                value={patient.country?.name}
-                            />
-                            <Row label="State" value={patient.state?.name} />
-                            <Row label="LGA" value={patient.lga?.name} />
-                            <Row label="Address" value={patient.address} />
+                        <CardContent>
+                            <dl className="space-y-3">
+                                <Row
+                                    label="Country"
+                                    value={patient.country?.name}
+                                />
+                                <Row
+                                    label="State"
+                                    value={patient.state?.name}
+                                />
+                                <Row label="LGA" value={patient.lga?.name} />
+                                <Row label="Address" value={patient.address} />
+                            </dl>
                         </CardContent>
                     </Card>
 
@@ -146,29 +221,42 @@ export default function PatientShow({ patient }: { patient: PatientDetail }) {
                         <CardHeader>
                             <CardTitle>Next of kin</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Row
-                                label="Full name"
-                                value={patient.kinFullName}
-                            />
-                            <Row label="Phone" value={patient.kinPhone} />
-                            <Row label="Email" value={patient.kinEmail} />
-                            <Row label="Relation" value={patient.relation} />
+                        <CardContent>
+                            <dl className="space-y-3">
+                                <Row
+                                    label="Full name"
+                                    value={patient.kinFullName}
+                                />
+                                <Row label="Phone" value={patient.kinPhone} />
+                                <Row label="Email" value={patient.kinEmail} />
+                                <Row
+                                    label="Relation"
+                                    value={patient.relation}
+                                />
+                            </dl>
                         </CardContent>
                     </Card>
                 </div>
             </div>
 
+            {actionError ? (
+                <AlertError errors={[actionError]} title="Action failed" />
+            ) : null}
             <ConfirmDialog
                 open={confirm !== null}
                 onOpenChange={(open) => {
-                    if (!open) {
+                    if (!open && !processing) {
                         setConfirm(null);
                     }
                 }}
                 processing={processing}
                 destructive={confirm !== 'restore'}
                 {...patientConfirmLabels(confirm ?? 'delete')}
+                confirmLabel={
+                    processing
+                        ? 'Working...'
+                        : patientConfirmLabels(confirm ?? 'delete').confirmLabel
+                }
                 onConfirm={runConfirm}
             />
         </>
@@ -179,16 +267,14 @@ PatientShow.layout = (props: LayoutProps) => ({
     breadcrumbs: [
         {
             title: 'Patients',
-            href: props.currentTeam
-                ? index(props.currentTeam.slug)
-                : '/patients',
+            href: index(props.currentTeam?.slug),
         },
         {
             title: props.patient?.fullName ?? 'Patient',
             href:
                 props.currentTeam && props.patient
                     ? show([props.currentTeam.slug, props.patient.id])
-                    : '/patients',
+                    : index(props.currentTeam?.slug),
         },
     ],
 });

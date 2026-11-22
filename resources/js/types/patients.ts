@@ -82,7 +82,7 @@ export type PriceListItem = {
     price: number;
 };
 
-export type BillingLine = {
+export type PatientBillingLine = {
     price_list_id: string;
     unitPrice: string;
 };
