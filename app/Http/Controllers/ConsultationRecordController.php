@@ -562,7 +562,7 @@ class ConsultationRecordController extends Controller
         $record->billings()->create([
             'team_id' => $record->team_id,
             'patient_id' => $record->patient_id,
-            'user_id' => $context['user_id'] ?: $request->user()->getKey(),
+            'user_id' => $request->user()->getKey(),
             'total' => $this->linesTotal($config, $data),
             'status' => 'billed',
         ]);

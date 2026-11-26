@@ -32,17 +32,18 @@ export default function Pagination({
     return (
         <div
             className={cn(
-                'flex flex-col items-center justify-between gap-3 sm:flex-row',
+                'flex w-full flex-col items-center justify-between gap-3 sm:flex-row sm:flex-wrap',
                 className,
             )}
         >
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span className="whitespace-nowrap">
                     Showing {from} to {to} of {meta.total.toLocaleString()}
                 </span>
                 <SelectNative
                     aria-label="Rows per page"
-                    className="h-8 w-20 text-sm"
+                    searchable={false}
+                    className="h-8 min-h-8 w-32 shrink-0 text-sm [&>span]:whitespace-nowrap"
                     value={String(meta.perPage)}
                     onChange={(event) =>
                         onPerPageChange(Number(event.target.value))
@@ -56,7 +57,7 @@ export default function Pagination({
                 </SelectNative>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
                 <Button
                     type="button"
                     variant="outline"

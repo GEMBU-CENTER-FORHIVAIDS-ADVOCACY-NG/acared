@@ -28,7 +28,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $firstName
  * @property string|null $middleName
  * @property string $lastName
- * @property string|null $fullName
+ * @property-read string|null $fullName
  * @property string|null $gender
  * @property CarbonInterface|null $birthDate
  * @property string|null $email
@@ -66,12 +66,41 @@ class Patient extends Model
     /** @use HasFactory<PatientFactory> */
     use HasFactory, LogsActivity, LogsActivityWithPatient, SoftDeletes;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $guarded = ['fullName'];
+
+    /** @var list<string> */
+    protected $appends = ['fullName'];
 
     protected $casts = [
         'birthDate' => 'date',
     ];
 
+    /**
+     * @return Attribute<string|null, never>
+     */
+    protected function fullName(): Attribute
+    {
+        return Attribute::make(
+            get: function (mixed $value): ?string {
+                $attributes = $this->getAttributes();
+
+                if (! array_key_exists('firstName', $attributes) && ! array_key_exists('lastName', $attributes)) {
+                    return $value === null ? null : (string) $value;
+                }
+
+                return trim(implode(' ', array_filter([
+                    $this->firstName,
+                    $this->middleName,
+                    $this->lastName,
+                ], fn (mixed $part): bool => $part !== null && $part !== '')));
+            }
+        );
+    }
+
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function age(): Attribute
     {
         return Attribute::make(
@@ -199,14 +228,6 @@ class Patient extends Model
 
     protected static function booted(): void
     {
-        static::saving(function (Patient $patient): void {
-            $patient->fullName = trim(implode(' ', array_filter([
-                $patient->firstName,
-                $patient->middleName,
-                $patient->lastName,
-            ], fn ($part) => $part !== null && $part !== '')));
-        });
-
         static::addGlobalScope('team', function (Builder $query) {
             if (auth()->hasUser() && auth()->user()->currentTeam) {
                 $query->whereBelongsTo(auth()->user()->currentTeam);
