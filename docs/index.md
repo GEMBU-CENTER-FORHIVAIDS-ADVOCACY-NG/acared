@@ -10,24 +10,23 @@ AcaRed is a comprehensive healthcare management system built with Laravel.
 
 ## Documentation Sections
 
-- **Getting Started** — Learn about the system, installation, and configuration.
-- **API Reference** — Explore all available API endpoints, request/response formats, and authentication.
+- **API v1** — Versioned Sanctum JSON API for Android/mobile clients.
 
-## API Overview
+## API v1
 
-The AcaRed API provides RESTful endpoints for managing:
+The v1 API provides team-scoped, token-authenticated endpoints for:
 
-- **Patients** — Patient records and information
-- **Consultations** — Medical consultations and records
-- **Prescriptions** — Drug prescriptions and management
-- **Billings** — Billing and invoicing
-- **Inventories** — Drug and laboratory inventory management
-- **Wards** — Ward and ward round management
-- **Laboratories** — Laboratory tests and methods
-- **Users** — User management and roles
-- **And more** — Coupons, vendors, price lists, purchase orders, and wallet histories
+- **Patients** — Patient records and form options
+- **Appointments** — Reception scheduling, slots, transfer, cancel
+- **Consultations** — Consultation lifecycle and clinical records
+- **Nursing** — Nursing flow, vitals, completion, clinical records
+- **Admissions / Wards** — Ward CRUD, admission lifecycle, ward rounds
+- **Laboratories** — Lab requests, results, cancellation
+- **Prescriptions** — Pharmacy prescriptions, dispense, refund
+- **Billings** — Billing, history/options, payments
+- **Supporting** — Teams, categories, users
 
-All API endpoints (except authentication) require a **Bearer token** for authorization.
+All v1 endpoints (except `POST /api/v1/auth/login`) require `Authorization: Bearer <token>`. Team-scoped endpoints also require `X-Team-Slug` or `X-Team-ID`.
 
 > [!TIP]
-> Visit the **API Reference** section in the sidebar to explore interactive endpoint documentation generated from your routes.
+> Start at the [API v1 Overview](api-v1) or browse the [Endpoint Index](api-v1/endpoints-index).

@@ -1,14 +1,18 @@
 <?php
 
 use App\Http\Controllers\ErrorController;
+use App\Http\Middleware\EnsureApiPermission;
+use App\Http\Middleware\EnsureApiV1Json;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SetApiTeamContext;
 use App\Http\Middleware\SetTeamUrlDefaults;
 use App\Http\Middleware\UpdateUserActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,6 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'permission' => EnsurePermission::class,
+            'permission.api' => EnsureApiPermission::class,
+            'team.api' => SetApiTeamContext::class,
+            'api.v1.json' => EnsureApiV1Json::class,
         ]);
 
         $middleware->web(append: [
@@ -43,6 +50,21 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if ($request->is('api/v1/*')) {
+                if ($response instanceof JsonResponse) {
+                    $data = $response->getData(true);
+                    if (is_array($data)) {
+                        $status = $response->getStatusCode();
+                        $success = $status >= 200 && $status < 400;
+                        $data['success'] = $data['success'] ?? $success;
+                        $data['message'] = $data['message'] ?? ($status === 422 ? 'The given data was invalid.' : ($status === 401 ? 'Unauthenticated.' : ($status === 403 ? 'Forbidden.' : ($status === 404 ? 'Not found.' : ($success ? 'OK' : 'Request failed.')))));
+                        $response->setData($data);
+                    }
+                }
+
+                return $response;
+            }
+
             if (! $exception instanceof HttpException || $request->is('api/*') || $request->expectsJson()) {
                 return $response;
             }

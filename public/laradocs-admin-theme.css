@@ -1,0 +1,119 @@
+/* Acared admin theme for Laradocs */
+:root,
+[data-theme="light"] {
+  --dc-accent: #a8872a;
+  --dc-accent-soft: rgba(168, 135, 42, 0.1);
+  --dc-accent-border: rgba(168, 135, 42, 0.2);
+  --dc-bg: #edeae4;
+  --dc-bg-soft: #f2f0eb;
+  --dc-bg-muted: #eae7e0;
+  --dc-surface: #ffffff;
+  --dc-surface-soft: #faf9f6;
+  --dc-border: rgba(60, 56, 48, 0.1);
+  --dc-border-strong: rgba(60, 56, 48, 0.16);
+  --dc-text: #3a362e;
+  --dc-text-muted: #635d52;
+  --dc-text-faint: #9c958a;
+  --dc-code-bg: #f2f0eb;
+  --dc-code-border: rgba(60, 56, 48, 0.12);
+  --dc-font: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --dc-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --dc-radius: 3px;
+  --dc-radius-sm: 2px;
+  --dc-shadow: 0 1px 2px 0 rgb(40 36 28 / 0.06);
+  --dc-shadow-md: 0 4px 16px -4px rgb(40 36 28 / 0.1), 0 0 0 1px rgb(40 36 28 / 0.04);
+}
+[data-theme="dark"] {
+  --dc-accent: #c9a43a;
+  --dc-accent-soft: rgba(201, 164, 58, 0.08);
+  --dc-accent-border: rgba(201, 164, 58, 0.18);
+  --dc-bg: #0d0c0a;
+  --dc-bg-soft: #13110e;
+  --dc-bg-muted: #1a1815;
+  --dc-surface: #1a1815;
+  --dc-surface-soft: #13110e;
+  --dc-border: rgba(255, 255, 255, 0.05);
+  --dc-border-strong: rgba(255, 255, 255, 0.1);
+  --dc-text: #d4cfc4;
+  --dc-text-muted: #8e887c;
+  --dc-text-faint: #5a554c;
+  --dc-code-bg: #13110e;
+  --dc-code-border: rgba(255, 255, 255, 0.08);
+}
+body.laradocs { background: var(--dc-bg); color: var(--dc-text); font-family: var(--dc-font); }
+.laradocs-header, .laradocs-tabs { background: var(--dc-surface); border-color: var(--dc-border); }
+.laradocs-tab.is-active { color: var(--dc-accent); border-color: var(--dc-accent); }
+.laradocs-sidebar { background: var(--dc-surface-soft); border-color: var(--dc-border); }
+.laradocs-content a { color: var(--dc-accent); }
+.laradocs-content code { background: var(--dc-code-bg); border: 1px solid var(--dc-code-border); border-radius: var(--dc-radius-sm); }
+.laradocs-content pre { background: var(--dc-code-bg); border: 1px solid var(--dc-code-border); border-radius: var(--dc-radius); }
+.laradocs-content table { border-color: var(--dc-border-strong); }
+.laradocs-content th, .laradocs-content td { border-color: var(--dc-border); }
+.laradocs-content th { background: var(--dc-bg-soft); }
+.laradocs-palette-panel, .laradocs-card, .laradocs-search-hit { background: var(--dc-surface); border-color: var(--dc-border); box-shadow: var(--dc-shadow-md); }
+.btn, .laradocs-button, .laradocs-tab, .laradocs-sidebar a { border-radius: var(--dc-radius-sm); }
+
+/* Sidebar at beginning of screen; content fills remaining width; TOC at extreme right */
+@media (min-width: 961px) {
+  .laradocs-sidebar {
+    position: fixed;
+    top: calc(var(--dc-header-h, 3.75rem) + var(--dc-tabs-h, 3.5rem));
+    bottom: 0;
+    left: 0;
+    width: var(--dc-sidebar-w, 16rem);
+    overflow-y: auto;
+    border-right: 1px solid var(--dc-border);
+    border-left: 0;
+    z-index: 20;
+    background: var(--dc-surface-soft, var(--dc-bg-soft));
+  }
+
+  .laradocs-shell {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding-left: var(--dc-sidebar-w, 16rem);
+    padding-right: 0;
+  }
+
+  .laradocs-main {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .laradocs-content {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 2rem 2rem 4rem;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1181px) {
+  .laradocs-main {
+    justify-content: space-between;
+  }
+
+  .laradocs-content {
+    max-width: calc(100% - var(--dc-toc-w, 15rem));
+  }
+
+  .laradocs-toc {
+    display: block;
+    width: var(--dc-toc-w, 15rem);
+    flex: 0 0 var(--dc-toc-w, 15rem);
+    margin-left: auto;
+    padding: 2rem 1.25rem 2rem 1rem;
+    border-left: 1px solid var(--dc-border);
+  }
+}
+
+@media (max-width: 1180px) {
+  .laradocs-toc { display: none; }
+}

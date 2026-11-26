@@ -18,6 +18,10 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+pest()->beforeEach(function (): void {
+    config(['api_v1.allow_roleless_permission_pass' => true]);
+})->in('Feature/Api/V1');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations

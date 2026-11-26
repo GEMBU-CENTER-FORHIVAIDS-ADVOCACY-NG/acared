@@ -458,16 +458,16 @@ return [
 
     'ui' => [
         'theme' => env('LARADOCS_THEME', 'auto'),
-        'preset' => env('LARADOCS_UI_PRESET', 'classic'),
-        'accent' => env('LARADOCS_ACCENT', '#FF2D20'),
+        'preset' => env('LARADOCS_UI_PRESET', 'wide'),
+        'accent' => env('LARADOCS_ACCENT', '#a8872a'),
         'content_width' => env('LARADOCS_CONTENT_WIDTH'),
         'fonts' => [
             'sans' => env('LARADOCS_FONT_SANS'),
             'mono' => env('LARADOCS_FONT_MONO'),
         ],
         'brand' => [
-            'title' => env('LARADOCS_TITLE', 'Documentation'),
-            'tagline' => env('LARADOCS_TAGLINE'),
+            'title' => env('LARADOCS_TITLE', 'AcaRed API Docs'),
+            'tagline' => env('LARADOCS_TAGLINE', 'Admin-themed API documentation'),
             'logo' => env('LARADOCS_LOGO'),
             'favicon' => env('LARADOCS_FAVICON'),
         ],
