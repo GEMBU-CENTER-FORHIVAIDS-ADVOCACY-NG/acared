@@ -1,10 +1,10 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
+* @see app/Http/Controllers/ReceptionController.php:79
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
+*/
 export const card = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: card.url(args, options),
     method: 'get',
@@ -17,30 +17,30 @@ card.definition = {
 
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
+* @see app/Http/Controllers/ReceptionController.php:79
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
+*/
 card.url = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    current_team: args[0],
-                    appointment: args[1],
-                    type: args[2],
-                }
+            current_team: args[0],
+            appointment: args[1],
+            type: args[2],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     validateParameters(args, [
-            "current_team",
-        ])
+        "current_team",
+    ])
 
     const parsedArgs = {
-                        current_team: args.current_team ?? '$currentTeam',
-                                appointment: args.appointment,
-                                type: args.type,
-                }
+        current_team: args.current_team ?? '$currentTeam',
+        appointment: args.appointment,
+        type: args.type,
+    }
 
     return card.definition.url
             .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
@@ -51,63 +51,26 @@ card.url = (args: { current_team?: string | number, appointment: string | number
 
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
+* @see app/Http/Controllers/ReceptionController.php:79
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
+*/
 card.get = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: card.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
+* @see app/Http/Controllers/ReceptionController.php:79
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
+*/
 card.head = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: card.url(args, options),
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
-    const cardForm = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: card.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
-        cardForm.get = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: card.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\ReceptionController::card
- * @see app/Http/Controllers/ReceptionController.php:79
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/reception/appointments/{appointment}/card/{type}'
- */
-        cardForm.head = (args: { current_team?: string | number, appointment: string | number, type: string | number } | [current_team: string | number, appointment: string | number, type: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: card.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    card.form = cardForm
 const patient = {
     card: Object.assign(card, card),
 }

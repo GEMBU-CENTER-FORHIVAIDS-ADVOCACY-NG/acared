@@ -25,6 +25,8 @@ test('the maternity sidebar lists admitted patients for ward rounds', function (
     $user = User::factory()->create();
     $team = $user->currentTeam;
     $patient = nursingRecordsPatient($user);
+    // The SQLite test database has no generated column, so seed the value MySQL would generate.
+    $patient->forceFill(['fullName' => 'Ada Obi'])->save();
     $ward = Ward::factory()->ward()->create(['team_id' => $team->getKey()]);
     $bed = Ward::factory()->bed($ward)->create(['team_id' => $team->getKey()]);
 

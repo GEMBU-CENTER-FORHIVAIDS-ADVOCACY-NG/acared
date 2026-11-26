@@ -102,7 +102,9 @@ test('the patients index filters by search query', function () {
     $user = User::factory()->create();
     $teamId = $user->currentTeam->getKey();
 
-    Patient::factory()->create(['team_id' => $teamId, 'category_id' => Category::factory()->create(['team_id' => $teamId])->getKey(), 'firstName' => 'Zainab', 'lastName' => 'Yusuf', 'middleName' => null]);
+    $zainab = Patient::factory()->create(['team_id' => $teamId, 'category_id' => Category::factory()->create(['team_id' => $teamId])->getKey(), 'firstName' => 'Zainab', 'lastName' => 'Yusuf', 'middleName' => null]);
+    // The SQLite test database has no generated column, so seed the value MySQL would generate.
+    $zainab->forceFill(['fullName' => 'Zainab Yusuf'])->save();
     Patient::factory()->create(['team_id' => $teamId, 'category_id' => Category::factory()->create(['team_id' => $teamId])->getKey(), 'firstName' => 'Tunde', 'lastName' => 'Bakare']);
 
     $this->actingAs($user)
@@ -113,6 +115,24 @@ test('the patients index filters by search query', function () {
             ->has('patients.data', 1)
             ->where('patients.data.0.fullName', 'Zainab Yusuf'),
         );
+});
+
+test('the full name is read from the generated database column', function () {
+    $user = User::factory()->create();
+
+    $patient = Patient::create([
+        ...patientPayload($user, ['firstName' => 'Zainab', 'middleName' => null, 'lastName' => 'Yusuf']),
+        'fullName' => 'Wrong Name',
+        'slug' => 'PSN-GENERATED-NAME',
+        'team_id' => $user->currentTeam->getKey(),
+    ]);
+
+    // The SQLite test database has no generated column, so seed the value MySQL would generate.
+    $patient->forceFill(['fullName' => 'Zainab Yusuf'])->save();
+    $freshPatient = $patient->fresh();
+
+    expect($freshPatient->fullName)->toBe('Zainab Yusuf')
+        ->and($freshPatient->toArray())->toHaveKey('fullName', 'Zainab Yusuf');
 });
 
 test('the patients index filters children by the children tab', function () {

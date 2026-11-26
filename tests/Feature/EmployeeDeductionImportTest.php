@@ -250,3 +250,45 @@ test('does not match a patient from another team', function () {
         ->and((float) $otherPatient->fresh()->wallet)->toBe(-100.0)
         ->and(WalletHistory::query()->count())->toBe(0);
 });
+
+test('preview returns headers for column mapping', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->postJson('/'.$user->currentTeam->slug.'/reports/employee-deduction/import/preview', [
+        'file' => employeeDeductionFile([
+            ['Hospital No.', 'Name', 'Amount'],
+            ['EMP-1', 'Jane Doe', '50'],
+        ]),
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('headers.0', 'Hospital No.')
+        ->assertJsonPath('headers.1', 'Name')
+        ->assertJsonPath('headers.2', 'Amount');
+});
+
+test('imports deductions using explicit column mapping', function () {
+    $user = User::factory()->create();
+    $patient = employeeDeductionPatient($user, 'EMP-1001');
+    employeeDeductionReferenceData($user);
+
+    $response = $this->actingAs($user)->post(employeeDeductionImportUrl($user), [
+        'file' => employeeDeductionFile([
+            ['Employee', 'Emp Code', 'Deduction'],
+            ['Jane Doe', $patient->slug, '75'],
+        ]),
+        'mapping' => [
+            'hospital_no' => 'Emp Code',
+            'name' => 'Employee',
+            'amount' => 'Deduction',
+        ],
+    ]);
+
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    expect((float) $patient->fresh()->wallet)->toBe(-175.0);
+    $this->assertDatabaseHas('payments', [
+        'patient_id' => $patient->slug,
+        'amount' => 75,
+        'wallet' => -75,
+    ]);
+});

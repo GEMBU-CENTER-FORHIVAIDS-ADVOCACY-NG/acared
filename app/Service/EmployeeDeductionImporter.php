@@ -42,15 +42,60 @@ class EmployeeDeductionImporter
     ];
 
     /**
-     * Import employee deductions from a CSV or Excel upload.
-     *
-     * @return array{imported: int, skipped: int, errors: list<string>}
+     * @return list<string>
      */
-    public function handle(UploadedFile $file, Team $team, User $user): array
+    public function headers(UploadedFile $file): array
     {
         $rows = $this->readRows($file);
         $header = array_shift($rows) ?? [];
-        $columns = $this->mapHeaders($header);
+
+        return array_map(fn (mixed $value): string => $this->stringValue($value), $header);
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    public function preview(UploadedFile $file, int $limit = 5): array
+    {
+        $rows = $this->readRows($file);
+        $header = array_shift($rows) ?? [];
+        $headings = array_map(fn (mixed $value): string => $this->stringValue($value), $header);
+        $preview = [];
+
+        foreach (array_slice($rows, 0, $limit) as $row) {
+            if ($this->isEmptyRow(array_combine(
+                $headings ?: array_keys($row),
+                array_pad(array_values($row), count($headings ?: array_keys($row)), null),
+            ))) {
+                continue;
+            }
+
+            $mapped = [];
+            foreach ($headings as $index => $heading) {
+                $mapped[$heading !== '' ? $heading : "column_{$index}"] = $this->stringValue($row[$index] ?? null);
+            }
+
+            if ($mapped !== []) {
+                $preview[] = $mapped;
+            }
+        }
+
+        return $preview;
+    }
+
+    /**
+     * Import employee deductions from a CSV or Excel upload.
+     *
+     * @param  array<string, string>|null  $mapping
+     * @return array{imported: int, skipped: int, errors: list<string>}
+     */
+    public function handle(UploadedFile $file, Team $team, User $user, ?array $mapping = null): array
+    {
+        $rows = $this->readRows($file);
+        $header = array_shift($rows) ?? [];
+        $columns = $mapping !== null
+            ? $this->mapHeadersFromMapping($header, $mapping)
+            : $this->mapHeaders($header);
         $missing = array_diff(['hospital_no', 'name', 'amount'], array_values($columns));
 
         if ($missing !== []) {
@@ -189,6 +234,36 @@ class EmployeeDeductionImporter
 
             if ($field !== null && ! in_array($field, $columns, true)) {
                 $columns[$index] = $field;
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param  array<int, mixed>  $header
+     * @param  array<string, string>  $mapping
+     * @return array<int, string>
+     */
+    private function mapHeadersFromMapping(array $header, array $mapping): array
+    {
+        $allowed = ['hospital_no', 'name', 'amount'];
+        $columns = [];
+        $normalizedHeader = array_map(fn (mixed $value): string => $this->normalizeHeader($value), $header);
+
+        foreach ($mapping as $field => $selectedHeader) {
+            if (! in_array($field, $allowed, true)) {
+                continue;
+            }
+
+            $normalizedSelected = $this->normalizeHeader($selectedHeader);
+            if ($normalizedSelected === '') {
+                continue;
+            }
+
+            $index = array_search($normalizedSelected, $normalizedHeader, true);
+            if ($index !== false && ! in_array($field, $columns, true)) {
+                $columns[(int) $index] = $field;
             }
         }
 

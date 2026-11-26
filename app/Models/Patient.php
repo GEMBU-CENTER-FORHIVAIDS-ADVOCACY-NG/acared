@@ -69,34 +69,9 @@ class Patient extends Model
     /** @var list<string> */
     protected $guarded = ['fullName'];
 
-    /** @var list<string> */
-    protected $appends = ['fullName'];
-
     protected $casts = [
         'birthDate' => 'date',
     ];
-
-    /**
-     * @return Attribute<string|null, never>
-     */
-    protected function fullName(): Attribute
-    {
-        return Attribute::make(
-            get: function (mixed $value): ?string {
-                $attributes = $this->getAttributes();
-
-                if (! array_key_exists('firstName', $attributes) && ! array_key_exists('lastName', $attributes)) {
-                    return $value === null ? null : (string) $value;
-                }
-
-                return trim(implode(' ', array_filter([
-                    $this->firstName,
-                    $this->middleName,
-                    $this->lastName,
-                ], fn (mixed $part): bool => $part !== null && $part !== '')));
-            }
-        );
-    }
 
     /**
      * @return Attribute<string|null, never>

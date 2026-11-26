@@ -76,11 +76,11 @@ class OperationalReportController extends Controller
         }, 'employee-deduction-report.csv', ['Content-Type' => 'text/csv']);
     }
 
-    public function importEmployeeDeduction(
+    public function previewEmployeeDeduction(
         Request $request,
         EmployeeDeductionImporter $importer,
         string $current_team,
-    ): RedirectResponse {
+    ) {
         $validated = $request->validate([
             'file' => [
                 'required',
@@ -95,10 +95,55 @@ class OperationalReportController extends Controller
         assert($file instanceof UploadedFile);
 
         try {
+            $headers = $importer->headers($file);
+            $preview = $importer->preview($file);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'headers' => $headers,
+            'preview' => $preview,
+        ]);
+    }
+
+    public function importEmployeeDeduction(
+        Request $request,
+        EmployeeDeductionImporter $importer,
+        string $current_team,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'file' => [
+                'required',
+                'file',
+                'mimes:csv,txt,xlsx,xls',
+                'extensions:csv,txt,xlsx,xls',
+                'max:10240',
+            ],
+            'mapping' => ['nullable', 'array'],
+            'mapping.hospital_no' => ['nullable', 'string', 'max:255'],
+            'mapping.name' => ['nullable', 'string', 'max:255'],
+            'mapping.amount' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $file = $validated['file'];
+        assert($file instanceof UploadedFile);
+
+        $mapping = $validated['mapping'] ?? null;
+        if (is_array($mapping)) {
+            $mapping = array_filter(
+                array_map(fn ($value) => is_string($value) ? trim($value) : '', $mapping),
+                fn (string $value) => $value !== '',
+            );
+            $mapping = $mapping === [] ? null : $mapping;
+        }
+
+        try {
             $result = $importer->handle(
                 $file,
                 $request->user()->currentTeam,
                 $request->user(),
+                $mapping,
             );
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['file' => $exception->getMessage()]);

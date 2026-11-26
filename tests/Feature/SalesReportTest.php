@@ -375,6 +375,8 @@ test('the sales report exports every detail column', function () {
         'middleName' => null,
         'lastName' => 'Patient',
     ]);
+    // The SQLite test database has no generated column, so seed the value MySQL would generate.
+    $patient->forceFill(['fullName' => 'Export Patient'])->save();
     $method = Method::factory()->create([
         'team_id' => $team->getKey(),
         'name' => 'Transfer',

@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import AlertError from '@/components/alert-error';
 import { FinancialReportLayout } from '@/components/financial-report-layout';
 import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
@@ -11,8 +12,17 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SelectNative } from '@/components/ui/select-native';
 import {
     Table,
     TableBody,
@@ -21,6 +31,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { previewEmployeeDeduction } from '@/actions/App/Http/Controllers/OperationalReportController';
 import { employeeDeduction } from '@/routes/reports';
 import {
     exportMethod as exportReport,
@@ -49,6 +60,36 @@ type Paginator = {
     total: number;
 };
 
+type ImportMapping = {
+    hospital_no: string;
+    name: string;
+    amount: string;
+};
+
+const MAPPABLE_FIELDS: Array<{ key: keyof ImportMapping; label: string; required?: boolean }> = [
+    { key: 'hospital_no', label: 'Hospital No.', required: true },
+    { key: 'name', label: 'Name' },
+    { key: 'amount', label: 'Amount', required: true },
+];
+
+const EMPTY_MAPPING: ImportMapping = { hospital_no: '', name: '', amount: '' };
+
+function guessMapping(headers: string[]): ImportMapping {
+    const normalize = (value: string) =>
+        value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const find = (predicates: Array<(key: string) => boolean>) =>
+        headers.find((header) => predicates.some((p) => p(normalize(header)))) ?? '';
+
+    return {
+        hospital_no: find([
+            (k) => k.includes('hospital') && (k.includes('no') || k.includes('number') || k.includes('id')),
+            (k) => k === 'slug' || k === 'patientid' || k === 'patientno',
+        ]),
+        name: find([(k) => k.includes('name') || k === 'patient' || k === 'employee']),
+        amount: find([(k) => k.includes('amount') || k.includes('deduction')]),
+    };
+}
+
 export default function EmployeeDeductionReport({
     patients,
     summary,
@@ -66,7 +107,13 @@ export default function EmployeeDeductionReport({
     const [isVisiting, setIsVisiting] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [isPreviewing, setIsPreviewing] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
+    const [mappingOpen, setMappingOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importHeaders, setImportHeaders] = useState<string[]>([]);
+    const [importPreview, setImportPreview] = useState<Array<Record<string, string>>>([]);
+    const [importMapping, setImportMapping] = useState<ImportMapping>(EMPTY_MAPPING);
     const importInput = useRef<HTMLInputElement>(null);
     const visit = (patch: Partial<Filters>) => {
         const next = { ...filters, ...patch };
@@ -95,27 +142,88 @@ export default function EmployeeDeductionReport({
         window.addEventListener('afterprint', finishPrint);
         handlePrint();
     };
-    const importDeductions = (file: File | undefined) => {
+    const resetImport = () => {
+        setMappingOpen(false);
+        setImportFile(null);
+        setImportHeaders([]);
+        setImportPreview([]);
+        setImportMapping(EMPTY_MAPPING);
+        setImportError(null);
+        if (importInput.current) {
+            importInput.current.value = '';
+        }
+    };
+    const previewImport = async (file: File | undefined) => {
         if (!file) {
+            return;
+        }
+
+        setImportError(null);
+        setIsPreviewing(true);
+        const payload = new FormData();
+        payload.append('file', file);
+
+        try {
+            const response = await fetch(previewEmployeeDeduction.url(team), {
+                method: 'POST',
+                body: payload,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': decodeURIComponent(
+                        document.cookie
+                            .split('; ')
+                            .find((c) => c.startsWith('XSRF-TOKEN='))
+                            ?.split('=')[1] ?? '',
+                    ),
+                },
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                setImportError(data.message ?? 'Unable to preview file.');
+                return;
+            }
+
+            const headers: string[] = Array.isArray(data.headers) ? data.headers : [];
+            setImportFile(file);
+            setImportHeaders(headers);
+            setImportPreview(Array.isArray(data.preview) ? data.preview : []);
+            setImportMapping(guessMapping(headers));
+            setMappingOpen(true);
+        } catch {
+            setImportError('Unable to preview file.');
+        } finally {
+            setIsPreviewing(false);
+            if (importInput.current) {
+                importInput.current.value = '';
+            }
+        }
+    };
+    const importDeductions = () => {
+        if (!importFile) {
+            setImportError('Please select a file.');
+            return;
+        }
+        if (!importMapping.hospital_no || !importMapping.amount) {
+            setImportError('Map Hospital No. and Amount before importing.');
             return;
         }
 
         setImportError(null);
         setIsImporting(true);
         const payload = new FormData();
-        payload.append('file', file);
+        payload.append('file', importFile);
+        payload.append('mapping[hospital_no]', importMapping.hospital_no);
+        payload.append('mapping[name]', importMapping.name);
+        payload.append('mapping[amount]', importMapping.amount);
 
         router.post(importEmployeeDeductions.url(team), payload, {
             forceFormData: true,
             preserveScroll: true,
             onError: (errors) =>
                 setImportError(errors.file ?? 'Import failed.'),
-            onFinish: () => {
-                setIsImporting(false);
-                if (importInput.current) {
-                    importInput.current.value = '';
-                }
-            },
+            onSuccess: () => resetImport(),
+            onFinish: () => setIsImporting(false),
         });
     };
 
@@ -156,19 +264,21 @@ export default function EmployeeDeductionReport({
                                 accept=".csv,.txt,.xlsx,.xls"
                                 className="hidden"
                                 aria-label="Import employee deduction CSV or Excel"
-                                disabled={isImporting}
+                                disabled={isImporting || isPreviewing}
                                 onChange={(event) =>
-                                    importDeductions(event.target.files?.[0])
+                                    previewImport(event.target.files?.[0])
                                 }
                             />
                             <Button
                                 variant="outline"
                                 onClick={() => importInput.current?.click()}
-                                disabled={isImporting}
+                                disabled={isImporting || isPreviewing}
                             >
-                                {isImporting
-                                    ? 'Importing…'
-                                    : 'Import CSV/Excel'}
+                                {isPreviewing
+                                    ? 'Reading file…'
+                                    : isImporting
+                                      ? 'Importing…'
+                                      : 'Import CSV/Excel'}
                             </Button>
                             {importError && (
                                 <p
@@ -297,6 +407,95 @@ export default function EmployeeDeductionReport({
                             }
                         />
                     </div>
+                    <Dialog
+                        open={mappingOpen}
+                        onOpenChange={(open) => {
+                            if (!open) resetImport();
+                            else setMappingOpen(true);
+                        }}
+                    >
+                        <DialogContent className="sm:max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Map import columns</DialogTitle>
+                                <DialogDescription>
+                                    Match your file columns to employee deduction
+                                    fields. Hospital No. and Amount are required.
+                                    This import pays off employee wallet balance
+                                    using Cheque as the payment method.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                {MAPPABLE_FIELDS.map(({ key, label, required }) => (
+                                    <div
+                                        key={key}
+                                        className="grid items-center gap-2 sm:grid-cols-[180px_1fr]"
+                                    >
+                                        <Label htmlFor={`map-${key}`}>
+                                            {label}
+                                            {required ? ' *' : ''}
+                                        </Label>
+                                        <SelectNative
+                                            id={`map-${key}`}
+                                            value={importMapping[key]}
+                                            onChange={(event) =>
+                                                setImportMapping((current) => ({
+                                                    ...current,
+                                                    [key]: event.target.value,
+                                                }))
+                                            }
+                                        >
+                                            <option value="">— Skip —</option>
+                                            {importHeaders.map((header) => (
+                                                <option key={`${key}-${header}`} value={header}>
+                                                    {header}
+                                                </option>
+                                            ))}
+                                        </SelectNative>
+                                    </div>
+                                ))}
+                                {importPreview.length > 0 && (
+                                    <div className="overflow-auto rounded-md border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    {importHeaders.map((header) => (
+                                                        <TableHead key={header}>
+                                                            {header || '(blank)'}
+                                                        </TableHead>
+                                                    ))}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {importPreview.map((row, index) => (
+                                                    <TableRow key={index}>
+                                                        {importHeaders.map((header) => (
+                                                            <TableCell key={`${index}-${header}`}>
+                                                                {row[header] ?? ''}
+                                                            </TableCell>
+                                                        ))}
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                                {importError ? (
+                                    <AlertError
+                                        errors={[importError]}
+                                        title="Unable to import deductions"
+                                    />
+                                ) : null}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={resetImport} disabled={isImporting}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={importDeductions} disabled={isImporting}>
+                                    {isImporting ? 'Importing…' : 'Import'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </FinancialReportLayout>
         </>

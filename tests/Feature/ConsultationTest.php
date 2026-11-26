@@ -99,6 +99,8 @@ test('the consultations sidebar lists admitted patients for ward rounds', functi
     $user = User::factory()->create();
     $team = $user->currentTeam;
     $patient = consultationPatient($user);
+    // The SQLite test database has no generated column, so seed the value MySQL would generate.
+    $patient->forceFill(['fullName' => 'Ada Obi'])->save();
     $ward = Ward::factory()->ward()->create(['team_id' => $team->getKey()]);
     $bed = Ward::factory()->bed($ward)->create(['team_id' => $team->getKey()]);
 
@@ -311,6 +313,30 @@ test('a laboratory request computes lines and total', function () {
     expect($laboratory)->not->toBeNull()
         ->and((float) $laboratory->total)->toBe(1500.0)
         ->and($laboratory->lines()->count())->toBe(1);
+});
+
+test('a laboratory request bills the consultant who ordered it', function () {
+    $consultant = User::factory()->create(['name' => 'Dr. James Nandom']);
+    $receptionist = User::factory()->create(['name' => 'Miracle Kemndep']);
+    $consultation = consultationRecord($consultant, ['user_id' => $receptionist->getKey()]);
+    $test = consultationPriceList($consultant, ['name' => 'Malaria RDT']);
+
+    $this->actingAs($consultant)
+        ->post(consultationTeamUrl($consultant, '/'.$consultation->getKey().'/records/laboratories'), [
+            'lines' => [
+                ['price_list_id' => $test->getKey(), 'unitPrice' => 1500, 'quantity' => 1],
+            ],
+            'total' => 1500,
+            'status' => 'pending',
+        ])
+        ->assertRedirect();
+
+    $laboratory = Laboratory::query()->where('patient_id', $consultation->patient_id)->first();
+    $billing = $laboratory->billings()->first();
+
+    expect($laboratory->doctor_id)->toBe($consultant->getKey())
+        ->and($billing->user_id)->toBe($consultant->getKey())
+        ->and($billing->user->name)->toBe('Dr. James Nandom');
 });
 
 test('treatment, laboratory and prescription lines capture the price list price and inventory cost', function () {

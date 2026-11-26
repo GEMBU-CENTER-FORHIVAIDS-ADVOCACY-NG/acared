@@ -1,10 +1,10 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:15
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 export const index = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(args, options),
     method: 'get',
@@ -17,30 +17,30 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:15
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 index.url = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    current_team: args[0],
-                    nursing: args[1],
-                }
+            current_team: args[0],
+            nursing: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     validateParameters(args, [
-            "current_team",
-        ])
+        "current_team",
+    ])
 
     const parsedArgs = {
-                        current_team: args.current_team ?? '$currentTeam',
-                                nursing: typeof args.nursing === 'object'
-                ? args.nursing.id
-                : args.nursing,
-                }
+        current_team: args.current_team ?? '$currentTeam',
+        nursing: typeof args.nursing === 'object'
+        ? args.nursing.id
+        : args.nursing,
+    }
 
     return index.definition.url
             .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
@@ -50,69 +50,32 @@ index.url = (args: { current_team?: string | number, nursing: number | { id: num
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:15
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 index.get = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:15
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 index.head = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(args, options),
     method: 'head',
 })
 
-    /**
-* @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
-    const indexForm = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
-        indexForm.get = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\PreviousPregnancyController::index
- * @see app/Http/Controllers/PreviousPregnancyController.php:15
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
-        indexForm.head = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::store
- * @see app/Http/Controllers/PreviousPregnancyController.php:55
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:55
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 export const store = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
@@ -125,30 +88,30 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::store
- * @see app/Http/Controllers/PreviousPregnancyController.php:55
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:55
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 store.url = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    current_team: args[0],
-                    nursing: args[1],
-                }
+            current_team: args[0],
+            nursing: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     validateParameters(args, [
-            "current_team",
-        ])
+        "current_team",
+    ])
 
     const parsedArgs = {
-                        current_team: args.current_team ?? '$currentTeam',
-                                nursing: typeof args.nursing === 'object'
-                ? args.nursing.id
-                : args.nursing,
-                }
+        current_team: args.current_team ?? '$currentTeam',
+        nursing: typeof args.nursing === 'object'
+        ? args.nursing.id
+        : args.nursing,
+    }
 
     return store.definition.url
             .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
@@ -158,44 +121,21 @@ store.url = (args: { current_team?: string | number, nursing: number | { id: num
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::store
- * @see app/Http/Controllers/PreviousPregnancyController.php:55
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:55
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
+*/
 store.post = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\PreviousPregnancyController::store
- * @see app/Http/Controllers/PreviousPregnancyController.php:55
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
-    const storeForm = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PreviousPregnancyController::store
- * @see app/Http/Controllers/PreviousPregnancyController.php:55
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy'
- */
-        storeForm.post = (args: { current_team?: string | number, nursing: number | { id: number } } | [current_team: string | number, nursing: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::update
- * @see app/Http/Controllers/PreviousPregnancyController.php:71
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:71
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
+*/
 export const update = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
@@ -208,34 +148,34 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::update
- * @see app/Http/Controllers/PreviousPregnancyController.php:71
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:71
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
+*/
 update.url = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    current_team: args[0],
-                    nursing: args[1],
-                    previousPregnancy: args[2],
-                }
+            current_team: args[0],
+            nursing: args[1],
+            previousPregnancy: args[2],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     validateParameters(args, [
-            "current_team",
-        ])
+        "current_team",
+    ])
 
     const parsedArgs = {
-                        current_team: args.current_team ?? '$currentTeam',
-                                nursing: typeof args.nursing === 'object'
-                ? args.nursing.id
-                : args.nursing,
-                                previousPregnancy: typeof args.previousPregnancy === 'object'
-                ? args.previousPregnancy.id
-                : args.previousPregnancy,
-                }
+        current_team: args.current_team ?? '$currentTeam',
+        nursing: typeof args.nursing === 'object'
+        ? args.nursing.id
+        : args.nursing,
+        previousPregnancy: typeof args.previousPregnancy === 'object'
+        ? args.previousPregnancy.id
+        : args.previousPregnancy,
+    }
 
     return update.definition.url
             .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
@@ -246,54 +186,21 @@ update.url = (args: { current_team?: string | number, nursing: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::update
- * @see app/Http/Controllers/PreviousPregnancyController.php:71
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:71
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
+*/
 update.patch = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
 
-    /**
-* @see \App\Http\Controllers\PreviousPregnancyController::update
- * @see app/Http/Controllers/PreviousPregnancyController.php:71
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
-    const updateForm = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PreviousPregnancyController::update
- * @see app/Http/Controllers/PreviousPregnancyController.php:71
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
-        updateForm.patch = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    update.form = updateForm
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::destroy
- * @see app/Http/Controllers/PreviousPregnancyController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:83
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
+*/
 export const destroy = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(args, options),
     method: 'delete',
@@ -306,34 +213,34 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::destroy
- * @see app/Http/Controllers/PreviousPregnancyController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:83
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
+*/
 destroy.url = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    current_team: args[0],
-                    nursing: args[1],
-                    previousPregnancy: args[2],
-                }
+            current_team: args[0],
+            nursing: args[1],
+            previousPregnancy: args[2],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     validateParameters(args, [
-            "current_team",
-        ])
+        "current_team",
+    ])
 
     const parsedArgs = {
-                        current_team: args.current_team ?? '$currentTeam',
-                                nursing: typeof args.nursing === 'object'
-                ? args.nursing.id
-                : args.nursing,
-                                previousPregnancy: typeof args.previousPregnancy === 'object'
-                ? args.previousPregnancy.id
-                : args.previousPregnancy,
-                }
+        current_team: args.current_team ?? '$currentTeam',
+        nursing: typeof args.nursing === 'object'
+        ? args.nursing.id
+        : args.nursing,
+        previousPregnancy: typeof args.previousPregnancy === 'object'
+        ? args.previousPregnancy.id
+        : args.previousPregnancy,
+    }
 
     return destroy.definition.url
             .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
@@ -344,53 +251,20 @@ destroy.url = (args: { current_team?: string | number, nursing: number | { id: n
 
 /**
 * @see \App\Http\Controllers\PreviousPregnancyController::destroy
- * @see app/Http/Controllers/PreviousPregnancyController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
+* @see app/Http/Controllers/PreviousPregnancyController.php:83
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
+*/
 destroy.delete = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(args, options),
     method: 'delete',
 })
 
-    /**
-* @see \App\Http\Controllers\PreviousPregnancyController::destroy
- * @see app/Http/Controllers/PreviousPregnancyController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
-    const destroyForm = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: destroy.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\PreviousPregnancyController::destroy
- * @see app/Http/Controllers/PreviousPregnancyController.php:83
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/nursing/records/{nursing}/previous-pregnancy/{previousPregnancy}'
- */
-        destroyForm.delete = (args: { current_team?: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } } | [current_team: string | number, nursing: number | { id: number }, previousPregnancy: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: destroy.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    destroy.form = destroyForm
 const previousPregnancy = {
     index: Object.assign(index, index),
-store: Object.assign(store, store),
-update: Object.assign(update, update),
-destroy: Object.assign(destroy, destroy),
+    store: Object.assign(store, store),
+    update: Object.assign(update, update),
+    destroy: Object.assign(destroy, destroy),
 }
 
 export default previousPregnancy

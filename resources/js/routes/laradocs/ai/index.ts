@@ -1,9 +1,9 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition } from './../../../wayfinder'
 /**
 * @see \Laradocs\Http\Controllers\AiChatController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
- * @route '/docs/_laradocs/ai/chat'
- */
+* @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
+* @route '/docs/_laradocs/ai/chat'
+*/
 export const chat = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: chat.url(options),
     method: 'post',
@@ -16,44 +16,23 @@ chat.definition = {
 
 /**
 * @see \Laradocs\Http\Controllers\AiChatController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
- * @route '/docs/_laradocs/ai/chat'
- */
+* @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
+* @route '/docs/_laradocs/ai/chat'
+*/
 chat.url = (options?: RouteQueryOptions) => {
     return chat.definition.url + queryParams(options)
 }
 
 /**
 * @see \Laradocs\Http\Controllers\AiChatController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
- * @route '/docs/_laradocs/ai/chat'
- */
+* @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
+* @route '/docs/_laradocs/ai/chat'
+*/
 chat.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: chat.url(options),
     method: 'post',
 })
 
-    /**
-* @see \Laradocs\Http\Controllers\AiChatController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
- * @route '/docs/_laradocs/ai/chat'
- */
-    const chatForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: chat.url(options),
-        method: 'post',
-    })
-
-            /**
-* @see \Laradocs\Http\Controllers\AiChatController::__invoke
- * @see vendor/petebishwhip/laradocs/src/Http/Controllers/AiChatController.php:38
- * @route '/docs/_laradocs/ai/chat'
- */
-        chatForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: chat.url(options),
-            method: 'post',
-        })
-    
-    chat.form = chatForm
 const ai = {
     chat: Object.assign(chat, chat),
 }

@@ -1,10 +1,10 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults, validateParameters } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ProductController::store
- * @see app/Http/Controllers/ProductController.php:285
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/products/subcategories'
- */
+* @see app/Http/Controllers/ProductController.php:285
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/products/subcategories'
+*/
 export const store = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
@@ -17,31 +17,30 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\ProductController::store
- * @see app/Http/Controllers/ProductController.php:285
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/products/subcategories'
- */
+* @see app/Http/Controllers/ProductController.php:285
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/products/subcategories'
+*/
 store.url = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { current_team: args }
     }
 
-    
     if (Array.isArray(args)) {
         args = {
-                    current_team: args[0],
-                }
+            current_team: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     validateParameters(args, [
-            "current_team",
-        ])
+        "current_team",
+    ])
 
     const parsedArgs = {
-                        current_team: args?.current_team ?? '$currentTeam',
-                }
+        current_team: args?.current_team ?? '$currentTeam',
+    }
 
     return store.definition.url
             .replace('{current_team?}', parsedArgs.current_team?.toString() ?? '')
@@ -50,38 +49,15 @@ store.url = (args?: { current_team?: string | number } | [current_team: string |
 
 /**
 * @see \App\Http\Controllers\ProductController::store
- * @see app/Http/Controllers/ProductController.php:285
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/products/subcategories'
- */
+* @see app/Http/Controllers/ProductController.php:285
+* @param current_team - Default: '$currentTeam'
+* @route '/{current_team?}/products/subcategories'
+*/
 store.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
 
-    /**
-* @see \App\Http\Controllers\ProductController::store
- * @see app/Http/Controllers/ProductController.php:285
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/products/subcategories'
- */
-    const storeForm = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\ProductController::store
- * @see app/Http/Controllers/ProductController.php:285
- * @param current_team - Default: '$currentTeam'
- * @route '/{current_team?}/products/subcategories'
- */
-        storeForm.post = (args?: { current_team?: string | number } | [current_team: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
 const subcategories = {
     store: Object.assign(store, store),
 }
