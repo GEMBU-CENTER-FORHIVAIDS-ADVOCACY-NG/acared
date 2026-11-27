@@ -267,6 +267,53 @@ test('preview returns headers for column mapping', function () {
         ->assertJsonPath('headers.2', 'Amount');
 });
 
+test('imports an exported report style CSV with quoted fields and a BOM', function () {
+    $user = User::factory()->create();
+    $patient = employeeDeductionPatient($user, 'PSN0000159');
+    employeeDeductionReferenceData($user);
+
+    $file = UploadedFile::fake()->createWithContent(
+        'employee-deduction-report.csv',
+        "\xEF\xBB\xBF".employeeDeductionCsv([
+            ['Hospital No.', 'Patient', 'Category', 'Wallet Balance'],
+            [$patient->slug, 'Doe, Jane', 'Employee', '50'],
+        ]),
+    );
+
+    $response = $this->actingAs($user)->post(employeeDeductionImportUrl($user), [
+        'file' => $file,
+        'mapping' => [
+            'hospital_no' => 'Hospital No.',
+            'name' => 'Patient',
+            'amount' => 'Wallet Balance',
+        ],
+    ]);
+
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    expect((float) $patient->fresh()->wallet)->toBe(-150.0);
+});
+
+test('imports a CSV upload with a txt extension', function () {
+    $user = User::factory()->create();
+    $patient = employeeDeductionPatient($user, 'EMP-1001');
+    employeeDeductionReferenceData($user);
+
+    $file = UploadedFile::fake()->createWithContent(
+        'employee-deductions.txt',
+        employeeDeductionCsv([
+            ['Hospital No.', 'Name', 'Amount'],
+            [$patient->slug, 'Jane Doe', '50'],
+        ]),
+    );
+
+    $response = $this->actingAs($user)->post(employeeDeductionImportUrl($user), [
+        'file' => $file,
+    ]);
+
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    expect((float) $patient->fresh()->wallet)->toBe(-150.0);
+});
+
 test('imports deductions using explicit column mapping', function () {
     $user = User::factory()->create();
     $patient = employeeDeductionPatient($user, 'EMP-1001');

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Maatwebsite\Excel\Excel as ExcelReader;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
@@ -194,11 +195,17 @@ class EmployeeDeductionImporter
      */
     private function readRows(UploadedFile $file): array
     {
+        $extension = Str::lower($file->getClientOriginalExtension());
+
+        if (in_array($extension, ['csv', 'txt', 'tsv'], true)) {
+            return $this->readDelimitedRows($file, $extension === 'tsv' ? "\t" : ',');
+        }
+
         try {
-            $sheets = Excel::toCollection(null, $file);
+            $sheets = Excel::toCollection(null, $file, null, $this->readerType($extension));
         } catch (Throwable $exception) {
             throw new InvalidArgumentException(
-                'The uploaded file could not be read as a CSV or Excel file.',
+                'The uploaded file could not be read as a CSV or Excel file: '.$exception->getMessage(),
                 0,
                 $exception,
             );
@@ -218,6 +225,52 @@ class EmployeeDeductionImporter
         }
 
         return $normalized;
+    }
+
+    /**
+     * Read text-based spreadsheets directly so type detection cannot reject a
+     * valid upload (the Excel package does not map the allowed txt extension).
+     *
+     * @return list<array<int, mixed>>
+     */
+    private function readDelimitedRows(UploadedFile $file, string $delimiter): array
+    {
+        $path = $file->getRealPath() ?: $file->getPathname();
+        $handle = @fopen($path, 'rb');
+
+        if ($handle === false) {
+            throw new InvalidArgumentException('The uploaded file could not be opened for reading.');
+        }
+
+        try {
+            $rows = [];
+
+            while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
+                if ($rows === [] && isset($row[0]) && is_string($row[0])) {
+                    $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', $row[0]);
+                }
+
+                $rows[] = array_values($row);
+            }
+
+            return $rows;
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private function readerType(string $extension): ?string
+    {
+        return match ($extension) {
+            'xlsx', 'xlsm', 'xltx', 'xltm' => ExcelReader::XLSX,
+            'xls', 'xlt' => ExcelReader::XLS,
+            'ods', 'ots' => ExcelReader::ODS,
+            'slk' => ExcelReader::SLK,
+            'xml' => ExcelReader::XML,
+            'gnumeric' => ExcelReader::GNUMERIC,
+            'htm', 'html' => ExcelReader::HTML,
+            default => null,
+        };
     }
 
     /**
