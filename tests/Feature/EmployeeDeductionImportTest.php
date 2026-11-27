@@ -293,6 +293,31 @@ test('imports an exported report style CSV with quoted fields and a BOM', functi
     expect((float) $patient->fresh()->wallet)->toBe(-150.0);
 });
 
+test('imports a UTF-8 BOM CSV with quoted headers', function () {
+    $user = User::factory()->create();
+    $patient = employeeDeductionPatient($user, 'PSN0000211');
+    employeeDeductionReferenceData($user);
+
+    $contents = "\xEF\xBB\xBF".implode("\n", [
+        '"Staff ID","First Name","Last Name","Amount"',
+        $patient->slug.',BERRY,BANG,5370.00',
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('schedule.csv', $contents);
+
+    $response = $this->actingAs($user)->post(employeeDeductionImportUrl($user), [
+        'file' => $file,
+        'mapping' => [
+            'hospital_no' => 'Staff ID',
+            'name' => 'First Name',
+            'amount' => 'Amount',
+        ],
+    ]);
+
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    expect((float) $patient->fresh()->wallet)->toBe(-5470.0);
+});
+
 test('imports a CSV upload with a txt extension', function () {
     $user = User::factory()->create();
     $patient = employeeDeductionPatient($user, 'EMP-1001');

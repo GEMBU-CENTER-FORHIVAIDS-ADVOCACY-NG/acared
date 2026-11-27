@@ -243,13 +243,17 @@ class EmployeeDeductionImporter
         }
 
         try {
+            // A UTF-8 BOM before a quoted header makes fgetcsv treat the
+            // opening quote as literal text, so consume it before parsing.
+            $bom = fread($handle, 3);
+
+            if ($bom !== "\xEF\xBB\xBF") {
+                rewind($handle);
+            }
+
             $rows = [];
 
             while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
-                if ($rows === [] && isset($row[0]) && is_string($row[0])) {
-                    $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', $row[0]);
-                }
-
                 $rows[] = array_values($row);
             }
 
