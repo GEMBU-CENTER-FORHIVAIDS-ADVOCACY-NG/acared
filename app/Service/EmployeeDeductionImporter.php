@@ -456,7 +456,7 @@ class EmployeeDeductionImporter
                 $patient = $row['patient'];
                 $amount = $row['amount'];
 
-                $patient->decrement('wallet', $amount);
+                $patient->increment('wallet', $amount);
 
                 $payment = Payment::create([
                     'team_id' => $team->getKey(),

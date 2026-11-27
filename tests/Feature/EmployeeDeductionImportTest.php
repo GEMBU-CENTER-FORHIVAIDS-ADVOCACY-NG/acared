@@ -136,7 +136,7 @@ test('imports valid deductions and creates wallet, billing, and cheque payment r
     $billing = Billing::query()->where('patient_id', $patient->slug)->firstOrFail();
     $line = Line::query()->where('patient_id', $patient->slug)->firstOrFail();
 
-    expect((float) $patient->wallet)->toBe(-150.0)
+    expect((float) $patient->wallet)->toBe(-50.0)
         ->and($patient->fullName)->not->toBe('Wrong Name');
 
     expect((float) $walletHistory->credit)->toBe(50.0)
@@ -180,7 +180,7 @@ test('imports valid rows and skips invalid hospital numbers', function () {
     $response->assertRedirect()->assertSessionHasErrors('file');
 
     expect(session('errors')->first('file'))->toContain('UNKNOWN-1')
-        ->and((float) $validPatient->fresh()->wallet)->toBe(-125.0)
+        ->and((float) $validPatient->fresh()->wallet)->toBe(-75.0)
         ->and((float) $unknownPatient->fresh()->wallet)->toBe(-100.0)
         ->and(WalletHistory::query()->where('patient_id', $unknownPatient->slug)->count())->toBe(0)
         ->and(Billing::query()->where('patient_id', $unknownPatient->slug)->count())->toBe(0);
@@ -222,7 +222,7 @@ test('accepts common hospital number header variants', function (string $header)
 
     $response->assertRedirect()->assertSessionHasNoErrors();
 
-    expect((float) $patient->fresh()->wallet)->toBe(-1300.0);
+    expect((float) $patient->fresh()->wallet)->toBe(1100.0);
 })->with([
     'Hospital No.',
     'Hospital No',
@@ -290,7 +290,7 @@ test('imports an exported report style CSV with quoted fields and a BOM', functi
     ]);
 
     $response->assertRedirect()->assertSessionHasNoErrors();
-    expect((float) $patient->fresh()->wallet)->toBe(-150.0);
+    expect((float) $patient->fresh()->wallet)->toBe(-50.0);
 });
 
 test('imports a UTF-8 BOM CSV with quoted headers', function () {
@@ -315,7 +315,7 @@ test('imports a UTF-8 BOM CSV with quoted headers', function () {
     ]);
 
     $response->assertRedirect()->assertSessionHasNoErrors();
-    expect((float) $patient->fresh()->wallet)->toBe(-5470.0);
+    expect((float) $patient->fresh()->wallet)->toBe(5270.0);
 });
 
 test('imports a CSV upload with a txt extension', function () {
@@ -336,7 +336,23 @@ test('imports a CSV upload with a txt extension', function () {
     ]);
 
     $response->assertRedirect()->assertSessionHasNoErrors();
-    expect((float) $patient->fresh()->wallet)->toBe(-150.0);
+    expect((float) $patient->fresh()->wallet)->toBe(-50.0);
+});
+
+test('an imported payment equal to the negative balance clears the wallet', function () {
+    $user = User::factory()->create();
+    $patient = employeeDeductionPatient($user, 'EMP-1001', -75);
+    employeeDeductionReferenceData($user);
+
+    $response = $this->actingAs($user)->post(employeeDeductionImportUrl($user), [
+        'file' => employeeDeductionFile([
+            ['Hospital No.', 'Name', 'Amount'],
+            [$patient->slug, 'Jane Doe', '75'],
+        ]),
+    ]);
+
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    expect((float) $patient->fresh()->wallet)->toBe(0.0);
 });
 
 test('imports deductions using explicit column mapping', function () {
@@ -357,7 +373,7 @@ test('imports deductions using explicit column mapping', function () {
     ]);
 
     $response->assertRedirect()->assertSessionHasNoErrors();
-    expect((float) $patient->fresh()->wallet)->toBe(-175.0);
+    expect((float) $patient->fresh()->wallet)->toBe(-25.0);
     $this->assertDatabaseHas('payments', [
         'patient_id' => $patient->slug,
         'amount' => 75,
